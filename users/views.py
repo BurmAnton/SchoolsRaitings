@@ -24,7 +24,7 @@ def login_view(request):
 
     if request.user.is_authenticated:
         if redirect == '':
-                redirect = reverse("admin:index")
+                redirect = reverse("index")
         return HttpResponseRedirect(redirect)
 
     return render(request, "users/login.html", {
