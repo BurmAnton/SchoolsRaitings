@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% load static %}
+{% block title %}{{page_name}}{% endblock %}
+
+{% block style %}
+        <link href="{% static 'users/css/login.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block body %}
+        <div class="card login-card">
+            <div class="card-body">
+                <h5 class="card-title">Авторизация</h5>
+                {% if error_message %}
+                        <div class="alert alert-warning d-flex align-items-center" role="alert" style="margin-top: 10px;">
+                            <div>{{error_message}}</div>
+                        </div>
+                {% endif %}
+                <form method="post" action="{% url 'login_view' %}">
+                    <input type="hidden" name="next" value="{{ next }}">
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="email" id="email" class="form-control" name="email" placeholder="Email" aria-label="Email" aria-describedby="at">
+                            <span class="input-group-text" id="at">@</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="password" id="password" class="form-control" placeholder="пароль" name="password" required>
+                        </div>
+                        <div class="form-text"><a href="#">Забыли пароль?</a></div>
+                    </div>
+                    <button style="width: 100%;" class="btn btn-primary" type="submit">Войти</button>
+                </form>
+            </div>
+        </div>
+{% endblock %}

@@ -1,0 +1,81 @@
+body
+    min-height: 100vh
+    display: grid
+    grid-template-rows: auto 1fr auto
+
+    font-family: 'akrobat'
+    h1
+        font-size: 36px
+        font-weight: 400
+    .btn-primary
+        background-color: #a61849 !important
+        border-color: #a61849 !important
+    .body
+        min-height: 200px
+        display: flex
+        justify-content: center
+        background-color: rgb(255 0 0 / 12%)
+    header
+        width: 100%
+        height: min-content
+        padding-top: 5px
+        box-shadow: 0px 6px 6px rgba(166, 24, 73, 0.61)
+        
+        display: flex
+        justify-content: center
+        flex-direction: column
+        div
+            display: flex
+            justify-content: center
+            align-items: center
+        #logo
+            height: 60px
+            margin-bottom: 10px
+        #header-title
+            height: min-content
+            padding: 10px 0
+            background-color: #a61849
+            color: white 
+            p
+                margin: 0
+                font-size: 28px
+                font-weight: 400
+    footer
+        min-height: 90px
+        width: 100%
+
+        display: flex
+        justify-content: center
+        align-items: center
+        column-gap: 35px
+        span
+            display: flex
+            justify-content: center
+        #footer-email:before
+            width: 29px
+            height: 29px
+            background-image: url(../img/email-icon.png)
+            background-size: 25px 23px
+            background-repeat: no-repeat
+            padding-right: 5px
+            padding-top: 5px
+            content: ""
+        #footer-phone:before
+            content: url(../img/phone-icon.png)
+            padding-right: 5px
+            padding-top: 2px
+            padding-bottom: 2px
+        #footer-address:before
+            content: url(../img/map-icon.png)
+            padding-right: 5px
+
+
+        background-color: #262626
+        color: #b3b3b3
+
+            
+
+        
+
+
+

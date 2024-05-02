@@ -1,0 +1,86 @@
+body {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  font-family: "akrobat";
+}
+body h1 {
+  font-size: 36px;
+  font-weight: 400;
+}
+body .btn-primary {
+  background-color: #a61849 !important;
+  border-color: #a61849 !important;
+}
+body .body {
+  min-height: 200px;
+  display: flex;
+  justify-content: center;
+  background-color: rgba(255, 0, 0, 0.12);
+}
+body header {
+  width: 100%;
+  height: -moz-min-content;
+  height: min-content;
+  padding-top: 5px;
+  box-shadow: 0px 6px 6px rgba(166, 24, 73, 0.61);
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+body header div {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+body header #logo {
+  height: 60px;
+  margin-bottom: 10px;
+}
+body header #header-title {
+  height: -moz-min-content;
+  height: min-content;
+  padding: 10px 0;
+  background-color: #a61849;
+  color: white;
+}
+body header #header-title p {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 400;
+}
+body footer {
+  min-height: 90px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  -moz-column-gap: 35px;
+       column-gap: 35px;
+  background-color: #262626;
+  color: #b3b3b3;
+}
+body footer span {
+  display: flex;
+  justify-content: center;
+}
+body footer #footer-email:before {
+  width: 29px;
+  height: 29px;
+  background-image: url(../img/email-icon.png);
+  background-size: 25px 23px;
+  background-repeat: no-repeat;
+  padding-right: 5px;
+  padding-top: 5px;
+  content: "";
+}
+body footer #footer-phone:before {
+  content: url(../img/phone-icon.png);
+  padding-right: 5px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+body footer #footer-address:before {
+  content: url(../img/map-icon.png);
+  padding-right: 5px;
+}/*# sourceMappingURL=layout.css.map */
