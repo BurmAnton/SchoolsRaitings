@@ -19,15 +19,41 @@
 </head>
 <body>
     <header>
+        {% if user.is_authenticated %}
         <div id="header-menu">
+                <div class="header-nav">
+                    <img id="logo" src="{% static 'layout/img/short-logo.png' %}" alt="">
+                </div>
+                <div></div>
+                <div id="user-welcome">
+                   <span>ДОБРО ПОЖАЛОВАТЬ, {{request.user.email}}. (<a id="logout" href="{% url 'logout_view' %}?next={{request.get_full_path}}">Выйти</a>)</span> 
+                </div>
+        </div>
+        {% else %}
+        <div id="header-logo">
             <img id="logo" src="{% static 'layout/img/logo.png' %}" alt="">
         </div>
+        {% endif %}
         <div id="header-title">
             <p>АИС «Рейтингование ОО»</p>
         </div>
     </header>
     <div class="body">
-        {% block body %}{% endblock %}
+        {% if user.is_authenticated %}
+            <div id="main-menu" class="d-flex">
+                <h2>Главное меню</h2>
+                <div class="nav flex-column nav-pills me-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-home" aria-selected="true">Показатели</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-profile" aria-selected="false">Рейтинг</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-disabled" aria-selected="false">Документация</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-messages" aria-selected="false">Вопросы и ответы</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-settings" aria-selected="false">Настройки</button>
+                </div>
+            </div>
+        {% endif %}
+        <div id="page-content">
+            {% block body %}{% endblock %}
+        </div>
     </div>
     
     <footer class="wrap">

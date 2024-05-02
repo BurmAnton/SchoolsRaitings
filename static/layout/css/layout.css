@@ -5,7 +5,11 @@ body {
   font-family: "akrobat";
 }
 body h1 {
-  font-size: 36px;
+  font-size: 28px;
+  font-weight: 400;
+}
+body h2 {
+  font-size: 24px;
   font-weight: 400;
 }
 body .btn-primary {
@@ -13,10 +17,40 @@ body .btn-primary {
   border-color: #a61849 !important;
 }
 body .body {
+  padding: 25px 10%;
   min-height: 200px;
   display: flex;
   justify-content: center;
   background-color: rgba(255, 0, 0, 0.12);
+  -moz-column-gap: 25px;
+       column-gap: 25px;
+}
+body .body div {
+  background-color: white;
+  border-radius: 5px;
+}
+body .body #main-menu {
+  padding: 15px 15px;
+  width: 250px;
+  height: -moz-min-content;
+  height: min-content;
+  flex-direction: column;
+}
+body .body #main-menu h2 {
+  margin-bottom: 15px;
+}
+body .body #main-menu .nav-pills {
+  width: 100%;
+  margin-right: 0;
+}
+body .body #main-menu button {
+  text-align: left;
+  color: #a61849;
+}
+body .body #main-menu .active {
+  color: white;
+  background-color: #a61849;
+  border-color: #a61849;
 }
 body header {
   width: 100%;
@@ -36,6 +70,23 @@ body header div {
 body header #logo {
   height: 60px;
   margin-bottom: 10px;
+}
+body header #header-menu {
+  width: 80%;
+  margin: auto;
+  display: grid;
+  justify-content: space-between;
+  justify-items: start;
+  grid-template-columns: 200px auto auto;
+}
+body header #header-menu #user-welcome {
+  font-weight: 500 !important;
+  color: rgba(38, 38, 38, 0.8);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+body header #header-menu #user-welcome a {
+  color: #a61849;
 }
 body header #header-title {
   height: -moz-min-content;

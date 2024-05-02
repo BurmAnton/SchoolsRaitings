@@ -39,6 +39,6 @@ def logout_view(request):
     redirect = request.GET.get('next', '')
     logout(request)
     
-    if redirect_url == '': 
-        redirect_url = reverse("login")
+    if redirect == '': 
+        redirect = reverse("login")
     return HttpResponseRedirect(redirect)
