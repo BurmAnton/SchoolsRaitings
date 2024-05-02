@@ -18,19 +18,19 @@ class User(AbstractUser):
     objects = CustomUserManager()
 
     class Meta:
-        verbose_name = "Пользователь"
-        verbose_name_plural = "Пользователи"
+        verbose_name = "пользователь"
+        verbose_name_plural = "пользователи"
 
 
 class Group(Group):
     
     class Meta:
-        verbose_name = "Группа пользователей"
-        verbose_name_plural = "Группы пользователей"
+        verbose_name = "группа"
+        verbose_name_plural = "группы"
 
 
 class Permission(Permission):
     
     class Meta:
-        verbose_name = "Разрешение"
-        verbose_name_plural = "Разрешения"
+        verbose_name = "разрешение"
+        verbose_name_plural = "разрешения"

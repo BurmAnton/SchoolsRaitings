@@ -98,6 +98,9 @@ DATABASES = {
 AUTH_USER_MODEL = 'users.User'
 AUTH_GROUP_MODEL = 'users.Group'
 AUTH_PERMISSION_MODEL = 'users.Permission'
+LOGIN_URL = 'login_view'
+LOGIN_REDIRECT_URL = 'login_view'
+LOGOUT_REDIRECT_URL = 'logout_view'
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -133,9 +136,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_ROOT = BASE_DIR / 'static/'
+#STATIC_ROOT = BASE_DIR / 'static/'
 STATIC_URL = 'static/'
-
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
