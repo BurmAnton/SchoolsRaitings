@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load schools_extras %}
+{% block title %}Импорт школ{% endblock %}
+
+{% block style %}
+        <link href="{% static 'schools/css/import_schools.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block body %}
+<h1>Импорт школ</h1>
+<div class="import-form">
+    {% if response|get_item:"status" == "OK" %}
+        <div class="alert alert-success" role="alert">
+            <h4 class="alert-heading">Иморт успешно завершён!</h4>
+            <p>Школ добавлено: {{ response|get_item:"added_schools" }}</p>
+            <p>Школ обновлено: {{ response|get_item:"updated_schools" }}</p>
+        </div>
+    {% elif response|get_item:"status" == "Error" %}
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Ошибка импорта!</h4>
+            <p>
+                {% if response|get_item:"error_type" == "EmptySheet" %} В таблице не найдено ни одной записи!
+                {% elif response|get_item:"error_type" == "MissingFieldsError" %} 
+                    В таблице отсутствуют следующие поля:
+                    <ul>
+                        {% for field in response|get_item:"missing_fields" %}
+                            <li>{{field}}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %} При загрузке данных произошёл сбой, повторите попытку позже или обратитесь к администратору.
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+    <form enctype="multipart/form-data" action="{% url 'schools_import' %}" method="post">
+        <div class="mb-3">
+            {{ form }}
+        </div>
+        <button type="submit" class="btn btn-primary" name="import-participants">Импортировать</button>
+    </form>
+    {% if response|get_item:"missing_fields"|length != 0 %}
+        {% for row in response|get_item:"missing_fields" %}
+            <div class="alert alert-danger" role="alert">
+                В строке {{row.2}} неверно заполнены следующие поля:
+                <ul>
+                    {% for field in row.1 %}
+                        <li>{{field}}</li>
+                    {% endfor %}
+                </ul>
+            </div> 
+        {% endfor %}
+    {% endif %}
+
+</div>
+{% endblock %}

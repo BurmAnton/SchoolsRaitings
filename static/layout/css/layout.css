@@ -25,7 +25,7 @@ body .body {
   -moz-column-gap: 25px;
        column-gap: 25px;
 }
-body .body div {
+body .body > div {
   background-color: white;
   border-radius: 5px;
 }

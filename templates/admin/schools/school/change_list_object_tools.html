@@ -1,0 +1,19 @@
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+  {% if has_add_permission %}
+    <li>
+      {% url cl.opts|admin_urlname:'add' as add_url %}
+      <a href="{% add_preserved_filters add_url is_popup to_field %}" class="addlink">
+        Добавить школу
+      </a>
+    </li>
+    {% if request.user.is_superuser %}
+      <li>
+        <a href="{% url 'schools_import' %}" target="_blank" class="addlink">
+            Импорт школ
+        </a>
+      </li>
+    {% endif %}
+  {% endif %}
+{% endblock %}
