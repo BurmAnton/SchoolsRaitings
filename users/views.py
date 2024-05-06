@@ -15,7 +15,7 @@ def login_view(request):
     if request.method == "POST":
         email = request.POST["email"]
         password = request.POST["password"]
-        next = request.POST["next"]
+        redirect = request.POST["next"]
         user = authenticate(request, email=email, password=password)
         if user is not None: 
             login(request, user)
