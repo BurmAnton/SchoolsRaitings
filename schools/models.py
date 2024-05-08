@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models.deletion import CASCADE, DO_NOTHING
+from django.db.models.deletion import CASCADE, SET_NULL
 from django.utils.translation import gettext_lazy as _
 
 from users.models import User
@@ -15,7 +15,7 @@ class TerAdmin(models.Model):
         related_name="ter_admin", 
         blank=True,
         null=True,
-        on_delete=DO_NOTHING
+        on_delete=SET_NULL
     )
 
     class Meta:
@@ -47,6 +47,7 @@ class School(models.Model):
     email = models.EmailField("Официальный email",  blank=False, null=True)
     city = models.CharField("Населённый пункт", max_length=250, blank=False, null=True)
     number = models.IntegerField("Номер школы", blank=True, null=True)
+    code = models.CharField("Код регистрации", max_length=6, blank=True, null=True)
 
     school_type = models.ForeignKey(
         SchoolType, 
@@ -70,7 +71,7 @@ class School(models.Model):
         related_name="school", 
         blank=True,
         null=True,
-        on_delete=DO_NOTHING
+        on_delete=SET_NULL
     )
 
     class Meta:

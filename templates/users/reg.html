@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load schools_extras %}
+{% block title %}Регистрация{% endblock %}
+
+{% block style %}
+        <link href="{% static 'users/css/login.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block body %}
+        <div class="card login-card">
+            <div class="card-body">
+                <h5 class="card-title">Регистрация школы</h5>
+                {% if message != None %}
+                    <div class="alert alert-{{message|get_item:"message_type"}} d-flex align-items-center" role="alert" style="margin-top: 10px; width: 300px;">
+                        <div>{{ message|get_item:"message" }}</div>
+                    </div>
+                    <a href="{% url 'login_view' %}">
+                        <button style="width: 100%;" class="btn btn-primary" type="submit">Авторизация</button>
+                    </a>
+                {% endif %}
+                <form method="post" action="{% url 'reg_view' %}" {% if message|get_item:"message_type" == "success" %}style="display:none;"{% endif %}>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="email" id="email" class="form-control" name="email" placeholder="Email" aria-label="Email" aria-describedby="at">
+                            <span class="input-group-text" id="at">@</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <input type="password" id="password" class="form-control" placeholder="Введите пароль" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <input type="password" id="conf_password" class="form-control" placeholder="Подтвердите пароль" name="conf_password" required>
+                    </div>
+                    <p>Контактные данные директора</p>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" name="last_name" placeholder="Фамилия" required>
+                        <label for="last_name">Фамилия</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" name="first_name" placeholder="Имя" required>
+                        <label for="first_name">Имя</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" name="middle_name" placeholder="Отчество">
+                        <label for="middle_name">Отчество</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="phone2numeric" class="form-control" name="phone_number" placeholder="Контактный телефон">
+                        <label for="phone_number">Контактный телефон</label>
+                    </div>
+                    <button style="width: 100%;" name="send-code" class="btn btn-primary" type="submit">Регистрация</button>
+                </form>
+            </div>
+        </div>
+{% endblock %}
