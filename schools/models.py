@@ -47,13 +47,12 @@ class School(models.Model):
     email = models.EmailField("Официальный email",  blank=False, null=True)
     city = models.CharField("Населённый пункт", max_length=250, blank=False, null=True)
     number = models.IntegerField("Номер школы", blank=True, null=True)
-    code = models.CharField("Код регистрации", max_length=6, blank=True, null=True)
 
     school_type = models.ForeignKey(
         SchoolType, 
         verbose_name="Тип школы",
         related_name="schools",
-        blank=False,
+        blank=True,
         null=True,
         on_delete=CASCADE
     )

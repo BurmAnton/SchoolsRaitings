@@ -66,6 +66,9 @@ def send_confirm_link(confirm_link, user, token):
 
 @csrf_exempt
 def reg_view(request):
+    if request.user.is_authenticated:
+        return HttpResponseRedirect(reverse("index"))
+    
     message = None
 
     if request.method == "POST":

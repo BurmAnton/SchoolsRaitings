@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from email_validator import validate_email, EmailNotValidError
 
 from .models import School, TerAdmin, SchoolType
+from django.db.models import Q
 
 
 def get_sheet(form):
@@ -116,15 +117,16 @@ def load_school(sheet, row):
     if short_name == True: missing_fields.append("Сокращенное наименование")
     city = is_missing(sheet["Населённый пункт"][row])
     if city == True: missing_fields.append("Населённый пункт")
-    number = is_missing(sheet["Сокращенное наименование"][row])
-    if number == True or not(number.isnumeric()): number = None
-    else: number = int(number)
+    number = is_missing(sheet["Номер школы"][row])
+    if number == True: number = None
+    elif number.isnumeric(): number = int(number)
+    else: number = None
     
     ter_admin = is_missing(sheet["ТУ/ДО"][row])
     try: ter_admin = TerAdmin.objects.get(name=ter_admin)
     except ObjectDoesNotExist: missing_fields.append("ТУ/ДО")
     school_type = is_missing(sheet["Тип школы"][row])
-    try: school_type = SchoolType.objects.get(short_name=school_type)
+    try: school_type = SchoolType.objects.get(Q(short_name=school_type) | Q(name=school_type))
     except ObjectDoesNotExist: school_type = None
 
     if len(missing_fields) > 0:
@@ -139,6 +141,7 @@ def load_school(sheet, row):
     school.short_name = short_name
     school.city = city
     school.number = number
+    school.school_type = school_type
     school.save()
 
     return ['OK', is_new]
