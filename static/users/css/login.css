@@ -18,4 +18,8 @@
 }
 .login-card form {
   width: 300px;
+}
+.login-card .btn-outline-success {
+  margin-top: 25px;
+  width: 300px;
 }/*# sourceMappingURL=login.css.map */

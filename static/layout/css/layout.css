@@ -16,6 +16,14 @@ body .btn-primary {
   background-color: #a61849 !important;
   border-color: #a61849 !important;
 }
+body .btn-outline-primary {
+  color: #a61849 !important;
+  border-color: #a61849 !important;
+}
+body .btn-outline-primary:hover {
+  background-color: #a61849 !important;
+  color: white !important;
+}
 body .body {
   padding: 25px 10%;
   min-height: 200px;

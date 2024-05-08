@@ -27,10 +27,11 @@
                         <div class="input-group">
                             <input type="password" id="password" class="form-control" placeholder="пароль" name="password" required>
                         </div>
-                        <div class="form-text"><a href="#">Забыли пароль?</a></div>
+                        {% comment %} <div class="form-text"><a href="#">Забыли пароль?</a></div> {% endcomment %}
                     </div>
                     <button style="width: 100%;" class="btn btn-primary" type="submit">Войти</button>
                 </form>
+                <div class="form-text"><a class="btn btn-sm btn-outline-success" href="{% url 'reg_view' %}">Создать аккаунт школы</a></div>
             </div>
         </div>
 {% endblock %}

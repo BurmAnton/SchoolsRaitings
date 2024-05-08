@@ -15,9 +15,6 @@
                     <div class="alert alert-{{message|get_item:"message_type"}} d-flex align-items-center" role="alert" style="margin-top: 10px; width: 300px;">
                         <div>{{ message|get_item:"message" }}</div>
                     </div>
-                    <a href="{% url 'login_view' %}">
-                        <button style="width: 100%;" class="btn btn-primary" type="submit">Авторизация</button>
-                    </a>
                 {% endif %}
                 <form method="post" action="{% url 'reg_view' %}" {% if message|get_item:"message_type" == "success" %}style="display:none;"{% endif %}>
                     <div class="mb-3">
@@ -51,6 +48,9 @@
                     </div>
                     <button style="width: 100%;" name="send-code" class="btn btn-primary" type="submit">Регистрация</button>
                 </form>
+                <a href="{% url 'login_view' %}">
+                    <button style="width: 100%; margin-top: 15px;" class="btn btn-sm btn-outline-primary" type="submit"> Вернуться к авторизации</button>
+                </a>
             </div>
         </div>
 {% endblock %}

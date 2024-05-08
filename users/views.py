@@ -79,7 +79,7 @@ def reg_view(request):
             }
         elif password != conf_password:
             message = {"message_type": "danger",  "message":"Пароли не совпадают!"}
-        elif User.objects.filter(email=email) != 0:
+        elif User.objects.filter(email=email).count() != 0:
             message = {"message_type": "danger",  "message":"Аккаунт школы с таким email уже зарегистрирован!"}
         else:
             middle_name = request.POST["middle_name"]
