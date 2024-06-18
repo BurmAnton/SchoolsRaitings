@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 
-from reports.models import Report, SchoolReport
+from reports.models import Report, ReportZone, SchoolReport
 from users.models import Group
 from schools.models import School
 
@@ -20,7 +20,8 @@ def index(request):
 
 def reports(request, school_id):
     school = get_object_or_404(School, id=school_id)
-    reports = Report.objects.filter(closter=school.closter).order_by('year')
+    report_zones = ReportZone.objects.filter(closter=school.closter)
+    reports = Report.objects.filter(zones__in=report_zones).order_by('year').distinct()
     s_reports = SchoolReport.objects.filter(school=school)
     reports_list = []
     for report in reports:

@@ -23,6 +23,10 @@ input {
   padding: 25px 25px;
   width: calc(100% - 250px);
 }
+#page-content h1 {
+  font-size: 26px;
+  margin-bottom: 25px;
+}
 #page-content h2 {
   font-size: 22px;
 }
@@ -36,4 +40,10 @@ input {
   margin-top: 15px;
   margin-left: 25px;
   max-width: 80%;
+}
+#page-content .control-panel {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 25px;
 }/*# sourceMappingURL=report.css.map */

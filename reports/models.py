@@ -8,20 +8,72 @@ from schools.models import School, SchoolCloster
 class Report(models.Model):
     year = models.IntegerField('Год', null=False, blank=False)
     name = models.CharField("Название отчёта", max_length=750)
-    closter = models.ForeignKey(
-        SchoolCloster,
-        verbose_name='Кластер',
-        related_name='reports',
-        on_delete=CASCADE,
-        null=False, blank=False 
-    )
-
+    
     class Meta:
         verbose_name = "Отчёт (шаблон)"
         verbose_name_plural = "Отчёты (шаблоны)"
 
     def __str__(self):
-        return  f'{self.closter} ({self.year})'
+        return  f'{self.name} ({self.year})'
+    
+
+class ReportZone(models.Model):
+    report = models.ForeignKey(
+        Report,
+        verbose_name='отчёт',
+        related_name='zones',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    closter = models.ForeignKey(
+        SchoolCloster,
+        verbose_name='Кластер',
+        related_name='zones',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    ZONE_TYPES = [
+        ('R', "Красная"),
+        ('Y', "Желтая"),
+        ('G', "Зеленая"),
+    ]
+    zone = models.CharField(
+        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
+    )
+    SCHOOL_TYPES = [
+        ('A', "1 — 11 классы"),
+        ('M', "1 — 9 классы"),
+        ('S', "1 — 4 классы"),
+        ('G', "10 — 11 классы"),
+        ('MG', "5 — 11 классы"),
+    ]
+    school_type = models.CharField(
+        "Тип школы", choices=SCHOOL_TYPES, max_length=2, blank=False, null=False
+    )
+    RANGE_TYPES = [
+        ('L', "Меньше или равно"),
+        ('G', "Больше или равно"),
+        ('D', "Диапазон"),
+    ]
+    range_type = models.CharField(
+        "Тип условия", choices=RANGE_TYPES, max_length=1, blank=False, null=False
+    )
+    less_or_equal = models.DecimalField(
+        "Меьньше или равно", max_digits=5,
+        decimal_places=1, null=True, blank=True, default=None
+
+    )
+    greater_or_equal = models.DecimalField(
+        "Больше или равно", max_digits=5, decimal_places=1,
+        null=True, blank=True, default=None
+    )
+
+    class Meta:
+        verbose_name = "Зона"
+        verbose_name_plural = "Зоны"
+
+    def __str__(self):
+        return  f'{self.report}, {self.get_school_type_display()} ({self.zone})'
 
 
 class Section(models.Model):
