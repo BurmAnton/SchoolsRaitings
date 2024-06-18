@@ -16,8 +16,8 @@
                 {%for question in field.questions.all %}
                     {% if question.answer_type == 'LST' %}
                         <div class="form-floating mb-3 field">
-                            <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ question.id }}" name="{{ question.id }}">
-                                <option></option>
+                            <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ question.id }}" name="{{ question.id }}" placeholder="Не выбранно">
+                                <option>—</option>
                                 {% for option in question.options.all %}
                                     <option value="{{option.id}}">{{ option.name }} ({{ option.points }})</option>
                                 {% endfor %}

@@ -58,7 +58,7 @@ class School(models.Model):
     email = models.EmailField("Официальный email",  blank=False, null=True)
     city = models.CharField("Населённый пункт", max_length=250, blank=False, null=True)
     number = models.IntegerField("Номер школы", blank=True, null=True)
-
+    
     school_type = models.ForeignKey(
         SchoolType, 
         verbose_name="Тип школы",
@@ -90,6 +90,17 @@ class School(models.Model):
         blank=True,
         null=True,
         on_delete=SET_NULL
+    )
+
+    SCHOOL_TYPES = [
+        ('A', "1 — 11 классы"),
+        ('M', "1 — 9 классы"),
+        ('S', "1 — 4 классы"),
+        ('G', "10 — 11 классы"),
+        ('MG', "5 — 11 классы"),
+    ]
+    school_type = models.CharField(
+        "Тип школы", choices=SCHOOL_TYPES, max_length=2, blank=True, null=True
     )
 
     class Meta:
