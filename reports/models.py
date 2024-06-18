@@ -25,7 +25,7 @@ class Report(models.Model):
 
 
 class Section(models.Model):
-    number = models.CharField('Номер раздела', null=False, blank=False, max_length=500)
+    number = models.CharField('Номер раздела', null=True, blank=True, max_length=500)
     name = models.CharField("Название раздела", max_length=500)
     report = models.ForeignKey(
         Report,
@@ -40,6 +40,8 @@ class Section(models.Model):
         verbose_name_plural = "Разделы отчётов"
 
     def __str__(self):
+        if self.number is None or self.number == "":
+            return self.name
         return  f'{self.number}. {self.name}'
 
 
