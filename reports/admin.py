@@ -73,7 +73,7 @@ class RangeOptionInline(admin.TabularInline):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ['field', 'name', 'answer_type']
+    list_display = ['name', 'answer_type', 'field']
     list_filter = ['field', ]
     search_fields = ['field', 'name', 'answer_type']
     inlines = [OptionInline, RangeOptionInline]
