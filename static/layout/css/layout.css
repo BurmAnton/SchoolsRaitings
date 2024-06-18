@@ -5,7 +5,8 @@ body {
   font-family: "akrobat";
 }
 body h1 {
-  font-size: 28px;
+  text-align: center;
+  font-size: 32px;
   font-weight: 400;
 }
 body h2 {

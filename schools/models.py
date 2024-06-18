@@ -26,6 +26,17 @@ class TerAdmin(models.Model):
         return  f"{self.name}"
 
 
+class SchoolCloster(models.Model):
+    name = models.CharField("Название", max_length=250) 
+
+    class Meta:
+        verbose_name = "Кластер"
+        verbose_name_plural = "Кластеры"
+
+    def __str__(self):
+        return  self.name
+
+
 class SchoolType(models.Model):
     name = models.CharField("Полное наименование", max_length=250)
     short_name = models.CharField("Сокращенное наименование", max_length=125)
@@ -51,6 +62,14 @@ class School(models.Model):
     school_type = models.ForeignKey(
         SchoolType, 
         verbose_name="Тип школы",
+        related_name="schools",
+        blank=True,
+        null=True,
+        on_delete=CASCADE
+    )
+    closter = models.ForeignKey(
+        SchoolCloster, 
+        verbose_name="Кластер",
         related_name="schools",
         blank=True,
         null=True,

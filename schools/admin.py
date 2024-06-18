@@ -1,11 +1,16 @@
 from django.contrib import admin
 
-from .models import TerAdmin, SchoolType, School
+from .models import TerAdmin, SchoolType, School, SchoolCloster
 
 
 # Register your models here.
 @admin.register(TerAdmin)
 class TerAdminAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(SchoolCloster)
+class SchoolClosterAdmin(admin.ModelAdmin):
     pass
 
 

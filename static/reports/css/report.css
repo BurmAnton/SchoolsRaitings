@@ -1,0 +1,39 @@
+.form-floating .dropdown-toggle {
+  height: 60px !important;
+  border: 1px solid rgba(49, 52, 55, 0.5137254902) !important;
+  background-color: white !important;
+}
+.form-floating .dropdown-toggle .filter-option {
+  padding-top: 20px;
+}
+.form-floating .dropdown-menu {
+  z-index: 100;
+}
+.form-floating label {
+  font-size: 16px;
+  opacity: 0.9;
+  transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+}
+
+input {
+  border: 1px solid rgba(49, 52, 55, 0.5137254902) !important;
+}
+
+#page-content {
+  padding: 25px 25px;
+  width: calc(100% - 250px);
+}
+#page-content h2 {
+  font-size: 22px;
+}
+#page-content h3 {
+  font-size: 18px;
+}
+#page-content .section {
+  margin-left: 15px;
+}
+#page-content .section .field {
+  margin-top: 15px;
+  margin-left: 25px;
+  max-width: 80%;
+}/*# sourceMappingURL=report.css.map */

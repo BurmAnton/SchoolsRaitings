@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% load static %}
+{% block title %}Отчёты{% endblock %}
+
+{% block style %}
+        <link href="{% static 'reports/css/report.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block body %}
+    <h1>{{ report.report }}</h1>
+   {% for section in report.report.sections.all %}
+        <h2>{{ section }}</h2>
+        <div class="section">
+            {%for field in section.fields.all %}
+                <h3>{{ field }}</h3>
+                {%for question in field.questions.all %}
+                    {% if question.answer_type == 'LST' %}
+                        <div class="form-floating mb-3 field">
+                            <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ question.id }}" name="{{ question.id }}">
+                                <option></option>
+                                {% for option in question.options.all %}
+                                    <option value="{{option.id}}">{{ option.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="{{ question.id }}">{{question.name}}</label>
+                        </div>
+                    {% elif question.answer_type == 'NMBR' or question.answer_type == 'PRC' %}
+                        <div class="form-floating mb-3 field">
+                            <input type="number" class="form-control" id="{{ question.id }}" name="{{ question.id }}" placeholder="">
+                            <label for="{{ question.id }}">{{question.name}}</label>
+                        </div>
+                    {% else %}
+                        
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+   {% endfor %}
+
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% load static %}
+{% block title %}Отчёты{% endblock %}
+
+{% block style %}
+        <link href="{% static 'reports/css/reports.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block body %}
+    <h1>Отчёты</h1>
+    <table class="table">
+        <tr class="">
+            <th scope="row" class="th-center">Год</th>
+            <th scope="row">Название</th>
+            <th scope="row" class="th-center">Статус</th>
+        </tr>
+        {% for report in reports %}
+            <tr>
+                <td scope="row" class="td-center">
+                    <a href="{% url 'report' report.0.id school.id %}" target="_blank">
+                        {{ report.0.year }}
+                    </a>
+                </td>
+                <td scope="row">{{ report.0.name }}</td>
+                <td scope="row" class="td-center">
+                    {% if report.1 is not None %}{{ report.1.get_status_display }}
+                    {% else %}Ожидает заполнения{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </table>    
+{% endblock %}
