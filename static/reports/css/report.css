@@ -24,7 +24,9 @@ input {
   width: calc(100% - 250px);
 }
 #page-content h1 {
+  width: 85%;
   font-size: 26px;
+  margin: auto;
   margin-bottom: 25px;
 }
 #page-content h2 {
@@ -34,18 +36,48 @@ input {
   font-size: 18px;
 }
 #page-content .section {
+  display: none;
   margin-top: 15px;
   margin-bottom: 15px;
   margin-left: 15px;
 }
-#page-content .section .field {
-  margin-top: 15px;
-  margin-left: 25px;
-  max-width: 80%;
+#page-content .section .section-table {
+  width: 95%;
+  margin: auto;
+}
+#page-content .section .section-table .tr-section th {
+  font-size: 18px;
+  font-weight: 500;
+}
+#page-content .section .section-table .tr-field th {
+  font-size: 16px;
+  font-weight: 500;
+}
+#page-content .section .section-table .field {
+  margin-left: 15px;
+  margin-bottom: 0 !important;
+}
+#page-content .section .section-table .th-points {
+  min-width: 100px;
+}
+#page-content .section .section-table .center {
+  text-align: center;
+  vertical-align: middle;
+}
+#page-content .sections-panel {
+  width: 95%;
+  margin: auto;
+  margin-top: 25px;
+  display: flex;
+  justify-content: flex-end;
+  -moz-column-gap: 15px;
+       column-gap: 15px;
+}
+#page-content .current-section {
+  display: block;
 }
 #page-content .control-panel {
   display: flex;
-  justify-content: flex-end;
-  gap: 15px;
-  margin-top: 25px;
+  justify-content: space-between;
+  margin-bottom: 25px;
 }/*# sourceMappingURL=report.css.map */

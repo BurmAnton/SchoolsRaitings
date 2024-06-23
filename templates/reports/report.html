@@ -1,47 +1,74 @@
 {% extends "layout.html" %}
 {% load static %}
+{% load reports_extras %}
 {% block title %}Отчёты{% endblock %}
 
 {% block style %}
-        <link href="{% static 'reports/css/report.css' %}" rel="stylesheet">
+    <link href="{% static 'reports/css/report.css' %}" rel="stylesheet">
+{% endblock %}
+{% block script %}
+    <script src="{% static 'reports/js/report.js' %}" rel="stylesheet"></script>
 {% endblock %}
 
 {% block body %}
     <h1>{{ report.report }}</h1>
+    <div class="control-panel">
+        <button style="width: 250px" class="btn btn-outline-primary" type="submit">Вернуться с отчётам</button>
+        <button style="width: 250px" class="btn btn-secondary disabled" type="submit">Отправить в ТУ/ДО</button>
+    </div>
    {% for section in report.report.sections.all %}
-        <h2>{{ section }}</h2>
-        <div class="section">
+        <div class="section {% if current_section == section.id %}current-section{% endif %} {% if forloop.first %}first{% elif forloop.last %}last{% endif %}">
+            <h2>{{ section }}</h2>
+            <table class="table section-table">
+                <tr class="tr-section sticky-top">
+                    <th>Показатели/критерии</th>
+                    <th class="center th-points">Баллы</th>
+                </tr>
             {%for field in section.fields.all %}
-                <h3>{{ field }}</h3>
-                {%for question in field.questions.all %}
-                    {% if question.answer_type == 'LST' %}
-                        <div class="form-floating mb-3 field">
-                            <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ question.id }}" name="{{ question.id }}" placeholder="Не выбранно">
-                                <option>—</option>
-                                {% for option in question.options.all %}
-                                    <option value="{{option.id}}">{{ option.name }} ({{ option.points }})</option>
-                                {% endfor %}
-                            </select>
-                            <label for="{{ question.id }}">{{question.name}}</label>
-                        </div>
-                    {% elif question.answer_type == 'NMBR' or question.answer_type == 'PRC' %}
-                        <div class="form-floating mb-3 field">
-                            <input type="number" class="form-control" id="{{ question.id }}" name="{{ question.id }}" placeholder="">
-                            <label for="{{ question.id }}">{{question.name}}</label>
-                        </div>
-                    {% elif question.answer_type == 'BL' %}
-                        <div class="form-check field">
-                            <input class="form-check-input" type="checkbox" name="{{ question.id }}" id="{{ question.id }}">
-                            <label class="form-check-label" for="{{ question.id }}">{{question.name}}</label>
-                        </div>
-                    {% endif %}
+                    <tr class="tr-field">
+                        <th>{{ field }}</th>
+                        <th class="center"></th>
+                    </tr>
+                    {%for question in field.questions.all %}
+                        <tr class="question">
+                            <td scope="row">
+                                {% if question.answer_type == 'LST' %}
+                                    <div class="form-floating mb-3 field">
+                                        <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ question.id }}" name="{{ question.id }}" placeholder="Не выбранно">
+                                            <option>—</option>
+                                            {% for option in question.options.all %}
+                                                <option value="{{ option.id }}"  data-points="{{option.points}}" {% if answers|find_answer:question == option.id %}selected{% endif %}>
+                                                    {{ option.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <label for="{{ question.id }}">{{question.name}}</label>
+                                    </div>
+                                {% elif question.answer_type == 'NMBR' or question.answer_type == 'PRC' %}
+                                    <div class="form-floating mb-3 field">
+                                        <input type="number" class="form-control" id="{{ question.id }}" name="{{ question.id }}" placeholder="">
+                                        <label for="{{ question.id }}">{{question.name}}</label>
+                                    </div>
+                                {% elif question.answer_type == 'BL' %}
+                                    <div class="form-check field">
+                                        <input class="form-check-input" type="checkbox" data-points="{{question.bool_points}}" name="{{ question.id }}" id="{{ question.id }}" {% if answers|find_answer:question %}checked{% endif %}>
+                                        <label class="form-check-label" for="{{ question.id }}">{{question.name}}</label>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td scope="row" class="center" id="points_{{ question.id }}">{{ answers|get_points:question }}</td>
+                        </tr>
+                    {% endfor %}
                 {% endfor %}
-            {% endfor %}
+                {% comment %} <tr class="tr-section">
+                    <th>Всего</th>
+                    <th class="center"></th>
+                </tr> {% endcomment %}
+            </table>
         </div>
    {% endfor %}
-   <div class="control-panel">
-        <button style="width: 250px" class="btn btn-success" type="submit">Сохранить</button>
-        <button style="width: 250px" class="btn btn-secondary disabled" type="submit">Отправить в ТУ/ДО</button>
-   </div>
-
+    <div class="sections-panel">
+        <button style="width: 150px" id="btn-back" class="btn btn-outline-primary" type="submit">Назад</button>
+        <button style="width: 150px" id="btn-forward" class="btn btn-primary" type="submit">Вперёд</button>
+    </div>
 {% endblock %}

@@ -7,8 +7,17 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from email_validator import validate_email, EmailNotValidError
 
-from .models import School, TerAdmin, SchoolType
+from .models import School, SchoolCloster, TerAdmin, SchoolType
 from django.db.models import Q
+
+
+SCHOOL_LEVELS = {
+    '1 — 4 классы': 'S',
+    '1 — 9 классы': 'M',
+    '5 — 11 классы': 'MG',
+    '10 — 11 классы': 'G',
+    '1 — 11 классы': 'A',
+}
 
 
 def get_sheet(form):
@@ -63,9 +72,10 @@ def schools(form):
  
     #Требуемые поля таблицы
     fields_names = {
-        "ИНН", 
+        "ID в АИС \"Кадры в образовании\"", 
         "Полное наименование",
         "Сокращенное наименование",
+        "Уровень образования",
         "Номер школы",
         "Тип школы",
         "Email",
@@ -80,34 +90,49 @@ def schools(form):
     sheet = load_worksheet_dict(sheet, cheak_col_names["sheet_col"])
 
     missing_fields = []
-    added_schools = 0
-    updated_schools = 0
-    for row in range(len(sheet['ИНН'])):
-        responce = load_school(sheet, row)
-        if responce[0] == 'MissingField':
+    add_schools = []
+    update_schools = []
+    schools_id = School.objects.all().values_list("ais_id", flat=True)
+    for row in range(len(sheet['ID в АИС \"Кадры в образовании\"'])):
+        responce = load_school(sheet, row, schools_id)
+        if responce['status'] == 'MissingField':
             missing_fields.append(responce)
-        elif responce[1]: added_schools += 1
-        else: updated_schools += 1
+        elif responce['is_exist']:
+            update_schools.append(responce['school'])
+        else: 
+            add_schools.append(responce['school'])
+    School.objects.bulk_create(add_schools, batch_size=50)
+    School.objects.bulk_update(
+        update_schools, 
+        [
+            "ter_admin", "email", "name", 
+            "short_name", "city", "number", 
+            "school_type", "closter", "ed_level"
+        ], 
+        50
+    )
 
     return {
         "status": "OK",
-        "added_schools": added_schools,
-        "updated_schools": updated_schools,
+        "added_schools": len(add_schools),
+        "updated_schools": len(update_schools),
         "missing_fields": missing_fields
     }
 
 
 def is_missing(field):
-    if field != "" and field != None:
+    if field not in ["", None]:
         return field.strip()
     return True
 
     
-def load_school(sheet, row):
+def load_school(sheet, row, id_list):
     missing_fields = []
 
-    inn = is_missing(sheet["ИНН"][row])
-    if inn == True: missing_fields.append("ИНН")
+    ais_id = is_missing(sheet["ID в АИС \"Кадры в образовании\""][row])
+    if ais_id == True or not(ais_id.isnumeric()): 
+        missing_fields.append("ID в АИС \"Кадры в образовании\"")
+    else: ais_id = int(ais_id)
     email = is_missing(sheet["Email"][row])
     try: email = validate_email(email)["email"]
     except EmailNotValidError: missing_fields.append("Email")
@@ -121,6 +146,11 @@ def load_school(sheet, row):
     if number == True: number = None
     elif number.isnumeric(): number = int(number)
     else: number = None
+    ed_level = is_missing(sheet["Уровень образования"][row])
+    if ed_level == True or ed_level not in SCHOOL_LEVELS.keys(): 
+        missing_fields.append("Населённый пункт")
+    else:
+        ed_level = SCHOOL_LEVELS[ed_level]
     
     ter_admin = is_missing(sheet["ТУ/ДО"][row])
     try: ter_admin = TerAdmin.objects.get(name=ter_admin)
@@ -128,20 +158,29 @@ def load_school(sheet, row):
     school_type = is_missing(sheet["Тип школы"][row])
     try: school_type = SchoolType.objects.get(Q(short_name=school_type) | Q(name=school_type))
     except ObjectDoesNotExist: school_type = None
+    closter = is_missing(sheet["Кластер"][row])
+    try: closter = SchoolCloster.objects.get(name=closter)
+    except ObjectDoesNotExist: closter = None
 
     if len(missing_fields) > 0:
         return ['MissingField', missing_fields, row+2]
     
-    school, is_new = School.objects.get_or_create(
-        inn=inn,
-        ter_admin=ter_admin
-    )
+
+    is_exist = ais_id in id_list
+    if is_exist: school = School.objects.get(ais_id=ais_id)
+    else: school = School(ais_id=ais_id)
+    school.ter_admin = ter_admin
     school.email = email
     school.name = name
     school.short_name = short_name
     school.city = city
     school.number = number
     school.school_type = school_type
-    school.save()
+    school.closter = closter
+    school.ed_level = ed_level
 
-    return ['OK', is_new]
+    return {
+        'status': 'OK',  
+        'is_exist': is_exist, 
+        'school': school
+    }

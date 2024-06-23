@@ -40,15 +40,15 @@ class ReportZone(models.Model):
     zone = models.CharField(
         "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
     )
-    SCHOOL_TYPES = [
+    SCHOOL_LEVELS = [
         ('A', "1 — 11 классы"),
         ('M', "1 — 9 классы"),
         ('S', "1 — 4 классы"),
         ('G', "10 — 11 классы"),
         ('MG', "5 — 11 классы"),
     ]
-    school_type = models.CharField(
-        "Тип школы", choices=SCHOOL_TYPES, max_length=2, blank=False, null=False
+    ed_level = models.CharField(
+        "Уровень образования", choices=SCHOOL_LEVELS, max_length=2, blank=False, null=False
     )
     RANGE_TYPES = [
         ('L', "Меньше или равно"),
@@ -73,7 +73,7 @@ class ReportZone(models.Model):
         verbose_name_plural = "Зоны"
 
     def __str__(self):
-        return  f'{self.report}, {self.get_school_type_display()} ({self.zone})'
+        return  f'{self.report}, {self.get_ed_level_display()} ({self.zone})'
 
 
 class Section(models.Model):
@@ -275,7 +275,16 @@ class Answer(models.Model):
         verbose_name='опция',
         related_name='answers',
         on_delete=CASCADE,
-        null=False, blank=False 
+        null=True, blank=False 
+    )
+    points = models.DecimalField(
+        "Колво баллов",
+        max_digits=5,
+        decimal_places=1,
+        default=0
+    )
+    bool_value = models.BooleanField(
+        "Бинарный выбор", default=None, null=True
     )
 
     class Meta:

@@ -1,4 +1,7 @@
 from django.contrib import admin
+from django_admin_listfilter_dropdown.filters import (
+    RelatedDropdownFilter, ChoiceDropdownFilter
+)
 
 from .models import TerAdmin, SchoolType, School, SchoolCloster
 
@@ -21,5 +24,19 @@ class SchoolTypeAdmin(admin.ModelAdmin):
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'ter_admin', 'principal', 'email')
-    
+    list_display = [
+        '__str__', 
+        'ter_admin', 
+        'ed_level', 
+        'closter'
+    ]
+    search_fields = [
+        "ais_id", "name", "short_name",
+        "email", "city", "number",
+    ]
+    list_filter = [
+        ('ed_level', ChoiceDropdownFilter),
+        ('school_type', RelatedDropdownFilter),
+        ('ter_admin', RelatedDropdownFilter),
+        ('closter', RelatedDropdownFilter),
+    ]

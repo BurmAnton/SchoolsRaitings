@@ -50,8 +50,8 @@ class SchoolType(models.Model):
 
 
 class School(models.Model):
-    inn = models.CharField(
-        "ИНН", max_length=20, blank=False, null=False, unique=True
+    ais_id = models.IntegerField(
+        "ID в АИС \"Кадры в образовании\"", blank=False, null=True, unique=True
     )
     name = models.CharField("Полное наименование", max_length=500, blank=False, null=True)
     short_name = models.CharField("Сокращенное наименование", max_length=125, blank=False, null=True)
@@ -92,15 +92,15 @@ class School(models.Model):
         on_delete=SET_NULL
     )
 
-    SCHOOL_TYPES = [
+    SCHOOL_LEVELS = [
         ('A', "1 — 11 классы"),
         ('M', "1 — 9 классы"),
         ('S', "1 — 4 классы"),
         ('G', "10 — 11 классы"),
         ('MG', "5 — 11 классы"),
     ]
-    school_type = models.CharField(
-        "Тип школы", choices=SCHOOL_TYPES, max_length=2, blank=True, null=True
+    ed_level = models.CharField(
+        "Уровень образования", choices=SCHOOL_LEVELS, max_length=2, blank=True, null=True
     )
 
     class Meta:

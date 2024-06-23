@@ -19,7 +19,7 @@ class SectionInline(admin.TabularInline):
 class ReportZoneInline(admin.TabularInline):
     model = ReportZone
     fields = [
-        'closter', 'zone', 'school_type',
+        'closter', 'zone', 'ed_level',
         'range_type', 'greater_or_equal', 'less_or_equal'
     ]
     def get_extra(self, request, obj=None, **kwargs):

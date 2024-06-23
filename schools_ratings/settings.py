@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'reports',
     'schools',
     'users',
+    'django_admin_listfilter_dropdown',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

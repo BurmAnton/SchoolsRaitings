@@ -17,22 +17,48 @@ input
     padding: 25px 25px
     width: calc(100% - 250px)
     h1
+        width: 85%
         font-size: 26px
+        margin: auto
         margin-bottom: 25px
     h2
         font-size: 22px
     h3
         font-size: 18px
     .section
+        display: none
         margin-top: 15px
         margin-bottom: 15px
         margin-left: 15px
-        .field
-            margin-top: 15px
-            margin-left: 25px
-            max-width: 80%
-    .control-panel
+        .section-table
+            width: 95%
+            margin: auto
+            .tr-section
+                th
+                    font-size: 18px
+                    font-weight: 500
+            .tr-field
+                th
+                    font-size: 16px
+                    font-weight: 500
+            .field
+                margin-left: 15px
+                margin-bottom: 0 !important
+            .th-points
+                min-width: 100px
+            .center
+                text-align: center
+                vertical-align: middle
+    .sections-panel
+        width: 95%
+        margin: auto
+        margin-top: 25px
         display: flex
         justify-content: flex-end
-        gap: 15px
-        margin-top: 25px
+        column-gap: 15px
+    .current-section
+        display: block
+    .control-panel
+        display: flex
+        justify-content: space-between
+        margin-bottom: 25px
