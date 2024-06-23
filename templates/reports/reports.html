@@ -17,7 +17,7 @@
         {% for report in reports %}
             <tr>
                 <td scope="row" class="td-center">
-                    <a href="{% url 'report' report.0.id school.id %}" target="_blank">
+                    <a href="{% url 'report' report.0.id school.id %}">
                         {{ report.0.year }}
                     </a>
                 </td>

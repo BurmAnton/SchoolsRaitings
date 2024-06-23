@@ -64,12 +64,19 @@ class FieldAdmin(admin.ModelAdmin):
 class OptionInline(admin.TabularInline):
     model = Option
     fields = ['name', 'points']
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj:
+            return 0
+        return 3
 
 
 class RangeOptionInline(admin.TabularInline):
     model = RangeOption
-    fields = ['range_type', 'less_or_equal', 'greater_or_equal', 'equal']
-
+    fields = ['range_type',  'greater_or_equal', 'less_or_equal', 'equal', 'points']
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj:
+            return 0
+        return 3
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):

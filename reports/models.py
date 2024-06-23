@@ -213,6 +213,12 @@ class RangeOption(models.Model):
         null=True, blank=True,
         default=None
     )
+    points = models.DecimalField(
+        "Колво баллов",
+        max_digits=5,
+        decimal_places=1,
+        default=0
+    )
 
     class Meta:
         verbose_name = "Диапозон"

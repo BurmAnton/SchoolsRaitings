@@ -13,7 +13,7 @@
 {% block body %}
     <h1>{{ report.report }}</h1>
     <div class="control-panel">
-        <button style="width: 250px" class="btn btn-outline-primary" type="submit">Вернуться с отчётам</button>
+        <a href="{% url 'reports' school.id %}" style="width: 250px" class="btn btn-outline-primary" type="submit">Вернуться с отчётам</a>
         <button style="width: 250px" class="btn btn-secondary disabled" type="submit">Отправить в ТУ/ДО</button>
     </div>
    {% for section in report.report.sections.all %}
