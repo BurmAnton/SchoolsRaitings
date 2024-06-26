@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('change', () => {
             let points = document.querySelector(`option[value="${input.value}"]`).dataset.points
             change_question_value(input.id, input.value, points)
+            
             document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
         })
     })
@@ -90,6 +91,11 @@ function change_question_value(id, value, points){
             document.querySelector('.send-report').classList.remove('btn-success')
         }
     })
+    .then(result => {
+        document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
+    }
+
+    )
 }
 
 
