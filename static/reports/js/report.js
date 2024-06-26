@@ -88,7 +88,7 @@ function change_question_value(id, value, points){
         }
     })
     
-    set_points(document.querySelector(`#points_${id}`).parentElement.parentElement.querySelector('.section-points'))
+    document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
 }
 
 
