@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group as DefaultGroup
 from django.contrib.auth.admin import GroupAdmin, UserAdmin
 
 from .forms import CustomUserChangeForm, CustomUserCreationForm
-from .models import User, Group, Permission
+from .models import User, Group, Permission, Notification
 
 
 # Register your models here.
@@ -18,6 +18,9 @@ class GroupAdmin(GroupAdmin):
 class PermissionAdmin(admin.ModelAdmin):
     pass
 
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    pass
 
 @admin.register(User)
 class UserAdmin(UserAdmin):

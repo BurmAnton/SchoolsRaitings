@@ -1,21 +1,37 @@
 from django.db import models
 from django.db.models.deletion import CASCADE, SET_NULL
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
-from users.models import User
+from reports.utils import create_report_notifications
+from users.models import Notification, User
 from schools.models import School, SchoolCloster
 
 
 class Report(models.Model):
     year = models.IntegerField('Год', null=False, blank=False)
     name = models.CharField("Название отчёта", max_length=750)
-    
+    is_published = models.BooleanField(
+        "Опубликовать?", default=False
+    )
+
     class Meta:
         verbose_name = "Отчёт (шаблон)"
         verbose_name_plural = "Отчёты (шаблоны)"
 
     def __str__(self):
         return  f'{self.name} ({self.year})'
-    
+
+
+@receiver(pre_save, sender=Report, dispatch_uid='report_save_signal')
+def create_notification(sender, instance, using, **kwargs):
+    if instance.is_published:
+        if instance.id is None:
+                create_report_notifications(instance)
+        elif Report.objects.get(id=instance.id).is_published == False:
+            create_report_notifications(instance)
+
+
 
 class ReportZone(models.Model):
     report = models.ForeignKey(
@@ -252,6 +268,9 @@ class SchoolReport(models.Model):
     status = models.CharField(
         "Статус", choices=STATUSES, max_length=1, blank=False, null=False, default='C'
     )
+    is_ready = models.BooleanField(
+        "Готов к отправке?", default=False
+    )
 
     class Meta:
         verbose_name = "Отчёт"
@@ -260,6 +279,7 @@ class SchoolReport(models.Model):
     def __str__(self):
         return  f'{self.school} ({self.report})'
     
+
 
 class Answer(models.Model):
     s_report = models.ForeignKey(
@@ -289,9 +309,16 @@ class Answer(models.Model):
         decimal_places=1,
         default=0
     )
-    bool_value = models.BooleanField(
-        "Бинарный выбор", default=None, null=True
+    number_value = models.DecimalField(
+        "Числовое значение",
+        max_digits=5,
+        decimal_places=1,
+        default=0
     )
+    bool_value = models.BooleanField(
+        "Бинарный выбор", default=False, null=True
+    )
+    
 
     class Meta:
         verbose_name = "Ответ"

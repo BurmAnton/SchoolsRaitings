@@ -72,12 +72,29 @@ body
             justify-items: start
             grid-template-columns: 200px auto auto
             #user-welcome
+                #notif-btn
+                    padding: 0
+                    display: flex
+                    justify-content: center
+                    align-items: center
+                    width: 35px
+                    height: 35px
+                    border: 0px solid black
+                    border-radius: 50px
+                    margin-left: 10px
+                    background-color: white
+                    img
+                        width: 30px
+                #notif-btn.show
+                    border: 2px solid #a61849
                 font-weight: 500 !important
                 color: #262626cc
                 white-space: nowrap
                 text-transform: uppercase
                 a
                     color: #a61849
+  
+
         #header-title
             height: min-content
             padding: 10px 0
@@ -123,7 +140,43 @@ body
 
             
 
-        
+.notifcation-bar
+    display: none
+    position: absolute
+    top: 65px
+    right: 10%
+    padding-top: 5px
+    padding-bottom: 35px
+    width: 400px
+    min-height: 140px
+    background-color: white
+    border: 1px solid #817d7d
+    border-radius: 10px
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1)
+    z-index: 9999
+    .empty-notif
+        text-align: center
+        font-size: 18px
+        padding: 10px
+    .notif
+        padding: 10px
+        font-size: 14px
+        border-top: 1px solid rgba(0, 0, 0, 0.484)
+        border-bottom: 1px solid rgba(0, 0, 0, 0.484)
+        a  
+            text-decoration: none
+            color: black
+        &:hover
+            color: white
+            background-color: #a61849
+            cursor: pointer
+            a
+                font-weight: 500
+                color: white
 
-
-
+.notifcation-bar.show
+    display: flex !important
+    flex-direction: column
+    h3
+        font-size: 20px
+    

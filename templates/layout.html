@@ -9,6 +9,7 @@
     <link rel="shortcut icon" type="image/png" href="{% static 'layout/img/favicon.png' %}"/>
     <title>{% block title %}{% endblock %}</title>
     {% block style %}{% endblock %}
+    <script src="{% static 'layout/js/layout.js' %}" rel="stylesheet"></script>
     {% block script %}{% endblock %}
 
     <link href="{% static 'layout/css/layout.css' %}" rel="stylesheet">
@@ -33,7 +34,17 @@
                 </div>
                 <div></div>
                 <div id="user-welcome">
+                    
                    <span>ДОБРО ПОЖАЛОВАТЬ, {{request.user.email}}. (<a id="logout" href="{% url 'logout_view' %}?next={{request.get_full_path}}">Выйти</a>)</span> 
+                   <button id="notif-btn"><img src="{% static 'layout/img/notification.png' %}" alt=""></button>
+                </div>
+                <div class="notifcation-bar">
+                    <h3>Уведомления</h3>
+                    {% for notification in notifications %}
+                    <div class="notif"><a href="{{ notification.link }}">{{notification.message}}</a></div>
+                    {% empty %}
+                        <div class="empty-notif">Нет уведомлений</div>
+                    {% endfor %}  
                 </div>
         </div>
         {% else %}
@@ -44,17 +55,18 @@
         <div id="header-title">
             <p>АИС «Рейтингование ОО»</p>
         </div>
+        
     </header>
+    
     <div class="body">
         {% if user.is_authenticated %}
             <div id="main-menu" class="d-flex">
                 <h2>Главное меню</h2>
                 <div class="nav flex-column nav-pills me-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-home" aria-selected="true">Отчёты</button>
+                    <button class="nav-link active"  data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-home" aria-selected="true">Отчёты</button>
                     <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-profile" style="color: grey;" disabled aria-selected="false">Рейтинг</button>
                     <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-disabled" style="color: grey;"  disabled aria-selected="false">Документация</button>
                     <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-messages" style="color: grey;"  disabled aria-selected="false">Вопросы и ответы</button>
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-settings" style="color: grey;"  disabled aria-selected="false">Настройки</button>
                 </div>
             </div>
         {% endif %}

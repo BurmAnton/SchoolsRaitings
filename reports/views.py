@@ -6,7 +6,8 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from reports.models import Answer, Field, Option, Question, Report, ReportZone, SchoolReport
-from users.models import Group
+from reports.utils import select_range_option
+from users.models import Group, Notification
 from schools.models import School
 
 
@@ -26,6 +27,10 @@ def reports(request, school_id):
     reports = Report.objects.filter(zones__in=report_zones).order_by('year').distinct()
     s_reports = SchoolReport.objects.filter(school=school)
     reports_list = []
+    notifications = Notification.objects.filter(user=request.user, is_read=False)
+    for notification in notifications:
+        #notification.is_read = True
+        notification.save()
     for report in reports:
         if s_reports.filter(report=report).count() != 0:
             reports_list.append([report, s_reports[0]])
@@ -34,7 +39,8 @@ def reports(request, school_id):
 
     return render(request, "reports/reports.html", {
         'school': school,
-        'reports': reports_list
+        'reports': reports_list,
+        'notifications': notifications
     })
 
 
@@ -60,25 +66,43 @@ def report(request, report_id, school_id):
                 question=question,
             )
     answers = Answer.objects.filter(s_report=s_report)
+    if request.method == 'POST':
+        if 'send-report' in request.POST:
+            s_report.status = 'A'
+            s_report.save()
+        else:
+            ready = False
+            data = json.loads(request.body.decode("utf-8"))
+            question = Question.objects.get(id=data['id'])
+            answer = Answer.objects.get(question=question, s_report=s_report)
+            if question.answer_type == "LST":
+                try:
+                    option = Option.objects.get(id=data['value'])
+                    answer.option = option
+                    answer.points = option.points
+                except:
+                    answer.option = None
+                    answer.points = 0
+            elif question.answer_type == "BL":
+                answer.bool_value = data['value']
+                answer.points = question.bool_points if answer.bool_value else 0
+            elif question.answer_type in ['NMBR', 'PRC']:
+                answer.number_value = float(data['value'])
+                r_option = select_range_option(question.range_options.all(), answer.number_value)
+                if r_option == None: answer.points = 0
+                else: answer.points = r_option.points
+            answer.save()
 
-    if request.method == "POST":
-        data = json.loads(request.body.decode("utf-8"))
-        question = Question.objects.get(id=data['id'])
-        answer = Answer.objects.get(question=question, s_report=s_report)
-        if question.answer_type == "LST":
-            try: option = Option.objects.get(id=data['value'])
-            except: option = None
-            answer.option = option
-            answer.points = option.points
-        elif question.answer_type == "BL":
-            answer.bool_value = data['value']
-            answer.points = question.bool_points if answer.bool_value else 0
-        answer.save()
-
-        return JsonResponse(
-            {"message": "Question changed successfully."}, 
-            status=201
-        )
+            list_answers = Answer.objects.filter(question__answer_type='LST', option=None)
+            if len(list_answers) == 0:
+                s_report.is_ready = True
+            else: s_report.is_ready = False
+            s_report.save()
+            
+            return JsonResponse(
+                {"message": "Question changed successfully.", "points": str(answer.points), "ready":s_report.is_ready}, 
+                status=201
+            )
 
     return render(request, "reports/report.html", {
         'school': school,
