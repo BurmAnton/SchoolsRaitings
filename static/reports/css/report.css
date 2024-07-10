@@ -19,18 +19,26 @@ input {
   border: 1px solid rgba(49, 52, 55, 0.5137254902) !important;
 }
 
+#main-menu {
+  display: none !important;
+}
+
 #page-content {
   padding: 25px 25px;
-  width: calc(100% - 250px);
+  width: 100%;
 }
 #page-content h1 {
-  width: 85%;
+  width: 90%;
   font-size: 26px;
   margin: auto;
-  margin-bottom: 25px;
+  margin-bottom: 15px;
 }
 #page-content h2 {
   font-size: 22px;
+}
+#page-content #report-status {
+  text-align: center;
+  margin-bottom: 15px;
 }
 #page-content h3 {
   font-size: 18px;

@@ -11,15 +11,44 @@
 {% endblock %}
 
 {% block body %}
+
+    <div class="modal fade" id="SaveModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Отправка отчёта</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div style="font-size: 18px;" class="modal-body">
+                    <p>При нажатии кнопки "Отправить в ТУ/ДО", отчёт будет отправлен в {{ school.ter_admin }}.</p>
+                    <p style="margin-bottom: 0;"><b>Внимание!!!</b> Вы <b>не сможете</b> отменить это действие. В случае отправки Вы <b>не сможете</b> изменить отчёт.</p>
+
+                </div>
+                <div class="modal-footer">
+                    <form method="post" action="{% url 'report' report.report.id school.id %}">
+                        <button style="width: 250px" name="send-report" class="btn {% if report.is_ready %}btn-success{% else %}btn-secondary disabled{% endif %} send-report" type="submit">Отправить в ТУ/ДО</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <h1>{{ report.report }}</h1>
+    <h2 id="report-status">Статус: {{ report.get_status_display }}</h2>
+    {% if message == 'SendToTerAdmin' %}
+        <div class="alert alert-success" role="alert" style="margin-top: 10px; text-align: center;">
+            <div>Отчёт успешно отправлен на проверку в {{ school.ter_admin }}. Следите за изменением статус отчёта в Вашем личном кабинете.</div>
+            <div>Если Вы нашли ошибку в отчёте, свяжитесь с ТУ/ДО и попросите их изменить Ваш отчёт.</div>
+        </div>
+    {% endif %}
     <div class="control-panel">
-        <a href="{% url 'reports' school.id %}" style="width: 250px" class="btn btn-outline-primary" type="submit">Вернуться с отчётам</a>
-        <form method="post" action="{% url 'report'  report.report.id school.id %}">
-            {% if report.status == 'C'%}
-            
-                <button style="width: 250px" name="send-report" class="btn {% if report.is_ready %}btn-success{% else %}btn-secondary disabled{% endif %} send-report" type="submit">Отправить в ТУ/ДО</button>
-            {% endif %}
-        </form>
+        <a href="{% url 'reports' school.id %}" style="width: 250px" class="btn btn-outline-primary" type="submit">Вернуться к отчётам</a>
+        {% if report.status == 'C'%}
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#SaveModal">
+                Отправить в ТУ/ДО
+            </button>
+        {% endif %}
     </div>
    {% for section in report.report.sections.all %}
         <div class="section {% if current_section == section.id %}current-section{% endif %} {% if forloop.first %}first{% elif forloop.last %}last{% endif %}">

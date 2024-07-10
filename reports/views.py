@@ -46,6 +46,7 @@ def reports(request, school_id):
 
 @csrf_exempt
 def report(request, report_id, school_id):
+    message = None
     report = get_object_or_404(Report, id=report_id)
     school = get_object_or_404(School, id=school_id)
 
@@ -70,6 +71,7 @@ def report(request, report_id, school_id):
         if 'send-report' in request.POST:
             s_report.status = 'A'
             s_report.save()
+            message = "SendToTerAdmin"
         else:
             ready = False
             data = json.loads(request.body.decode("utf-8"))
@@ -105,6 +107,7 @@ def report(request, report_id, school_id):
             )
 
     return render(request, "reports/report.html", {
+        'message': message,
         'school': school,
         'report': s_report,
         'answers': answers,
