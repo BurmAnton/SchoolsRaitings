@@ -37,6 +37,9 @@ input {
 #page-content h2 {
   font-size: 22px;
 }
+#page-content #report-school {
+  text-align: center;
+}
 #page-content #report-status {
   text-align: center;
   margin-bottom: 15px;
@@ -61,6 +64,9 @@ input {
 #page-content .section .section-table {
   width: 95%;
   margin: auto;
+}
+#page-content .section .section-table th {
+  background-color: white !important;
 }
 #page-content .section .section-table .tr-section th {
   font-size: 18px;

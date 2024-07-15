@@ -35,6 +35,7 @@
 
 
     <h1>{{ report.report }}</h1>
+    <h2 id="report-school">Учебное заведение: {{ school }}</h2>
     <h2 id="report-status">Статус: {{ report.get_status_display }}</h2>
     {% if message == 'SendToMinObr' %}
         <div class="alert alert-success" role="alert" style="margin-top: 10px; text-align: center;">
