@@ -41,7 +41,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.section-points-max').forEach(th => {set_max_points(th)})
     document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
 
-    
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+        input.addEventListener('change', () => {
+            upload_file(input.files[0], input.name, input)
+        })
+    })
 })
 
 
@@ -98,6 +102,33 @@ function change_question_value(id, value, points){
     )
 }
 
+function upload_file(file, name, input){
+    let formData = new FormData()
+    formData.append('file', file)
+    formData.append('id', name)
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Accept": "application/json",
+            },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(result => {
+        console.log(result)
+        file_link = result['file_link'] 
+        let a = input.parentElement.querySelector('a')
+        a.setAttribute('href', file_link)
+        a.style.display = 'block' 
+        let alert_id = input.parentElement.parentElement.querySelector('.alert').id
+        alert_id = `#${alert_id}`
+        $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
+            $(".alert").slideUp(500);
+            input.value = "";
+        });
+    })
+}
 
 
 function check_section(){

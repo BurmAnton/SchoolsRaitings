@@ -1,6 +1,8 @@
 from django import template
 from django.db.models import Max
 
+from reports.models import ReportFile
+
 register = template.Library()
 
 
@@ -13,7 +15,11 @@ def find_answer(answers, question):
         return answers.get(question=question).bool_value
     elif question.answer_type in ['NMBR', 'PRC']:
         return format_point(answers.get(question=question).number_value)
-    
+
+
+@register.filter
+def is_answer_changed(answers, question):
+    return answers.get(question=question).is_mod_by_ter
 
 def format_point(points):
     if points % 1 == 0:
@@ -46,3 +52,10 @@ def get_max_points(question):
         points = question.range_options.aggregate(Max('points'))['points__max']
         return format_point(points)
 
+
+@register.filter
+def get_file_link(attachment):
+    try:
+        return ReportFile.objects.get(attachment=attachment).file.url
+    except:
+        return None

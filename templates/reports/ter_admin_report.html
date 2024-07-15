@@ -20,13 +20,13 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div style="font-size: 18px;" class="modal-body">
-                    <p>При нажатии кнопки "Отправить в ТУ/ДО", отчёт будет отправлен в {{ school.ter_admin }}.</p>
+                    <p>При нажатии кнопки "Отправить в МинОбр", отчёт будет отправлен в министертсво образования.</p>
                     <p style="margin-bottom: 0;"><b>Внимание!!!</b> Вы <b>не сможете</b> отменить это действие. В случае отправки Вы <b>не сможете</b> изменить отчёт.</p>
 
                 </div>
                 <div class="modal-footer">
-                    <form method="post" action="{% url 'report' report.report.id school.id %}">
-                        <button style="width: 250px" name="send-report" class="btn {% if report.is_ready %}btn-success{% else %}btn-secondary disabled{% endif %} send-report" type="submit">Отправить в ТУ/ДО</button>
+                    <form method="post" action="{% url 'ter_admin_report' ter_admin.id report.id %}">
+                        <button style="width: 250px" name="send-report" class="btn {% if report.is_ready %}btn-success{% else %}btn-secondary disabled{% endif %} send-report" type="submit">Отправить в МинОбр</button>
                     </form>
                 </div>
             </div>
@@ -36,17 +36,16 @@
 
     <h1>{{ report.report }}</h1>
     <h2 id="report-status">Статус: {{ report.get_status_display }}</h2>
-    {% if message == 'SendToTerAdmin' %}
+    {% if message == 'SendToMinObr' %}
         <div class="alert alert-success" role="alert" style="margin-top: 10px; text-align: center;">
-            <div>Отчёт успешно отправлен на проверку в {{ school.ter_admin }}. Следите за изменением статус отчёта в Вашем личном кабинете.</div>
-            <div>Если Вы нашли ошибку в отчёте, свяжитесь с ТУ/ДО и попросите их изменить Ваш отчёт.</div>
+            <div>Отчёт успешно отправлен на проверку в министертсво образования. Следите за изменением статус отчёта в Вашем личном кабинете.</div>
         </div>
     {% endif %}
     <div class="control-panel">
-        <a href="{% url 'reports' school.id %}" style="width: 250px" class="btn btn-outline-primary" type="submit">Вернуться к отчётам</a>
-        {% if report.status == 'C'%}
+        <a href="{% url 'ter_admin_reports' ter_admin.id %}" style="width: 250px" class="btn btn-outline-primary" type="submit">Вернуться к отчётам</a>
+        {% if report.status == 'A' %}
             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#SaveModal">
-                Отправить в ТУ/ДО
+                Отправить в МинОбр
             </button>
         {% endif %}
     </div>
@@ -74,9 +73,7 @@
                             {% if field.note is not None and field.note != "" %}
                                 <div class="alert alert-primary note  d-flex align-items-center" role="alert">
                                     <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
-                                    <div >
-                                        {{ field.note |safe  }}
-                                    </div>
+                                    <div>{{ field.note |safe  }}</div>
                                 </div>
                             {% endif %}
                         </th>
@@ -87,7 +84,7 @@
                             <td scope="row">
                                 {% if question.answer_type == 'LST' %}
                                     <div class="form-floating mb-3 field filed-select">
-                                        <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ question.id }}" name="{{ question.id }}" {% if report.status != 'C'%}disabled{% endif%}>
+                                        <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ question.id }}" name="{{ question.id }}" {% if report.status != 'A'%}disabled{% endif%}>
                                             <option data-points="0" value="">Не заполнено</option>
                                             {% for option in question.options.all %}
                                                 <option value="{{ option.id }}"  data-points="{{option.points}}" {% if answers|find_answer:question == option.id %}selected{% endif %}>
@@ -96,7 +93,6 @@
                                             {% endfor %}
                                         </select>
                                         <label for="{{ question.id }}">{{question.name}}</label>
-                                        {% if answers|is_answer_changed:question %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span>{% endif %}
                                         {% if question.note is not None and question.note != "" %}
                                             <div class="alert alert-primary note  d-flex align-items-center" role="alert">
                                                 <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
@@ -108,12 +104,12 @@
                                     </div>
                                 {% elif question.answer_type == 'NMBR' or question.answer_type == 'PRC' %}
                                     <div class="form-floating mb-3 field">
-                                        <input type="number" class="form-control number-input" id="{{ question.id }}" data-points="{{ answers|get_points:question }}" value="{{answers|find_answer:question}}"  name="{{ question.id }}" placeholder="" {% if report.status != 'C'%}disabled{% endif%}>
+                                        <input type="number" class="form-control number-input" id="{{ question.id }}" data-points="{{ answers|get_points:question }}" value="{{answers|find_answer:question}}"  name="{{ question.id }}" placeholder="" {% if report.status != 'A'%}disabled{% endif%}>
                                         <label for="{{ question.id }}">{{question.name}}</label>
                                     </div>
                                 {% elif question.answer_type == 'BL' %}
                                     <div class="form-check field">
-                                        <input class="form-check-input" type="checkbox" data-points="{{question.bool_points}}" name="{{ question.id }}" id="{{ question.id }}" {% if answers|find_answer:question %}checked{% endif %} {% if report.status != 'C'%}disabled{% endif%}>
+                                        <input class="form-check-input" type="checkbox" data-points="{{question.bool_points}}" name="{{ question.id }}" id="{{ question.id }}" {% if answers|find_answer:question %}checked{% endif %} {% if report.status != 'A'%}disabled{% endif%}>
                                         <label class="form-check-label" for="{{ question.id }}">{{question.name}}</label>
                                     </div>
                                 {% endif %}
@@ -139,7 +135,7 @@
                     {% if attachment.attachment_type == 'LNK' %}
                         <div class="mb-3 field">
                             <label for="Att{{ attachment.id }}">{{attachment.name}}</label>
-                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if report.status != 'C'%}disabled{% endif%}>
+                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if report.status != 'A'%}disabled{% endif%}>
                         </div>
                     {% elif attachment.attachment_type == 'DC' %}
                     <div class="mb-3">
@@ -148,7 +144,7 @@
                             Документ загружен успешно!
                         </div>
                         <div class="get-attachment">
-                            <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" {% if report.status != 'C'%}disabled{% endif%}>
+                            <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" {% if report.status != 'A'%}disabled{% endif%}>
                             <a {% if attachment|get_file_link != None %}href="{{ attachment|get_file_link }}"{% else %}style="display: none;"{% endif %}>
                                 <button class="btn btn-outline-success">Скачать прикреплённый файл</button>
                             </a>

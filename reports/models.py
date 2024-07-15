@@ -1,7 +1,10 @@
+import os
 from django.db import models
 from django.db.models.deletion import CASCADE, SET_NULL
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+
+from tinymce import models as tinymce_models
 
 from reports.utils import create_report_notifications
 from users.models import Notification, User
@@ -17,7 +20,7 @@ class Report(models.Model):
 
     class Meta:
         verbose_name = "Отчёт (шаблон)"
-        verbose_name_plural = "Отчёты (шаблоны)"
+        verbose_name_plural = "Отчёты (шаблон)"
 
     def __str__(self):
         return  f'{self.name} ({self.year})'
@@ -92,6 +95,33 @@ class ReportZone(models.Model):
         return  f'{self.report}, {self.get_ed_level_display()} ({self.zone})'
 
 
+class Attachment(models.Model):
+    name = models.CharField("Название вложения", max_length=750)
+    report = models.ForeignKey(
+        Report,
+        verbose_name='отчёт',
+        related_name='attachments',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    ATTACHMENT_TYPES = [
+        ('DC', "Документ (прикреплённый файл)"),
+        ('LNK', 'Ссылка'),
+    ]
+    attachment_type = models.CharField(
+        "Цель обучения", max_length=3, 
+        choices=ATTACHMENT_TYPES, 
+        blank=True, null=True
+    )
+
+    class Meta:
+        verbose_name = "Вложение"
+        verbose_name_plural = "Вложения"
+
+    def __str__(self):
+        return f'{self.name} ({self.get_attachment_type_display()})'
+
+
 class Section(models.Model):
     number = models.CharField('Номер раздела', null=True, blank=True, max_length=500)
     name = models.CharField("Название раздела", max_length=500)
@@ -101,6 +131,9 @@ class Section(models.Model):
         related_name='sections',
         on_delete=CASCADE,
         null=False, blank=False 
+    )
+    note = tinymce_models.HTMLField(
+        "Примечание", null=True, blank=True, default=None
     )
 
     class Meta:
@@ -122,6 +155,9 @@ class Field(models.Model):
         related_name='fields',
         on_delete=CASCADE,
         null=False, blank=False 
+    )
+    note = tinymce_models.HTMLField(
+        "Примечание", null=True, blank=True, default=None
     )
 
     class Meta:
@@ -156,6 +192,9 @@ class Question(models.Model):
         max_digits=5,
         decimal_places=1,
         default=0,
+    )
+    note = tinymce_models.HTMLField(
+        "Примечание", null=True, blank=True, default=None
     )
 
     class Meta:
@@ -318,11 +357,63 @@ class Answer(models.Model):
     bool_value = models.BooleanField(
         "Бинарный выбор", default=False, null=True
     )
+    is_mod_by_ter = models.BooleanField(
+        "Изменён ТУ/ДО?", default=False
+    )
     
-
     class Meta:
         verbose_name = "Ответ"
         verbose_name_plural = "Ответы"
 
     def __str__(self):
         return  f'{self.question}'
+
+
+class ReportFile(models.Model):
+    s_report = models.ForeignKey(
+        SchoolReport,
+        verbose_name='отчёт',
+        related_name='files',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    attachment = models.ForeignKey(
+        Attachment,
+        verbose_name='вложение (отчёт)',
+        related_name='files',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    def file_path(instance, filename):
+        return 'media/reports/{0}'.format(filename)
+    file = models.FileField("Файл", upload_to=file_path, max_length=200, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Файл"
+        verbose_name_plural = "Файлы"
+
+    def __str__(self):
+        return  f'{self.attachment.name} (файл)'
+    
+
+@receiver(models.signals.post_delete, sender=ReportFile)
+def auto_delete_file_on_delete(sender, instance, **kwargs):
+    if instance.file:
+        if os.path.isfile(instance.file.path):
+            os.remove(instance.file.path)
+
+
+@receiver(models.signals.pre_save, sender=ReportFile)
+def auto_delete_file_on_change(sender, instance, **kwargs):
+    if not instance.pk:
+        return False
+
+    try:
+        old_file = ReportFile.objects.get(pk=instance.pk).file
+    except ReportFile.DoesNotExist:
+        return False
+
+    new_file = instance.file
+    if not old_file == new_file and old_file.name is not None and old_file.name != "":
+        if os.path.isfile(old_file.path):
+            os.remove(old_file.path)

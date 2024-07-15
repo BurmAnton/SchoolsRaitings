@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import (
-    Question, RangeOption, Report, 
+    Attachment, Question, RangeOption, Report, ReportFile, 
     SchoolReport, Section, Field, Option,
     ReportZone
 )
@@ -11,8 +11,7 @@ class SectionInline(admin.TabularInline):
     model = Section
     fields = ['number', 'name']
     def get_extra(self, request, obj=None, **kwargs):
-        if obj:
-            return 0
+        if obj: return 0
         return 1
 
 
@@ -23,16 +22,24 @@ class ReportZoneInline(admin.TabularInline):
         'range_type', 'greater_or_equal', 'less_or_equal'
     ]
     def get_extra(self, request, obj=None, **kwargs):
-        if obj:
-            return 0
+        if obj: return 0
         return 1
+    
+
+class AttachmentInline(admin.TabularInline):
+    model = Attachment
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj: return 0
+        return 1
+
+
 
 
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
     list_display = ['name', 'year']
     list_filter = ['year',]
-    inlines = [SectionInline, ReportZoneInline]
+    inlines = [SectionInline, ReportZoneInline, AttachmentInline]
 
 
 class FieldInline(admin.TabularInline):
@@ -85,6 +92,15 @@ class QuestionAdmin(admin.ModelAdmin):
     search_fields = ['field', 'name', 'answer_type']
     inlines = [OptionInline, RangeOptionInline]
 
+
+class ReportFileInline(admin.TabularInline):
+    model = ReportFile
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj:
+            return 0
+        return 3
+
+
 @admin.register(SchoolReport)
 class SchoolReport(admin.ModelAdmin):
-    pass
+    inlines = [ReportFileInline, ]

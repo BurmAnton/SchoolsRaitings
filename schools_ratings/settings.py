@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'reports',
     'schools',
     'users',
+    'tinymce',
     'django_admin_listfilter_dropdown',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -145,6 +146,9 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
+MEDIA_ROOT = BASE_DIR
+MEDIA_URL = os.environ.get("MEDIA_URL")
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
@@ -157,3 +161,4 @@ DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_HOST_USER')
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 262144000

@@ -9,7 +9,8 @@
 .form-floating .dropdown-menu {
   z-index: 100;
 }
-.form-floating label {
+
+.filed-select label {
   font-size: 16px;
   opacity: 0.9;
   transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
@@ -43,6 +44,14 @@ input {
 #page-content h3 {
   font-size: 18px;
 }
+#page-content .note {
+  padding: 7px 15px !important;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+#page-content .note p {
+  margin-bottom: 0;
+}
 #page-content .section {
   display: none;
   margin-top: 15px;
@@ -65,9 +74,37 @@ input {
   margin-left: 15px;
   margin-bottom: 0 !important;
 }
+#page-content .section .section-table .question-points, #page-content .section .section-table .question-points-max {
+  padding-top: 25px;
+  text-align: center;
+}
 #page-content .section .section-table .center {
   text-align: center;
   vertical-align: middle;
+}
+#page-content .attachment-section .alert {
+  display: none;
+  width: 570px;
+  padding: 10px 10px;
+}
+#page-content .attachment-section .alert .btn-close {
+  padding: 0.9rem 1rem;
+}
+#page-content .attachment-section .attachments-inputs {
+  padding-left: 15px;
+  display: flex;
+  -moz-column-gap: 25px;
+       column-gap: 25px;
+  flex-wrap: wrap;
+  flex-direction: column;
+}
+#page-content .attachment-section .attachments-inputs .mb-3 input {
+  width: 300px;
+}
+#page-content .attachment-section .attachments-inputs .get-attachment {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
 }
 #page-content .sections-panel {
   width: 95%;

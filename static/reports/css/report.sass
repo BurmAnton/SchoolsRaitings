@@ -7,6 +7,7 @@
             padding-top: 20px
     .dropdown-menu
         z-index: 100
+.filed-select
     label
         font-size: 16px
         opacity: 0.9
@@ -30,6 +31,12 @@ input
         margin-bottom: 15px
     h3
         font-size: 18px
+    .note
+        padding: 7px 15px !important
+        margin-top: 5px
+        margin-bottom: 5px
+        p
+            margin-bottom: 0
     .section
         display: none
         margin-top: 15px
@@ -38,6 +45,7 @@ input
         .section-table
             width: 95%
             margin: auto
+            
             .tr-section
                 th
                     font-size: 18px
@@ -49,9 +57,31 @@ input
             .field
                 margin-left: 15px
                 margin-bottom: 0 !important
+            .question-points, .question-points-max
+                padding-top: 25px
+                text-align: center
             .center
                 text-align: center
                 vertical-align: middle
+    .attachment-section
+        .alert
+            display: none
+            width: 570px
+            padding: 10px 10px
+            .btn-close
+                padding: 0.9rem 1rem
+        .attachments-inputs
+            padding-left: 15px
+            display: flex
+            column-gap: 25px
+            flex-wrap: wrap
+            flex-direction: column
+            .mb-3 input
+                width: 300px
+            .get-attachment
+                display: flex
+                flex-direction: row
+                gap: 15px
     .sections-panel
         width: 95%
         margin: auto

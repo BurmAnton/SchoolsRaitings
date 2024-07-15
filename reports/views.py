@@ -5,10 +5,10 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from reports.models import Answer, Field, Option, Question, Report, ReportZone, SchoolReport
+from reports.models import Answer, Attachment, Field, Option, Question, Report, ReportFile, ReportZone, SchoolReport
 from reports.utils import select_range_option
 from users.models import Group, Notification
-from schools.models import School
+from schools.models import School, SchoolCloster, TerAdmin
 
 
 @login_required
@@ -44,6 +44,19 @@ def reports(request, school_id):
     })
 
 
+def ter_admin_reports(request, ter_admin_id):
+    ter_admin = get_object_or_404(TerAdmin, id=ter_admin_id)
+    schools = School.objects.filter(ter_admin=ter_admin)
+    s_reports = SchoolReport.objects.filter(school__in=schools)
+
+
+    return render(request, "reports/ter_admin_reports.html", {
+        'ter_admin': ter_admin,
+        'reports': s_reports,
+    })
+
+    
+
 @csrf_exempt
 def report(request, report_id, school_id):
     message = None
@@ -67,13 +80,25 @@ def report(request, report_id, school_id):
                 question=question,
             )
     answers = Answer.objects.filter(s_report=s_report)
+    attachments = report.attachments.all().order_by('-attachment_type')
+
     if request.method == 'POST':
         if 'send-report' in request.POST:
             s_report.status = 'A'
             s_report.save()
             message = "SendToTerAdmin"
+        elif request.FILES.get("file") is not None:
+            file = request.FILES.get("file")
+            id = request.POST.dict()['id']
+            attachment = Attachment.objects.get(id=id)
+            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=attachment)
+            file_obj.file = file
+            file_obj.save()
+            return JsonResponse({
+                "message": "File updated/saved successfully.",
+                "file_link": file_obj.file.url
+            }, status=201)
         else:
-            ready = False
             data = json.loads(request.body.decode("utf-8"))
             question = Question.objects.get(id=data['id'])
             answer = Answer.objects.get(question=question, s_report=s_report)
@@ -111,6 +136,80 @@ def report(request, report_id, school_id):
         'school': school,
         'report': s_report,
         'answers': answers,
+        'attachments': attachments,
         'current_section': current_section
     })
     
+
+@csrf_exempt
+def ter_admin_report(request, ter_admin_id, s_report_id):
+    message = None
+    ter_admin = get_object_or_404(TerAdmin, id=ter_admin_id)
+    s_report = get_object_or_404(SchoolReport, id=s_report_id)
+    answers = Answer.objects.filter(s_report=s_report)
+    attachments = s_report.report.attachments.all().order_by('-attachment_type')
+
+    current_section = request.GET.get('current_section', '')
+    if current_section == "":
+        current_section = s_report.report.sections.all()[0].id
+    else: current_section = int(current_section)
+
+    if request.method == 'POST':
+        if 'send-report' in request.POST:
+            s_report.status = 'B'
+            s_report.save()
+            message = "SendToMinObr"
+        elif request.FILES.get("file") is not None:
+            file = request.FILES.get("file")
+            id = request.POST.dict()['id']
+            attachment = Attachment.objects.get(id=id)
+            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=attachment)
+            file_obj.file = file
+            file_obj.save()
+            return JsonResponse({
+                "message": "File updated/saved successfully.",
+                "file_link": file_obj.file.url
+            }, status=201)
+        else:
+            data = json.loads(request.body.decode("utf-8"))
+            question = Question.objects.get(id=data['id'])
+            answer = Answer.objects.get(question=question, s_report=s_report)
+            if question.answer_type == "LST":
+                try:
+                    option = Option.objects.get(id=data['value'])
+                    answer.option = option
+                    answer.points = option.points
+                except:
+                    answer.option = None
+                    answer.points = 0
+            elif question.answer_type == "BL":
+                answer.bool_value = data['value']
+                answer.points = question.bool_points if answer.bool_value else 0
+            elif question.answer_type in ['NMBR', 'PRC']:
+                answer.number_value = float(data['value'])
+                r_option = select_range_option(question.range_options.all(), answer.number_value)
+                if r_option == None: answer.points = 0
+                else: answer.points = r_option.points
+            answer.is_mod_by_ter = True
+            answer.save()
+
+            list_answers = Answer.objects.filter(question__answer_type='LST', option=None)
+            if len(list_answers) == 0:
+                s_report.is_ready = True
+            else: s_report.is_ready = False
+            s_report.save()
+            
+            return JsonResponse(
+                {"message": "Question changed successfully.", "points": str(answer.points), "ready":s_report.is_ready}, 
+                status=201
+            )
+
+    return render(request, "reports/ter_admin_report.html", {
+        'message': message,
+        'ter_admin': ter_admin,
+        'school': s_report.school,
+        'report': s_report,
+        'answers': answers,
+        'attachments': attachments,
+        'current_section': current_section
+    })
