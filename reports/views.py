@@ -157,15 +157,16 @@ def ter_admin_reports(request, user_id):
 
     filter = None
     if 'filter' in request.POST:
+        if len(request.POST.getlist('schools')) != 0:
+            schools = schools.filter(id__in=request.POST.getlist('schools'))
+            s_reports = s_reports.filter(school__in=schools)
         if len(request.POST.getlist('closters')) != 0:
             schools = schools.filter(closter__in=request.POST.getlist('closters'))
             s_reports = s_reports.filter(school__in=schools)
-        # if len(request.POST.getlist('schools')) != 0:
-        #     schools = schools.filter(id__in=request.POST.getlist('schools'))
         if len(request.POST.getlist('status')) != 0:
             s_reports = s_reports.filter(status__in=request.POST.getlist('status'))
         filter = {
-            # 'schools': request.POST.getlist('schools'),
+            'schools': request.POST.getlist('schools'),
             'closters': request.POST.getlist('closters'),
             'status': request.POST.getlist('status')
         }

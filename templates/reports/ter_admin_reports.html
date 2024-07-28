@@ -58,9 +58,7 @@
         {% for report in reports %}
             <tr>
                 <td scope="row">
-                    <a href="{% url 'ter_admin_report' ter_admin.id report.id %}">
-                        {{ report.school }}
-                    </a>
+                    <a href="{% url 'ter_admin_report' ter_admin.id report.id %}">{{ report.school }}</a>
                 </td>
                 <td scope="row">{{ report.report.name }}</td>
                 <td scope="row" class="td-center">{{ report.report.year }}</td>
