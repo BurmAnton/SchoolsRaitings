@@ -6,7 +6,7 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from reports.models import Answer, Attachment, Field, Option, Question, Report, ReportFile, ReportZone, SchoolReport
-from reports.utils import select_range_option
+from reports.utils import count_points, select_range_option
 from users.models import Group, Notification
 from schools.models import School, SchoolCloster, TerAdmin
 
@@ -20,6 +20,9 @@ def index(request):
     teradmin_group = Group.objects.get(name='Представитель ТУ/ДО')
     if user.groups.filter(id=teradmin_group.id).count() == 1:
         return HttpResponseRedirect(reverse('ter_admin_reports', kwargs={'user_id': user.id}))
+    mo_group = Group.objects.get(name='Представитель МинОбр')
+    if user.groups.filter(id=mo_group.id).count() == 1:
+        return HttpResponseRedirect(reverse('mo_reports'))
     if user.is_superuser:
         return HttpResponseRedirect(reverse('admin:index'))
 
@@ -116,10 +119,17 @@ def report(request, report_id, school_id):
             if len(list_answers) == 0:
                 s_report.is_ready = True
             else: s_report.is_ready = False
+            zone, points_sum = count_points(s_report)
+            s_report.zone = zone
+            s_report.points = points_sum
             s_report.save()
             
             return JsonResponse(
-                {"message": "Question changed successfully.", "points": str(answer.points), "ready":s_report.is_ready}, 
+                {
+                    "message": "Question changed successfully.", 
+                    "points": str(answer.points), "ready":s_report.is_ready,
+                    "zone": zone.get_zone_display(), "report_points": s_report.points
+                }, 
                 status=201
             )
 
@@ -134,16 +144,35 @@ def report(request, report_id, school_id):
 
 
 @login_required
+@csrf_exempt
 def mo_reports(request):
     schools = School.objects.all()
     ter_admins = TerAdmin.objects.all()
+    closters = SchoolCloster.objects.filter(schools__in=schools)
     s_reports = SchoolReport.objects.filter(school__in=schools)
     
+    filter = None
+    if 'filter' in request.POST:
+        if len(request.POST.getlist('ter_admins')) != 0:
+            schools = schools.filter(ter_admin__in=request.POST.getlist('ter_admins'))
+            s_reports = s_reports.filter(school__in=schools)
+        if len(request.POST.getlist('closters')) != 0:
+            schools = schools.filter(closter__in=request.POST.getlist('closters'))
+            s_reports = s_reports.filter(school__in=schools)
+        if len(request.POST.getlist('status')) != 0:
+            s_reports = s_reports.filter(status__in=request.POST.getlist('status'))
+        filter = {
+            'ter_admins': request.POST.getlist('ter_admins'),
+            'closters': request.POST.getlist('closters'),
+            'status': request.POST.getlist('status')
+        }
+
     return render(request, "reports/mo_reports.html", {
         'reports': s_reports,
-        'ter_admins': ter_admins
+        'ter_admins': ter_admins,
+        'closters': closters,
+        'filter': filter
     })
-
 
 
 @login_required
@@ -170,8 +199,6 @@ def ter_admin_reports(request, user_id):
             'closters': request.POST.getlist('closters'),
             'status': request.POST.getlist('status')
         }
-    
-    
 
     return render(request, "reports/ter_admin_reports.html", {
         'user_id': user_id,
@@ -181,6 +208,87 @@ def ter_admin_reports(request, user_id):
         'closters': closters,
         'filter': filter
     })
+
+
+@login_required
+@csrf_exempt
+def mo_report(request, s_report_id):
+    message = None
+    s_report = get_object_or_404(SchoolReport, id=s_report_id)
+    answers = Answer.objects.filter(s_report=s_report)
+    attachments = s_report.report.attachments.all().order_by('-attachment_type')
+    
+    current_section = request.GET.get('current_section', '')
+    if current_section == "":
+        current_section = s_report.report.sections.all()[0].id
+    else: current_section = int(current_section)
+
+    if request.method == 'POST':
+        if 'send-report' in request.POST:
+            s_report.status = 'D'
+            s_report.save()
+            message = "Approved"
+        elif request.FILES.get("file") is not None:
+            file = request.FILES.get("file")
+            id = request.POST.dict()['id']
+            attachment = Attachment.objects.get(id=id)
+            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=attachment)
+            file_obj.file = file
+            file_obj.save()
+            return JsonResponse({
+                "message": "File updated/saved successfully.",
+                "file_link": file_obj.file.url
+            }, status=201)
+        else:
+            data = json.loads(request.body.decode("utf-8"))
+            question = Question.objects.get(id=data['id'])
+            answer = Answer.objects.get(question=question, s_report=s_report)
+            if question.answer_type == "LST":
+                try:
+                    option = Option.objects.get(id=data['value'])
+                    answer.option = option
+                    answer.points = option.points
+                except:
+                    answer.option = None
+                    answer.points = 0
+            elif question.answer_type == "BL":
+                answer.bool_value = data['value']
+                answer.points = question.bool_points if answer.bool_value else 0
+            elif question.answer_type in ['NMBR', 'PRC']:
+                answer.number_value = float(data['value'])
+                r_option = select_range_option(question.range_options.all(), answer.number_value)
+                if r_option == None: answer.points = 0
+                else: answer.points = r_option.points
+            answer.is_mod_by_mo = True
+            answer.save()
+
+            list_answers = Answer.objects.filter(question__answer_type='LST', option=None)
+            if len(list_answers) == 0:
+                s_report.is_ready = True
+            else: s_report.is_ready = False
+            zone, points_sum = count_points(s_report)
+            s_report.zone = zone
+            s_report.points = points_sum
+            s_report.save()
+            
+            return JsonResponse(
+                {
+                    "message": "Question changed successfully.", 
+                    "points": str(answer.points), "ready":s_report.is_ready,
+                    "zone": zone.get_zone_display(), "report_points": s_report.points
+                },  
+                status=201
+            )
+    
+    return render(request, "reports/mo_report.html", {
+        'message': message,
+        'school': s_report.school,
+        'report': s_report,
+        'answers': answers,
+        'attachments': attachments,
+        'current_section': current_section
+    })
+
 
 
 @csrf_exempt
@@ -239,10 +347,17 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
             if len(list_answers) == 0:
                 s_report.is_ready = True
             else: s_report.is_ready = False
+            zone, points_sum = count_points(s_report)
+            s_report.zone = zone
+            s_report.points = points_sum
             s_report.save()
             
             return JsonResponse(
-                {"message": "Question changed successfully.", "points": str(answer.points), "ready":s_report.is_ready}, 
+                {
+                    "message": "Question changed successfully.", 
+                    "points": str(answer.points), "ready":s_report.is_ready,
+                    "zone": zone.get_zone_display(), "report_points": s_report.points
+                },  
                 status=201
             )
 

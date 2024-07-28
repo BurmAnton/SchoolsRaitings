@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% load static %}
+{% load reports_extras %}
 {% block title %}Отчёты{% endblock %}
 
 {% block style %}
@@ -16,6 +17,7 @@
             <th scope="row" class="th-center">Год</th>
             <th scope="row">Название</th>
             <th scope="row" class="th-center">Статус</th>
+            <th scope="row" class="th-center">Баллы (Зона)</th>
         </tr>
         {% for report in reports %}
             <tr>
@@ -29,6 +31,7 @@
                     {% if report.1 is not None %}{{ report.1.get_status_display }}
                     {% else %}Ожидает заполнения{% endif %}
                 </td>
+                <td scope="row" class="td-center">{{ report.1.points|format_point }}/{{ report.1.report.points|format_point }} ({{ report.1.zone.get_zone_display }} зона)</td>
             </tr>
         {% endfor %}
     </table>    

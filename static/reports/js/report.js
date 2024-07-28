@@ -94,6 +94,8 @@ function change_question_value(id, value, points){
             document.querySelector('.send-report').classList.add('btn-secondary')
             document.querySelector('.send-report').classList.remove('btn-success')
         }
+        document.querySelector('#report-zone').innerHTML = result['zone']
+        document.querySelector('#report-points').innerHTML = result['report_points'].replace(",", ".").replace(".0", "")
     })
     .then(result => {
         document.querySelectorAll('.section-points').forEach(th => {set_points(th)})

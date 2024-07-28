@@ -29,18 +29,22 @@ input {
   width: 100%;
 }
 #page-content h1 {
-  width: 90%;
-  font-size: 26px;
+  font-size: 24px;
   margin: auto;
   margin-bottom: 15px;
 }
 #page-content h2 {
-  font-size: 22px;
+  font-size: 20px;
+  margin: auto;
+  margin-bottom: 5px;
 }
 #page-content #report-school {
   text-align: center;
 }
 #page-content #report-status {
+  text-align: center;
+}
+#page-content #report-points-zone {
   text-align: center;
   margin-bottom: 15px;
 }

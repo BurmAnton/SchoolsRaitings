@@ -1,12 +1,12 @@
 import os
 from django.db import models
 from django.db.models.deletion import CASCADE, SET_NULL
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 
 from tinymce import models as tinymce_models
 
-from reports.utils import create_report_notifications
+from reports.utils import count_report_points, create_report_notifications
 from users.models import Notification, User
 from schools.models import School, SchoolCloster
 
@@ -16,6 +16,11 @@ class Report(models.Model):
     name = models.CharField("Название отчёта", max_length=750)
     is_published = models.BooleanField(
         "Опубликовать?", default=False
+    )
+    points = models.DecimalField(
+        "Макс. баллов", max_digits=5,
+        decimal_places=1, null=False, blank=False, default=0
+
     )
 
     class Meta:
@@ -205,6 +210,13 @@ class Question(models.Model):
         return  f'{self.name} ({self.get_answer_type_display()})' 
 
 
+@receiver(post_save, sender=Question, dispatch_uid='question_save_signal')
+def create_notification(sender, instance, using, **kwargs):
+    report = instance.field.section.report
+    report.points = count_report_points(report)
+    report.save()
+
+
 class Option(models.Model):
     name = models.CharField("Название", max_length=250, blank=False, null=False)
     question = models.ForeignKey(
@@ -227,6 +239,13 @@ class Option(models.Model):
 
     def __str__(self):
         return self.name
+
+
+@receiver(post_save, sender=Option, dispatch_uid='option_save_signal')
+def create_notification(sender, instance, using, **kwargs):
+    report = instance.question.field.section.report
+    report.points = count_report_points(report)
+    report.save()
 
 
 class RangeOption(models.Model):
@@ -281,7 +300,14 @@ class RangeOption(models.Model):
 
     def __str__(self):
         return f"{self.question} ({self.range_type})"
-    
+
+
+@receiver(post_save, sender=RangeOption, dispatch_uid='range_option_save_signal')
+def create_notification(sender, instance, using, **kwargs):
+    report = instance.question.field.section.report
+    report.points = count_report_points(report)
+    report.save()
+
 
 class SchoolReport(models.Model):
     report = models.ForeignKey(
@@ -309,6 +335,19 @@ class SchoolReport(models.Model):
     )
     is_ready = models.BooleanField(
         "Готов к отправке?", default=False
+    )
+    points = models.DecimalField(
+        "Колво баллов",
+        max_digits=5,
+        decimal_places=1,
+        default=0
+    )
+    zone = models.ForeignKey(
+        ReportZone,
+        verbose_name='Зона',
+        related_name='s_reports',
+        on_delete=CASCADE,
+        null=True, blank=True 
     )
 
     class Meta:
@@ -359,6 +398,9 @@ class Answer(models.Model):
     )
     is_mod_by_ter = models.BooleanField(
         "Изменён ТУ/ДО?", default=False
+    )
+    is_mod_by_mo = models.BooleanField(
+        "Изменён МинОбром?", default=False
     )
     
     class Meta:

@@ -35,7 +35,8 @@
 
 
     <h1>{{ report.report }}</h1>
-    <h2 id="report-status">Статус: {{ report.get_status_display }}</h2>
+    <h2 id="report-status"><span style="font-weight: 500;">Статус:</span> {{ report.get_status_display }}</h2>
+    <h2 id="report-points-zone"><span style="font-weight: 500;">Баллы:</span> <span id="report-points">{{ report.points|format_point }}</span>/{{ report.report.points|format_point }} (<span id="report-zone">{{ report.zone.get_zone_display }}</span> зона)</h2>
     {% if message == 'SendToTerAdmin' %}
         <div class="alert alert-success" role="alert" style="margin-top: 10px; text-align: center;">
             <div>Отчёт успешно отправлен на проверку в {{ school.ter_admin }}. Следите за изменением статус отчёта в Вашем личном кабинете.</div>
