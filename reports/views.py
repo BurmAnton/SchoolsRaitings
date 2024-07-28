@@ -290,7 +290,7 @@ def mo_report(request, s_report_id):
     })
 
 
-
+@login_required
 @csrf_exempt
 def ter_admin_report(request, ter_admin_id, s_report_id):
     message = None

@@ -46,12 +46,8 @@ def login_view(request):
 @login_required
 @csrf_exempt
 def logout_view(request):
-    redirect = request.GET.get('next', '')
     logout(request)
-    
-    if redirect == '': 
-        redirect = reverse("login_view")
-    return HttpResponseRedirect(redirect)
+    return HttpResponseRedirect(reverse("login_view"))
 
 
 def send_confirm_link(confirm_link, user, token):

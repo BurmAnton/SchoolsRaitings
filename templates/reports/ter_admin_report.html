@@ -96,6 +96,7 @@
                                             {% endfor %}
                                         </select>
                                         <label for="{{ question.id }}">{{question.name}}</label>
+                                        {% if answers|is_answer_changed_by_mo:question %} <span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
                                         {% if question.note is not None and question.note != "" %}
                                             <div class="alert alert-primary note  d-flex align-items-center" role="alert">
                                                 <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
@@ -110,11 +111,13 @@
                                         <input type="number" class="form-control number-input" id="{{ question.id }}" data-points="{{ answers|get_points:question }}" value="{{answers|find_answer:question}}"  name="{{ question.id }}" placeholder="" {% if report.status != 'A'%}disabled{% endif%}>
                                         <label for="{{ question.id }}">{{question.name}}</label>
                                     </div>
+                                    {% if answers|is_answer_changed_by_mo:question %} <span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
                                 {% elif question.answer_type == 'BL' %}
                                     <div class="form-check field">
                                         <input class="form-check-input" type="checkbox" data-points="{{question.bool_points}}" name="{{ question.id }}" id="{{ question.id }}" {% if answers|find_answer:question %}checked{% endif %} {% if report.status != 'A'%}disabled{% endif%}>
                                         <label class="form-check-label" for="{{ question.id }}">{{question.name}}</label>
                                     </div>
+                                    {% if answers|is_answer_changed_by_mo:question %} <span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
                                 {% endif %}
                             </td>
                             <td scope="row" class="question-points" id="points_{{ question.id }}">{{ answers|get_points:question }}</td>

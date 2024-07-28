@@ -26,6 +26,12 @@ def find_answer(answers, question):
 def is_answer_changed(answers, question):
     return answers.get(question=question).is_mod_by_ter
 
+
+@register.filter
+def is_answer_changed_by_mo(answers, question):
+    return answers.get(question=question).is_mod_by_mo
+
+
 @register.filter
 def format_point(points):
     if points % 1 == 0:
