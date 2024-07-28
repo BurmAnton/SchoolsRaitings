@@ -33,8 +33,8 @@ def login_view(request):
             error_message = "Неверный логин/пароль!"
 
     if request.user.is_authenticated:
-        if redirect == '':
-                redirect = reverse("index")
+        if redirect == '' or redirect == '/users/logout/':
+            redirect = reverse("index")
         return HttpResponseRedirect(redirect)
 
     return render(request, "users/login.html", {

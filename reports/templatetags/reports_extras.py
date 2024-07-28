@@ -7,6 +7,11 @@ register = template.Library()
 
 
 @register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)
+
+
+@register.filter
 def find_answer(answers, question):
     if question.answer_type == 'LST':
         try: return answers.get(question=question).option.id

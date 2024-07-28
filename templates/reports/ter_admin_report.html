@@ -139,18 +139,18 @@
                             <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if report.status != 'A'%}disabled{% endif%}>
                         </div>
                     {% elif attachment.attachment_type == 'DC' %}
-                    <div class="mb-3">
-                        <label for="Att{{attachment.id}}">{{ attachment.name }}</label> 
-                        <div id ="alert{{attachment.id}}" class="alert alert-success alert-dismissible fade show" role="alert">
-                            Документ загружен успешно!
+                        <div class="mb-3">
+                            <label for="Att{{attachment.id}}">{{ attachment.name }}</label> 
+                            <div id ="alert{{attachment.id}}" class="alert alert-success alert-dismissible fade show" role="alert">
+                                Документ загружен успешно!
+                            </div>
+                            <div class="get-attachment">
+                                <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" {% if report.status != 'A'%}disabled{% endif%}>
+                                <a {% if attachment|get_file_link != None %}href="{{ attachment|get_file_link }}"{% else %}style="display: none;"{% endif %} target="_blank">
+                                    <button class="btn btn-outline-success">Скачать прикреплённый файл</button>
+                                </a>
+                            </div>
                         </div>
-                        <div class="get-attachment">
-                            <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" {% if report.status != 'A'%}disabled{% endif%}>
-                            <a {% if attachment|get_file_link != None %}href="{{ attachment|get_file_link }}"{% else %}style="display: none;"{% endif %}>
-                                <button class="btn btn-outline-success">Скачать прикреплённый файл</button>
-                            </a>
-                        </div>
-                    </div>
                     {% endif %}
                 {% endfor %}
             </div>

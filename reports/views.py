@@ -17,10 +17,14 @@ def index(request):
     principal_group = Group.objects.get(name='Представитель школы')
     if user.groups.filter(id=principal_group.id).count() == 1:
         return HttpResponseRedirect(reverse('reports', kwargs={'school_id': user.school.id}))
+    teradmin_group = Group.objects.get(name='Представитель ТУ/ДО')
+    if user.groups.filter(id=teradmin_group.id).count() == 1:
+        return HttpResponseRedirect(reverse('ter_admin_reports', kwargs={'user_id': user.id}))
+    if user.is_superuser:
+        return HttpResponseRedirect(reverse('admin:index'))
 
-    return render(request, "reports/index.html")
 
-
+@login_required
 def reports(request, school_id):
     school = get_object_or_404(School, id=school_id)
     report_zones = ReportZone.objects.filter(closter=school.closter)
@@ -29,7 +33,7 @@ def reports(request, school_id):
     reports_list = []
     notifications = Notification.objects.filter(user=request.user, is_read=False)
     for notification in notifications:
-        #notification.is_read = True
+        notification.is_read = True
         notification.save()
     for report in reports:
         if s_reports.filter(report=report).count() != 0:
@@ -43,20 +47,8 @@ def reports(request, school_id):
         'notifications': notifications
     })
 
-
-def ter_admin_reports(request, ter_admin_id):
-    ter_admin = get_object_or_404(TerAdmin, id=ter_admin_id)
-    schools = School.objects.filter(ter_admin=ter_admin)
-    s_reports = SchoolReport.objects.filter(school__in=schools)
-
-
-    return render(request, "reports/ter_admin_reports.html", {
-        'ter_admin': ter_admin,
-        'reports': s_reports,
-    })
-
     
-
+@login_required
 @csrf_exempt
 def report(request, report_id, school_id):
     message = None
@@ -139,7 +131,56 @@ def report(request, report_id, school_id):
         'attachments': attachments,
         'current_section': current_section
     })
+
+
+@login_required
+def mo_reports(request):
+    schools = School.objects.all()
+    ter_admins = TerAdmin.objects.all()
+    s_reports = SchoolReport.objects.filter(school__in=schools)
     
+    return render(request, "reports/mo_reports.html", {
+        'reports': s_reports,
+        'ter_admins': ter_admins
+    })
+
+
+
+@login_required
+@csrf_exempt
+def ter_admin_reports(request, user_id):
+    ter_admin = get_object_or_404(TerAdmin, representative=user_id)
+    schools = School.objects.filter(ter_admin=ter_admin)
+    all_schools = schools
+    closters = SchoolCloster.objects.filter(schools__in=schools)
+    s_reports = SchoolReport.objects.filter(school__in=schools)  
+
+    filter = None
+    if 'filter' in request.POST:
+        if len(request.POST.getlist('closters')) != 0:
+            schools = schools.filter(closter__in=request.POST.getlist('closters'))
+            s_reports = s_reports.filter(school__in=schools)
+        # if len(request.POST.getlist('schools')) != 0:
+        #     schools = schools.filter(id__in=request.POST.getlist('schools'))
+        if len(request.POST.getlist('status')) != 0:
+            s_reports = s_reports.filter(status__in=request.POST.getlist('status'))
+        filter = {
+            # 'schools': request.POST.getlist('schools'),
+            'closters': request.POST.getlist('closters'),
+            'status': request.POST.getlist('status')
+        }
+    
+    
+
+    return render(request, "reports/ter_admin_reports.html", {
+        'user_id': user_id,
+        'ter_admin': ter_admin,
+        'reports': s_reports,
+        'schools': all_schools,
+        'closters': closters,
+        'filter': filter
+    })
+
 
 @csrf_exempt
 def ter_admin_report(request, ter_admin_id, s_report_id):

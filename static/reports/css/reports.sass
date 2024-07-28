@@ -1,7 +1,35 @@
 #page-content
     padding: 25px 25px
     width: calc(100% - 250px)
-
+form
+    display: flex
+    flex-direction: column
+    align-items: flex-end
+    background-color: rgb(167 167 167 / 11%)
+    padding: 10px 15px
+    border-radius: 15px
+    margin-bottom: 25px
+    .btn-outline-primary
+        background-color: white
+        border: 0
+.filter
+    width: 100%
+    display: grid
+    grid-template: auto auto
+    column-gap: 15px
+    
+    .mb-3
+        width: 100%
+        display: flex
+        flex-direction: column
+        align-items: center
+        margin-bottom: 5px !important
+        .dropdown-toggle
+            background-color: white
+            border: 0
+        .filter-option-inner-inner
+            width: 100%
+    
 .table
     th
         font-weight: 400 !important
@@ -19,3 +47,6 @@
         text-align: center
     .th-rigth, .td-rigth
         text-align: right
+    .zero-reports
+        text-align: center
+        font-size: 18px

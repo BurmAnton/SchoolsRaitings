@@ -3,6 +3,42 @@
   width: calc(100% - 250px);
 }
 
+form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background-color: rgba(167, 167, 167, 0.11);
+  padding: 10px 15px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+}
+form .btn-outline-primary {
+  background-color: white;
+  border: 0;
+}
+
+.filter {
+  width: 100%;
+  display: grid;
+  grid-template: auto auto;
+  -moz-column-gap: 15px;
+       column-gap: 15px;
+}
+.filter .mb-3 {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 5px !important;
+}
+.filter .mb-3 .dropdown-toggle {
+  background-color: white;
+  border: 0;
+}
+.filter .mb-3 .filter-option-inner-inner {
+  width: 100%;
+}
+
 .table th {
   font-weight: 400 !important;
   font-size: 16px;
@@ -23,4 +59,8 @@
 }
 .table .th-rigth, .table .td-rigth {
   text-align: right;
+}
+.table .zero-reports {
+  text-align: center;
+  font-size: 18px;
 }/*# sourceMappingURL=reports.css.map */
