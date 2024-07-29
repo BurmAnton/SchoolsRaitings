@@ -1,4 +1,5 @@
 from django.contrib import admin
+from tinymce.models import HTMLField
 
 from .models import (
     Attachment, Question, RangeOption, Report, ReportFile, 
@@ -48,11 +49,13 @@ class FieldInline(admin.TabularInline):
 
 
 @admin.register(Section)
-class TerAdminAdmin(admin.ModelAdmin):
+class SectionAdmin(admin.ModelAdmin):
     list_display = ['report', 'number', 'name']
     list_filter = ['report', ]
     search_fields = ['report', 'number', 'name']
     inlines = [FieldInline, ]
+
+    content = HTMLField()
 
 
 class QuestionInline(admin.TabularInline):
@@ -66,6 +69,8 @@ class FieldAdmin(admin.ModelAdmin):
     list_filter = ['section', ]
     search_fields = ['section', 'number', 'name']
     inlines = [QuestionInline, ]
+
+    content = HTMLField()
 
 
 class OptionInline(admin.TabularInline):
@@ -91,6 +96,8 @@ class QuestionAdmin(admin.ModelAdmin):
     list_filter = ['field', ]
     search_fields = ['field', 'name', 'answer_type']
     inlines = [OptionInline, RangeOptionInline]
+
+    content = HTMLField()
 
 
 class ReportFileInline(admin.TabularInline):
