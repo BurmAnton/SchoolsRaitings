@@ -20,8 +20,8 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('tinymce/', include('tinymce.urls')),
+    path('admin/', admin.site.urls),
     path('schools/', include('schools.urls')),
     path('reports/', include('reports.urls')),
     path('users/', include('users.urls')),

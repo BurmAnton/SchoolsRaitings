@@ -35,7 +35,7 @@ class Report(models.Model):
 def create_notification(sender, instance, using, **kwargs):
     if instance.is_published:
         if instance.id is None:
-                create_report_notifications(instance)
+            pass
         elif Report.objects.get(id=instance.id).is_published == False:
             create_report_notifications(instance)
 
