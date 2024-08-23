@@ -56,7 +56,7 @@ def get_color(zone):
 @register.filter
 def get_points(answers, question):
     try: answer = answers.get(question=question)
-    except: answer = 0
+    except: return 0
     if question.answer_type == 'LST':
         if answer.option is not None:
             return format_point(answer.option.points)
