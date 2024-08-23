@@ -102,13 +102,15 @@
                             {% endfor %}
                         </tr>
                         {% for s_report in schools_reports %}
-                            <td scope="row">{{ s_report.school.ter_admin }}</td>
-                            <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
-                            <td scope="row">{{ s_report.school }}</td>
-                            <td scope="row" style="text-align: center;">{{ s_report|get_section_points:section }}</td>
-                            {% for field in section.fields.all %}
-                                <td scope="row" style="text-align: center;">{{ s_report|get_field_points:field }}</td>
-                            {% endfor %}
+                            <tr>
+                                <td scope="row">{{ s_report.school.ter_admin }}</td>
+                                <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
+                                <td scope="row">{{ s_report.school }}</td>
+                                <td scope="row" style="text-align: center;">{{ s_report|get_section_points:section }}</td>
+                                {% for field in section.fields.all %}
+                                    <td scope="row" style="text-align: center;">{{ s_report|get_field_points:field }}</td>
+                                {% endfor %}
+                            </tr>
                         {% endfor %}
                         <tr>
                             <td scope="row" colspan="3" style="text-align: center;"><b>Итого</b></td>
