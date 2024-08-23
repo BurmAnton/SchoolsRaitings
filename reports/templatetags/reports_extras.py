@@ -26,12 +26,16 @@ def find_answer(answers, question):
 
 @register.filter
 def is_answer_changed(answers, question):
-    return answers.get(question=question).is_mod_by_ter
+    try:
+        return answers.get(question=question).is_mod_by_ter
+    except: return False
 
 
 @register.filter
 def is_answer_changed_by_mo(answers, question):
-    return answers.get(question=question).is_mod_by_mo
+    try:
+        return answers.get(question=question).is_mod_by_mo
+    except: return False
 
 
 @register.filter
