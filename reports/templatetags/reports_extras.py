@@ -13,28 +13,25 @@ def get_item(dictionary, key):
 
 @register.filter
 def find_answer(answers, question):
-    if question.answer_type == 'LST':
-        try: return answers.get(question=question).option.id
-        except: return None
-    elif question.answer_type == 'BL':
-        return answers.get(question=question).bool_value
-    elif question.answer_type in ['NMBR', 'PRC']:
-        return format_point(answers.get(question=question).number_value)
+    try:
+        if question.answer_type == 'LST':
+            try: return answers.get(question=question).option.id
+            except: return None
+        elif question.answer_type == 'BL':
+            return answers.get(question=question).bool_value
+        elif question.answer_type in ['NMBR', 'PRC']:
+            return format_point(answers.get(question=question).number_value)
+    except: return 0
 
 
 @register.filter
 def is_answer_changed(answers, question):
-    try: 
-        return answers.get(question=question).is_mod_by_ter
-    except: return ""
+    return answers.get(question=question).is_mod_by_ter
 
 
 @register.filter
 def is_answer_changed_by_mo(answers, question):
-    try: 
-        return answers.get(question=question).is_mod_by_mo
-    except: return ""
-    
+    return answers.get(question=question).is_mod_by_mo
 
 
 @register.filter
@@ -55,17 +52,17 @@ def get_color(zone):
 
 @register.filter
 def get_points(answers, question):
-    try: answer = answers.get(question=question)
+    try:
+        answer = answers.get(question=question)
+        if question.answer_type == 'LST':
+            if answer.option is not None:
+                return format_point(answer.option.points)
+        elif question.answer_type == 'BL':
+            if answer.bool_value:
+                return format_point(question.bool_points)
+        elif question.answer_type in ['NMBR', 'PRC']:
+            return format_point(answer.points)
     except: return 0
-    if question.answer_type == 'LST':
-        if answer.option is not None:
-            return format_point(answer.option.points)
-    elif question.answer_type == 'BL':
-        if answer.bool_value:
-            return format_point(question.bool_points)
-    elif question.answer_type in ['NMBR', 'PRC']:
-        return format_point(answer.points)
-    return 0
 
 
 @register.filter
