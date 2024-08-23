@@ -5,11 +5,14 @@ body {
   font-family: "akrobat";
 }
 body h1 {
+  width: 100%;
   text-align: center;
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 400;
 }
 body h2 {
+  width: 100%;
+  text-align: center;
   font-size: 24px;
   font-weight: 400;
 }

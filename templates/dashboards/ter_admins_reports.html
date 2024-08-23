@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load dash_extras %}
+{% block title %}Статистика{% endblock %}
+
+{% block style %}
+    <link href="{% static 'dashboards/css/ter_admins_reports.css' %}" rel="stylesheet">
+{% endblock %}
+{% block script %}
+    <script src="{% static 'dashboards/js/ter_admins_reports.js' %}" rel="stylesheet"></script>
+{% endblock %}
+
+{% block body %}
+<div id="reports">
+    <h2>Отчёты</h2>
+    <table class="table">
+        <tr class="">
+            <th scope="row">Название</th>
+            <th scope="row" class="th-center">Год</th>
+        </tr>
+        {% for report in reports %}
+            <tr>
+                <td scope="row">
+                    <a href="{% url 'ter_admins_dash' report.id %}">{{ report.name }}</a>
+                </td>
+                <td scope="row"  class="td-center">{{ report.year }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}

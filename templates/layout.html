@@ -74,10 +74,10 @@
             <div id="main-menu" class="d-flex">
                 <h2>Главное меню</h2>
                 <div class="nav flex-column nav-pills me-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-                    <button class="nav-link active"  data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-home" aria-selected="true">Отчёты</button>
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-profile" style="color: grey;" disabled aria-selected="false">Рейтинг</button>
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-disabled" style="color: grey;"  disabled aria-selected="false">Документация</button>
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="" type="button" role="tab" aria-controls="v-pills-messages" style="color: grey;"  disabled aria-selected="false">Вопросы и ответы</button>
+                    <a class="nav-link active" href="{% if school is not None %}{% url 'reports' school.id %}{% elif user_id is not None %}{% url 'ter_admin_reports' user_id %}{% else %}{% url 'mo_reports' %}{% endif %}"  type="button" role="tab" aria-controls="v-pills-home" aria-selected="true">Отчёты</a>
+                    {% if school is None and user_id is None  %}<a class="nav-link dashboard-link" href="{% url 'ter_admins_reports' %}" type="button" role="tab" aria-controls="v-pills-profile" disabled aria-selected="false">Статистика</a>{% endif %}
+                    <a class="nav-link" type="button" role="tab" aria-controls="v-pills-disabled" style="color: grey;"  disabled aria-selected="false">Документация</a>
+                    <a class="nav-link"  type="button" role="tab" aria-controls="v-pills-messages" style="color: grey;"  disabled aria-selected="false">Вопросы и ответы</a>
                 </div>
             </div>
         {% endif %}

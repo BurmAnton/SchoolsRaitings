@@ -40,6 +40,15 @@ def format_point(points):
 
 
 @register.filter
+def get_color(zone):
+    if zone.zone == "R":
+        return "red"
+    if zone.zone == "Y":
+        return "#ffc600"
+    return "green"
+
+
+@register.filter
 def get_points(answers, question):
     answer = answers.get(question=question)
     if question.answer_type == 'LST':

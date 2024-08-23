@@ -39,12 +39,13 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(' ')
 # Application definition
 
 INSTALLED_APPS = [
+    'dashboards',
     'reports',
     'schools',
     'users',
     'tinymce',
     'django_admin_listfilter_dropdown',
-    'django.contrib.admin',
+    'schools_ratings.apps.MyAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',

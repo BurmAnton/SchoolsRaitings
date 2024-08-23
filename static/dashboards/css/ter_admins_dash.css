@@ -1,0 +1,113 @@
+#page-content {
+  width: calc(100% - 250px);
+  max-width: 80vw;
+  background-color: rgba(228, 0, 0, 0);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background-color: white;
+  box-shadow: 0px 7px 11px 4px #bababa;
+  padding: 25px 25px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+}
+form label {
+  font-weight: 400;
+  font-size: 18px;
+}
+form .btn-outline-primary {
+  background-color: white;
+  font-weight: 500;
+}
+
+.filter {
+  width: 100%;
+  display: grid;
+  grid-template-columns: calc(50% - 8px) calc(50% - 8px);
+  -moz-column-gap: 16px;
+       column-gap: 16px;
+}
+.filter .mb-3 {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 5px !important;
+}
+.filter .mb-3 .dropdown-toggle {
+  background-color: white;
+  border: 1px solid rgba(0, 0, 0, 0.3490196078);
+}
+.filter .mb-3 .filter-option-inner-inner {
+  width: 100%;
+}
+
+#ReportSchools h1 {
+  font-size: 28px;
+  margin-bottom: 25px;
+}
+
+.section, #ReportSchools {
+  background: white;
+  box-shadow: 0px 7px 11px 4px #bababa;
+  padding: 25px 25px;
+  margin-top: 15px;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 100%;
+}
+.section h2, #ReportSchools h2 {
+  margin-bottom: 15px;
+}
+.section .outer-container, #ReportSchools .outer-container {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+.section .outer-container .table-container, #ReportSchools .outer-container .table-container {
+  height: -moz-min-content;
+  height: min-content;
+  max-height: 700px;
+}
+.section .outer-container .table, #ReportSchools .outer-container .table {
+  width: 100%;
+  min-width: 600px;
+  /* Sticky First Column */
+}
+.section .outer-container .table th, #ReportSchools .outer-container .table th {
+  font-weight: 400 !important;
+  font-size: 16px;
+  line-height: 20px;
+  border-top: 0;
+  border-bottom: 2px solid black;
+  background-color: white;
+}
+.section .outer-container .table td, #ReportSchools .outer-container .table td {
+  font-weight: 300 !important;
+  max-width: 250px;
+  vertical-align: middle;
+  word-wrap: break-word;
+}
+.section .outer-container .table .th-center, .section .outer-container .table .td-center, #ReportSchools .outer-container .table .th-center, #ReportSchools .outer-container .table .td-center {
+  text-align: center;
+}
+.section .outer-container .table .th-rigth, .section .outer-container .table .td-rigth, #ReportSchools .outer-container .table .th-rigth, #ReportSchools .outer-container .table .td-rigth {
+  text-align: right;
+}
+.section .outer-container .table .section-hdr, #ReportSchools .outer-container .table .section-hdr {
+  min-width: 350px;
+}
+.section .outer-container .table td:first-child, .section .outer-container .table th:first-child, #ReportSchools .outer-container .table td:first-child, #ReportSchools .outer-container .table th:first-child {
+  min-width: 250px;
+  background-color: white;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+.section .outer-container .table th:first-child, #ReportSchools .outer-container .table th:first-child {
+  z-index: 1060;
+}/*# sourceMappingURL=ter_admins_dash.css.map */

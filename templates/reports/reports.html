@@ -11,28 +11,30 @@
 {% endblock %}
 
 {% block body %}
-    <h1>Отчёты</h1>
-    <table class="table">
-        <tr class="">
-            <th scope="row" class="th-center">Год</th>
-            <th scope="row">Название</th>
-            <th scope="row" class="th-center">Статус</th>
-            <th scope="row" class="th-center">Баллы (Зона)</th>
-        </tr>
-        {% for report in reports %}
-            <tr>
-                <td scope="row" class="td-center">
-                    <a href="{% url 'report' report.0.id school.id %}">
-                        {{ report.0.year }}
-                    </a>
-                </td>
-                <td scope="row">{{ report.0.name }}</td>
-                <td scope="row" class="td-center">
-                    {% if report.1 is not None %}{{ report.1.get_status_display }}
-                    {% else %}Ожидает заполнения{% endif %}
-                </td>
-                <td scope="row" class="td-center">{{ report.1.points|format_point }}/{{ report.1.report.points|format_point }} ({{ report.1.zone.get_zone_display }} зона)</td>
+    <div id="reports">
+        <h2>Отчёты</h2>
+        <table class="table">
+            <tr class="">
+                <th scope="row" class="th-center">Год</th>
+                <th scope="row">Название</th>
+                <th scope="row" class="th-center">Статус</th>
+                <th scope="row" class="th-center">Баллы (Зона)</th>
             </tr>
-        {% endfor %}
-    </table>    
+            {% for report in reports %}
+                <tr>
+                    <td scope="row" class="td-center">
+                        <a href="{% url 'report' report.0.id school.id %}">
+                            {{ report.0.year }}
+                        </a>
+                    </td>
+                    <td scope="row">{{ report.0.name }}</td>
+                    <td scope="row" class="td-center">
+                        {% if report.1 is not None %}{{ report.1.get_status_display }}
+                        {% else %}Ожидает заполнения{% endif %}
+                    </td>
+                    <td scope="row" class="td-center">{{ report.1.points|format_point }}/{{ report.1.report.points|format_point }} ({{ report.1.zone.get_zone_display }} зона)</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
 {% endblock %}

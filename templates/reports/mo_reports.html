@@ -11,9 +11,10 @@
 {% endblock %}
 
 {% block body %}
-    <h1>Отчёты</h1>
+    
     
     <form method="post" action="{% url 'mo_reports' %}">
+        <h2>Фильтр отчётов</h2>
         <div class="filter">
             <div class="form mb-3" style="grid-column-start: 1; grid-column-end: 3; grid-row: 1;">
                 <label for="ClosterFilter">Кластеры</label>
@@ -46,32 +47,38 @@
             {% if filter is not None %}<a style="width: 150px" href="{% url 'mo_reports' %}" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
         </div>
     </form>
-    
-
-    <table class="table">
-        <tr class="">
-            <th scope="row">Школа</th>
-            <th scope="row">Название отчёта</th>
-            <th scope="row" class="th-center">Год</th>
-            <th scope="row" class="th-center">Статус</th>
-            <th scope="row" class="th-center">Баллы (Зона)</th>
-        </tr>
-        {% for report in reports %}
-            <tr>
-                <td scope="row">
-                    <a href="{% url 'mo_report' report.id %}">{{ report.school }}</a>
-                </td>
-                <td scope="row">{{ report.report.name }}</td>
-                <td scope="row" class="td-center">{{ report.report.year }}</td>
-                <td scope="row" class="td-center">
-                    {{ report.get_status_display }}
-                </td>
-                <td scope="row" class="td-center">{{ report.points|format_point }}/{{ report.report.points|format_point }} ({{ report.zone.get_zone_display }} зона)</td>
+    <div id="reports">
+        <h2>Отчёты</h2>
+        <table class="table">
+            <tr class="">
+                <th scope="row">Школа</th>
+                <th scope="row">Название отчёта</th>
+                <th scope="row" class="th-center">Год</th>
+                <th scope="row" class="th-center">Статус</th>
+                <th scope="row" class="th-center">Баллы (Зона)</th>
             </tr>
-        {% empty %}
-            <tr>
-                <td colspan="5" class="zero-reports">Нет отчётов</td>
-            </tr>
-        {% endfor %}
-    </table>    
+            {% for report in reports %}
+                <tr>
+                    <td scope="row">
+                        <a href="{% url 'mo_report' report.id %}">{{ report.school }}</a>
+                    </td>
+                    <td scope="row">{{ report.report.name }}</td>
+                    <td scope="row" class="td-center">{{ report.report.year }}</td>
+                    <td scope="row" class="td-center">
+                        {{ report.get_status_display }}
+                    </td>
+                    <td scope="row" class="td-center">
+                        <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
+                            <div style="background-color: {{report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                            <div>{{ report.points|format_point }}/{{ report.report.points|format_point }}</div>
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" class="zero-reports">Нет отчётов</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>  
 {% endblock %}
