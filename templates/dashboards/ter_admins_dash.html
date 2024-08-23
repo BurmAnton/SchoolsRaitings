@@ -98,7 +98,7 @@
                             <th scope="row">Школа</th>
                             <th scope="row">Итого</th>
                             {% for field in section.fields.all %}
-                                <th scope="row" style="text-align: center;">{{field}}</th>
+                                <th  class="section-hdr sticky-top" scope="row" style="text-align: center;">{{field}}</th>
                             {% endfor %}
                         </tr>
                         {% for s_report in schools_reports %}

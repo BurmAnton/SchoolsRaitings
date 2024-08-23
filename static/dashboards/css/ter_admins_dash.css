@@ -99,7 +99,7 @@ form .btn-outline-primary {
   text-align: right;
 }
 .section .outer-container .table .section-hdr, #ReportSchools .outer-container .table .section-hdr {
-  min-width: 350px;
+  min-width: 350px !important;
 }
 .section .outer-container .table td:first-child, .section .outer-container .table th:first-child, #ReportSchools .outer-container .table td:first-child, #ReportSchools .outer-container .table th:first-child {
   min-width: 250px;
