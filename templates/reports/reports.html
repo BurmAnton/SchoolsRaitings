@@ -32,7 +32,12 @@
                         {% if report.1 is not None %}{{ report.1.get_status_display }}
                         {% else %}Ожидает заполнения{% endif %}
                     </td>
-                    <td scope="row" class="td-center">{% if report.1 is not None %}{{ report.1.points|format_point }}/{{ report.1.report.points|format_point }} ({{ report.1.zone.get_zone_display }} зона){% else %}0{% endif%}</td>
+                    <td scope="row" style="text-align: center; ">
+                        <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
+                            <div style="background-color: {{report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                            <div>{{ report.points|format_point }}</div>
+                        </div>
+                    </td>
                 </tr>
             {% endfor %}
         </table>
