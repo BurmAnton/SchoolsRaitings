@@ -36,7 +36,7 @@
                         {% if report.1 is not None %}
                         <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
                             <div style="background-color: {{report.1.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
-                            <div>{{ report.points|format_point }}</div>
+                            <div>{{ report.1.points|format_point }}</div>
                         </div>
                     {% else %}0{% endif%}</td>
                 </tr>
