@@ -32,12 +32,12 @@
                         {% if report.1 is not None %}{{ report.1.get_status_display }}
                         {% else %}Ожидает заполнения{% endif %}
                     </td>
-                    <td scope="row" style="text-align: center; ">
+                    <td scope="row" class="td-center">{% if report.1 is not None %}
                         <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
                             <div style="background-color: {{report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
                             <div>{{ report.points|format_point }}</div>
                         </div>
-                    </td>
+                    {% else %}0{% endif%}</td>
                 </tr>
             {% endfor %}
         </table>
