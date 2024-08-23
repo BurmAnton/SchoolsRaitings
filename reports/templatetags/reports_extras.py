@@ -24,12 +24,17 @@ def find_answer(answers, question):
 
 @register.filter
 def is_answer_changed(answers, question):
-    return answers.get(question=question).is_mod_by_ter
+    try: 
+        return answers.get(question=question).is_mod_by_ter
+    except: return ""
 
 
 @register.filter
 def is_answer_changed_by_mo(answers, question):
-    return answers.get(question=question).is_mod_by_mo
+    try: 
+        return answers.get(question=question).is_mod_by_mo
+    except: return ""
+    
 
 
 @register.filter
@@ -50,7 +55,8 @@ def get_color(zone):
 
 @register.filter
 def get_points(answers, question):
-    answer = answers.get(question=question)
+    try: answer = answers.get(question=question)
+    except: answer = 0
     if question.answer_type == 'LST':
         if answer.option is not None:
             return format_point(answer.option.points)
