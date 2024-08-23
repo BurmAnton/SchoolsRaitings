@@ -50,7 +50,7 @@ def ter_admins_dash(request, report_id):
 
         schools_reports = SchoolReport.objects.filter(report=report, school__in=schools)
     else:
-        schools_reports = SchoolReport.objects.all()
+        schools_reports = SchoolReport.objects.filter(report=report)
 
     return render(request, "dashboards/ter_admins_dash.html", {
         #'years': years,
