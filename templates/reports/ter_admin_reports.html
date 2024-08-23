@@ -10,6 +10,10 @@
    
 {% endblock %}
 
+{% block script %}
+    <script src="{% static 'dashboards/js/ter_admins_reports.js' %}" rel="stylesheet"></script>
+{% endblock %}
+
 {% block body %}
     
     <form method="post" action="{% url 'ter_admin_reports' user_id %}">
