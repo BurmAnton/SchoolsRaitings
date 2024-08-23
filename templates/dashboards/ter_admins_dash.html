@@ -64,7 +64,7 @@
                             <td scope="row" style="text-align: center; vertical-align: middle;">
                                 <div style="display: flex;gap: 5px; align-items: center;">
                                     <div style="background-color: {{s_report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
-                                    <div>{{ s_report.points }}</div>
+                                    <div>{{ s_report.points|format_point }}</div>
                                 </div>
                             </td>
                             {% for section in report.sections.all %}
