@@ -70,14 +70,16 @@ def get_points(answers, question):
 
 @register.filter
 def get_max_points(question):
-    if question.answer_type == 'LST':
-        points = question.options.aggregate(Max('points'))['points__max']
-        return format_point(points)
-    elif question.answer_type == 'BL':
-        return format_point(question.bool_points)
-    elif question.answer_type in ['NMBR', 'PRC']:
-        points = question.range_options.aggregate(Max('points'))['points__max']
-        return format_point(points)
+    try:
+        if question.answer_type == 'LST':
+            points = question.options.aggregate(Max('points'))['points__max']
+            return format_point(points)
+        elif question.answer_type == 'BL':
+            return format_point(question.bool_points)
+        elif question.answer_type in ['NMBR', 'PRC']:
+            points = question.range_options.aggregate(Max('points'))['points__max']
+            return format_point(points)
+    except: return 0
 
 
 @register.filter
