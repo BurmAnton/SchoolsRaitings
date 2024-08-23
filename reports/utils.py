@@ -41,11 +41,14 @@ def count_report_points(report):
             for question in field.questions.all():
                 match question.answer_type:
                     case 'BL':
-                        points += question.bool_points
+                        try: points += question.bool_points
+                        except: pass
                     case 'LST':
-                        points += Option.objects.filter(question=question).aggregate(Max('points'))['points__max']
+                        try: points += Option.objects.filter(question=question).aggregate(Max('points'))['points__max']
+                        except: pass
                     case _:
-                        points += RangeOption.objects.filter(question=question).aggregate(Max('points'))['points__max']
+                        try: points += RangeOption.objects.filter(question=question).aggregate(Max('points'))['points__max']
+                        except: pass
     return points
 
 
