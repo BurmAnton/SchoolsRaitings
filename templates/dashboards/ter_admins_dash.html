@@ -6,7 +6,9 @@
 {% block style %}
         <link href="{% static 'dashboards/css/ter_admins_dash.css' %}" rel="stylesheet">
 {% endblock %}
-
+{% block script %}
+    <script src="{% static 'dashboards/js/ter_admins_reports.js' %}" rel="stylesheet"></script>
+{% endblock %}
 
 {% block body %}
     <form action="{% url 'ter_admins_dash' report.id %}" method="post">
