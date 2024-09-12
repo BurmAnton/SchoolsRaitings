@@ -348,7 +348,7 @@ class RangeOption(models.Model):
         ('E', "Равно"),
     ]
     range_type = models.CharField(
-        "Тип условия", choices=RANGE_TYPES, max_length=1, blank=False, null=False
+        "Тип условия", choices=RANGE_TYPES, max_length=1, blank=False, null=False, default='D'
     )
     ZONE_TYPES = [
         ('R', "Красная"),
