@@ -37,41 +37,67 @@ def count_report_points(report):
     from reports.models import Option, RangeOption
     points = 0
     for section in report.sections.all():
+        section_points = 0
         for field in section.fields.all():
+            field_points = 0
             for question in field.questions.all():
                 match question.answer_type:
                     case 'BL':
-                        try: points += question.bool_points
+                        try: field_points += question.bool_points
                         except: pass
                     case 'LST':
-                        try: points += Option.objects.filter(question=question).aggregate(Max('points'))['points__max']
+                        try: field_points += Option.objects.filter(question=question).aggregate(Max('points'))['points__max']
                         except: pass
                     case _:
-                        try: points += RangeOption.objects.filter(question=question).aggregate(Max('points'))['points__max']
+                        try: field_points += RangeOption.objects.filter(question=question).aggregate(Max('points'))['points__max']
                         except: pass
+            field.points = field_points
+            field.save()
+            section_points += field_points
+        section.points = section_points
+        section.save()
+        points += section_points
     return points
 
 
 def count_points(s_report):
-    from reports.models import Answer, ReportZone
+    from reports.models import Answer
 
     points_sum = round(Answer.objects.filter( s_report=s_report).aggregate(Sum('points'))['points__sum'], 1)
-    zones = ReportZone.objects.filter(report=s_report.report)
-    
-    report_zone = None
-    for zone in zones:
-        match zone.range_type:
-            case 'L':
-                if points_sum <= round(float(zone.less_or_equal), 1):
-                    report_zone = zone
-                    break
-            case 'G':
-                if points_sum >= round(float(zone.greater_or_equal), 1):
-                    report_zone = zone
-                    break
-            case 'D':
-                if round(float(zone.greater_or_equal), 1) <= points_sum <= round(float(zone.less_or_equal), 1):
-                    report_zone = zone
-                    break
+    report = s_report.report
+    if points_sum < report.yellow_zone_min:
+        report_zone = 'R'
+    elif points_sum >= report.green_zone_min:
+        report_zone = 'G'
+    else:
+        report_zone = 'Y'
+
 
     return report_zone, points_sum
+
+
+def count_points_field(s_report, field):
+    from reports.models import Answer, Question
+    
+    points__sum = Answer.objects.filter(question__in=field.questions.all(), s_report=s_report).aggregate(Sum('points'))['points__sum']
+    try:
+        if points__sum < field.yellow_zone_min:
+            return "R"
+        elif points__sum >= field.green_zone_min:
+            return "G"
+        return "Y"
+    except: return 'R'
+
+
+def count_section_points(s_report, section):
+    from reports.models import Answer, Question
+
+    questions = Question.objects.filter(field__in=section.fields.all())
+    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    try:
+        if points__sum < section.yellow_zone_min:
+            return "R"
+        elif points__sum >= section.green_zone_min:
+            return "G"
+        return "Y"
+    except: return 'R'

@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     check_section()
+
     document.querySelector('#btn-forward').addEventListener('click', (btn) => {
         let current_section = document.querySelector('.current-section')
         current_section.classList.remove('current-section')
@@ -33,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if(input.checked){
                 points = input.dataset.points
             }
-            change_question_value(input.id, input.checked, points)
+            change_question_value(input.id, input.checked, input)
             document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
             
         })
@@ -67,7 +68,7 @@ function set_points(th){
 }
 
 
-function change_question_value(id, value, points){
+function change_question_value(id, value, input){
     fetch(window.location.href, {
         method: 'POST',
         headers: {
@@ -86,15 +87,45 @@ function change_question_value(id, value, points){
         document.querySelector(`#points_${id}`).innerHTML = result['points'].replace(",", ".").replace(".0", "")
         console.log(result['ready']);
         if (result['ready'] === true){
-            document.querySelector('.send-report').classList.remove('disabled')
-            document.querySelector('.send-report').classList.remove('btn-secondary')
-            document.querySelector('.send-report').classList.add('btn-success')
+            document.querySelector('#send-button').classList.remove('disabled')
+            document.querySelector('#send-button').classList.remove('btn-secondary')
+            document.querySelector('#send-button').classList.add('btn-success')
         } else {
-            document.querySelector('.send-report').classList.add('disabled')
-            document.querySelector('.send-report').classList.add('btn-secondary')
-            document.querySelector('.send-report').classList.remove('btn-success')
+            document.querySelector('#send-button').classList.add('disabled')
+            document.querySelector('#send-button').classList.add('btn-secondary')
+            document.querySelector('#send-button').classList.remove('btn-success')
         }
-        document.querySelector('#report-zone').innerHTML = result['zone']
+        if (result['zone'] === 'Y'){
+            document.querySelector('#report-zone').style.background = "#ffc600";
+        } else if (result['zone'] === 'R'){
+            document.querySelector('#report-zone').style.background = "red";
+        } else {
+            document.querySelector('#report-zone').style.background = "green";
+        }
+        let section = document.querySelector('.current-section')
+        if (result['section_z']=== 'Y'){
+            section.querySelector('.section-zone').style.background = "#ffc600";
+        } else if (result['section_z'] === 'R'){
+            section.querySelector('.section-zone').style.background = "red";
+        } else {
+            section.querySelector('.section-zone').style.background = "green";
+        }
+        if (result['answer_z']=== 'Y'){
+            section.querySelector(`.question-zone${id}`).style.background = "#ffc600";
+        } else if (result['answer_z'] === 'R'){
+            section.querySelector(`.question-zone${id}`).style.background = "red";
+        } else {
+            section.querySelector(`.question-zone${id}`).style.background = "green";
+        }
+        field = section.querySelector(`.question-zone${id}`).parentElement.parentElement.parentElement
+        console.log(field.querySelector(`.field-zone`))
+        if (result['field_z']=== 'Y'){
+            field.querySelector(`.field-zone`).style.background = "#ffc600";
+        } else if (result['field_z'] === 'R'){
+            field.querySelector(`.field-zone`).style.background = "red";
+        } else {
+            field.querySelector(`.field-zone`).style.background = "green";
+        }
         document.querySelector('#report-points').innerHTML = result['report_points'].replace(",", ".").replace(".0", "")
     })
     .then(result => {

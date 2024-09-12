@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .managers import CustomUserManager
 
+from tinymce import models as tinymce_models
 
 # Create your models here.
 class User(AbstractUser):
@@ -51,3 +52,24 @@ class Notification(models.Model):
 
     def __str__(self):
         return  f'{self.user} ({self.timestamp})'
+
+
+
+class MainPageArticle(models.Model):
+    header = models.CharField("Название", max_length=750)
+    note_for_school = tinymce_models.HTMLField(
+        "Текст на стартовую для школ", null=True, blank=True, default=None
+    )
+    note_for_teradmin = tinymce_models.HTMLField(
+        "Текст на главную для ТУ/ДО", null=True, blank=True, default=None
+    )
+    note_for_min = tinymce_models.HTMLField(
+        "Текст на главную для МинОбр", null=True, blank=True, default=None
+    )
+
+    class Meta:
+        verbose_name = "Стартовая"
+        verbose_name_plural = "Стартовая"
+
+    def __str__(self):
+        return  f'{self.header}'

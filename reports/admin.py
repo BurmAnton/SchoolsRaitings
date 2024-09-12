@@ -1,30 +1,15 @@
 from django.contrib import admin
 from tinymce.models import HTMLField
+from easy_select2 import select2_modelform
+from django_admin_listfilter_dropdown.filters import (
+    RelatedDropdownFilter, ChoiceDropdownFilter, DropdownFilter
+)
 
 from .models import (
     Attachment, Question, RangeOption, Report, ReportFile, 
     SchoolReport, Section, Field, Option,
-    ReportZone
 )
 
-
-class SectionInline(admin.TabularInline):
-    model = Section
-    fields = ['number', 'name']
-    def get_extra(self, request, obj=None, **kwargs):
-        if obj: return 0
-        return 1
-
-
-class ReportZoneInline(admin.TabularInline):
-    model = ReportZone
-    fields = [
-        'closter', 'zone', 'ed_level',
-        'range_type', 'greater_or_equal', 'less_or_equal'
-    ]
-    def get_extra(self, request, obj=None, **kwargs):
-        if obj: return 0
-        return 1
     
 
 class AttachmentInline(admin.TabularInline):
@@ -34,13 +19,22 @@ class AttachmentInline(admin.TabularInline):
         return 1
 
 
+SectionForm = select2_modelform(Section, attrs={'width': '500px'})
 
 
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
-    list_display = ['name', 'year']
+    list_display = ['name','closter', 'ed_level', 'year']
     list_filter = ['year',]
-    inlines = [SectionInline, ReportZoneInline, AttachmentInline]
+    list_filter = [
+        ('year', DropdownFilter),
+        ('closter', RelatedDropdownFilter),
+        ('ed_level', ChoiceDropdownFilter),
+        'is_published'
+    ]
+    readonly_fields = ['points',]
+    inlines = [AttachmentInline, ]
+    filter_horizontal = ['sections', ]
 
 
 class FieldInline(admin.TabularInline):
@@ -50,10 +44,14 @@ class FieldInline(admin.TabularInline):
 
 @admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
-    list_display = ['report', 'number', 'name']
-    list_filter = ['report', ]
-    search_fields = ['report', 'number', 'name']
+    list_display = ['name', 'number', ]
+    list_filter = ['reports', ]
+    search_fields = ['number', 'name']
     inlines = [FieldInline, ]
+    list_filter = [
+        ('reports', RelatedDropdownFilter),
+    ]
+    readonly_fields = ['points',]
 
     content = HTMLField()
 
@@ -61,21 +59,26 @@ class SectionAdmin(admin.ModelAdmin):
 class QuestionInline(admin.TabularInline):
     model = Question
     fields = ['name', 'answer_type']
+    
 
 
 @admin.register(Field)
 class FieldAdmin(admin.ModelAdmin):
     list_display = ['section', 'number', 'name']
-    list_filter = ['section', ]
     search_fields = ['section', 'number', 'name']
+    readonly_fields = ['points',]
+
     inlines = [QuestionInline, ]
+    list_filter = [
+        ('section', RelatedDropdownFilter),
+    ]
 
     content = HTMLField()
 
 
 class OptionInline(admin.TabularInline):
     model = Option
-    fields = ['name', 'points']
+    fields = ['name', 'points', 'zone',]
     def get_extra(self, request, obj=None, **kwargs):
         if obj:
             return 0
@@ -84,7 +87,7 @@ class OptionInline(admin.TabularInline):
 
 class RangeOptionInline(admin.TabularInline):
     model = RangeOption
-    fields = ['range_type',  'greater_or_equal', 'less_or_equal', 'equal', 'points']
+    fields = ['zone', 'range_type',  'greater_or_equal', 'less_or_equal', 'equal', 'points']
     def get_extra(self, request, obj=None, **kwargs):
         if obj:
             return 0
@@ -93,11 +96,17 @@ class RangeOptionInline(admin.TabularInline):
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = ['name', 'answer_type', 'field']
-    list_filter = ['field', ]
     search_fields = ['field', 'name', 'answer_type']
     inlines = [OptionInline, RangeOptionInline]
+    list_filter = [
+        ('field__section__reports', RelatedDropdownFilter),
+        ('field', RelatedDropdownFilter),
+    ]
 
     content = HTMLField()
+
+    class Media:
+        js = ["../static/admin/js/question_change.js",]
 
 
 class ReportFileInline(admin.TabularInline):

@@ -13,11 +13,25 @@ def get_item(dictionary, key):
 
 @register.filter
 def get_color(zone):
-    if zone.zone == "R":
+    if zone == "R":
         return "red"
-    if zone.zone == "Y":
+    if zone == "Y":
         return "#ffc600"
     return "green"
+
+@register.filter
+def get_section_color(s_report, section):
+    questions = Question.objects.filter(field__in=section.fields.all())
+
+    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    try:
+        if points__sum < section.yellow_zone_min:
+            return "red"
+        elif points__sum >= section.green_zone_min:
+            return "green"
+        return "#ffc600"
+    except: return 'red'
+
 
 @register.filter
 def format_point(points):

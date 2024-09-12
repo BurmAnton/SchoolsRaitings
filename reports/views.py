@@ -6,14 +6,15 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from reports.models import Answer, Attachment, Field, Option, Question, Report, ReportFile, ReportZone, SchoolReport
-from reports.utils import count_points, select_range_option
-from users.models import Group, Notification
+from reports.utils import count_points, select_range_option, count_section_points, count_points_field
+from users.models import Group, Notification, MainPageArticle
 from schools.models import School, SchoolCloster, TerAdmin
 
 
 @login_required
 def index(request):
     user = request.user
+    return HttpResponseRedirect(reverse('start'))
     principal_group = Group.objects.get(name='Представитель школы')
     if user.groups.filter(id=principal_group.id).count() == 1:
         return HttpResponseRedirect(reverse('reports', kwargs={'school_id': user.school.id}))
@@ -28,10 +29,27 @@ def index(request):
 
 
 @login_required
+def start(request):
+    user = request.user
+    user_id = None
+    principal_group = Group.objects.get(name='Представитель школы')
+    if user.groups.filter(id=principal_group.id).count() == 1:
+        school = user.school
+    else: school = None
+    teradmin_group = Group.objects.get(name='Представитель ТУ/ДО')
+    if user.groups.filter(id=teradmin_group.id).count() == 1:
+        user_id = user.id
+    return render(request, "reports/index.html", {
+        'school': school,
+        'user_id': user_id,
+        'messages': MainPageArticle.objects.all()
+    })
+
+
+@login_required
 def reports(request, school_id):
     school = get_object_or_404(School, id=school_id)
-    report_zones = ReportZone.objects.filter(closter=school.closter)
-    reports = Report.objects.filter(zones__in=report_zones).order_by('year').distinct()
+    reports = Report.objects.filter(closter=school.closter, ed_level=school.ed_level).order_by('year').distinct()
     s_reports = SchoolReport.objects.filter(school=school)
     reports_list = []
     notifications = Notification.objects.filter(user=request.user, is_read=False)
@@ -102,33 +120,49 @@ def report(request, report_id, school_id):
                     option = Option.objects.get(id=data['value'])
                     answer.option = option
                     answer.points = option.points
+                    answer.zone = option.zone
                 except:
                     answer.option = None
                     answer.points = 0
+                    answer.zone = "R"
             elif question.answer_type == "BL":
                 answer.bool_value = data['value']
                 answer.points = question.bool_points if answer.bool_value else 0
+                answer.zone = "G" if answer.bool_value else "R"
             elif question.answer_type in ['NMBR', 'PRC']:
                 answer.number_value = float(data['value'])
                 r_option = select_range_option(question.range_options.all(), answer.number_value)
-                if r_option == None: answer.points = 0
-                else: answer.points = r_option.points
+                if r_option == None: 
+                    answer.points = 0
+                    answer.zone = "R"
+                else: 
+                    answer.points = r_option.points
+                    answer.zone = r_option.zone
             answer.save()
 
-            list_answers = Answer.objects.filter(question__answer_type='LST', option=None)
+            list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
             if len(list_answers) == 0:
                 s_report.is_ready = True
             else: s_report.is_ready = False
             zone, points_sum = count_points(s_report)
+            
             s_report.zone = zone
             s_report.points = points_sum
             s_report.save()
-            
+
+            field_z = count_points_field(s_report, question.field)
+         
             return JsonResponse(
                 {
                     "message": "Question changed successfully.", 
-                    "points": str(answer.points), "ready":s_report.is_ready,
-                    "zone": zone.get_zone_display(), "report_points": s_report.points
+                    "points": str(answer.points), 
+                    "ready":s_report.is_ready,
+                    "zone": s_report.zone, 
+                    "report_points": s_report.points,
+                    "answer_z": answer.zone,
+                    "field_z": field_z,
+                    "section_z": count_section_points(s_report, question.field.section),
+                
                 }, 
                 status=201
             )
@@ -248,35 +282,50 @@ def mo_report(request, s_report_id):
                     option = Option.objects.get(id=data['value'])
                     answer.option = option
                     answer.points = option.points
+                    answer.zone = option.zone
                 except:
                     answer.option = None
                     answer.points = 0
+                    answer.zone = "R"
             elif question.answer_type == "BL":
                 answer.bool_value = data['value']
                 answer.points = question.bool_points if answer.bool_value else 0
+                answer.zone = "G" if answer.bool_value else "R"
             elif question.answer_type in ['NMBR', 'PRC']:
                 answer.number_value = float(data['value'])
                 r_option = select_range_option(question.range_options.all(), answer.number_value)
-                if r_option == None: answer.points = 0
-                else: answer.points = r_option.points
-            answer.is_mod_by_mo = True
+                if r_option == None: 
+                    answer.points = 0
+                    answer.zone = "R"
+                else: 
+                    answer.points = r_option.points
+                    answer.zone = r_option.zone
             answer.save()
 
-            list_answers = Answer.objects.filter(question__answer_type='LST', option=None)
+            list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
             if len(list_answers) == 0:
                 s_report.is_ready = True
             else: s_report.is_ready = False
             zone, points_sum = count_points(s_report)
+            
             s_report.zone = zone
             s_report.points = points_sum
             s_report.save()
+
+            field_z = count_points_field(s_report, question.field)
             
             return JsonResponse(
                 {
                     "message": "Question changed successfully.", 
-                    "points": str(answer.points), "ready":s_report.is_ready,
-                    "zone": zone.get_zone_display(), "report_points": s_report.points
-                },  
+                    "points": str(answer.points), 
+                    "ready":s_report.is_ready,
+                    "zone": s_report.zone, 
+                    "report_points": s_report.points,
+                    "answer_z": answer.zone,
+                    "field_z": field_z,
+                    "section_z": count_section_points(s_report, question.field.section),
+                
+                }, 
                 status=201
             )
     
@@ -329,35 +378,50 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
                     option = Option.objects.get(id=data['value'])
                     answer.option = option
                     answer.points = option.points
+                    answer.zone = option.zone
                 except:
                     answer.option = None
                     answer.points = 0
+                    answer.zone = "R"
             elif question.answer_type == "BL":
                 answer.bool_value = data['value']
                 answer.points = question.bool_points if answer.bool_value else 0
+                answer.zone = "G" if answer.bool_value else "R"
             elif question.answer_type in ['NMBR', 'PRC']:
                 answer.number_value = float(data['value'])
                 r_option = select_range_option(question.range_options.all(), answer.number_value)
-                if r_option == None: answer.points = 0
-                else: answer.points = r_option.points
-            answer.is_mod_by_ter = True
+                if r_option == None: 
+                    answer.points = 0
+                    answer.zone = "R"
+                else: 
+                    answer.points = r_option.points
+                    answer.zone = r_option.zone
             answer.save()
 
-            list_answers = Answer.objects.filter(question__answer_type='LST', option=None)
+            list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
             if len(list_answers) == 0:
                 s_report.is_ready = True
             else: s_report.is_ready = False
             zone, points_sum = count_points(s_report)
+            
             s_report.zone = zone
             s_report.points = points_sum
             s_report.save()
+
+            field_z = count_points_field(s_report, question.field)
             
             return JsonResponse(
                 {
                     "message": "Question changed successfully.", 
-                    "points": str(answer.points), "ready":s_report.is_ready,
-                    "zone": zone.get_zone_display(), "report_points": s_report.points
-                },  
+                    "points": str(answer.points), 
+                    "ready":s_report.is_ready,
+                    "zone": s_report.zone, 
+                    "report_points": s_report.points,
+                    "answer_z": answer.zone,
+                    "field_z": field_z,
+                    "section_z": count_section_points(s_report, question.field.section),
+                
+                }, 
                 status=201
             )
 

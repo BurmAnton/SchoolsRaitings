@@ -3,11 +3,17 @@ from django.contrib.auth.models import Group as DefaultGroup
 from django.contrib.auth.admin import GroupAdmin, UserAdmin
 
 from .forms import CustomUserChangeForm, CustomUserCreationForm
-from .models import User, Group, Permission, Notification
+from .models import User, Group, Permission, Notification, MainPageArticle
 
 
 # Register your models here.
 admin.site.unregister(DefaultGroup)
+
+
+@admin.register(MainPageArticle)
+class MainPageArticleAdmin(admin.ModelAdmin):
+    pass
+
 
 @admin.register(Group)
 class GroupAdmin(GroupAdmin):

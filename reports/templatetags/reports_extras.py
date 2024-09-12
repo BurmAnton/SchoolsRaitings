@@ -1,5 +1,5 @@
 from django import template
-from django.db.models import Max
+from django.db.models import Max, Sum
 
 from reports.models import ReportFile
 
@@ -12,11 +12,21 @@ def get_item(dictionary, key):
 
 
 @register.filter
+def get_answer(answers, question):
+    answer = answers.get(question=question)
+    if answer.zone == "R":
+        return "red"
+    if answer.zone == "Y":
+        return "#ffc600"
+    return "green"
+
+
+@register.filter
 def find_answer(answers, question):
     try:
         if question.answer_type == 'LST':
             try: return answers.get(question=question).option.id
-            except: return None
+            except: return 0
         elif question.answer_type == 'BL':
             return answers.get(question=question).bool_value
         elif question.answer_type in ['NMBR', 'PRC']:
@@ -47,12 +57,41 @@ def format_point(points):
 
 @register.filter
 def get_color(zone):
-    if zone.zone == "R":
+    if zone == "R":
         return "red"
-    if zone.zone == "Y":
+    if zone == "Y":
         return "#ffc600"
     return "green"
 
+
+@register.filter
+def get_color_field(answers, field):
+    if field.yellow_zone_min is None:
+        return "white"
+    answers = answers.filter(question__in=field.questions.all())
+    points = answers.aggregate(Sum('points'))['points__sum']
+    if points < field.yellow_zone_min:
+        return "red"
+    if points >= field.green_zone_min:
+        return "#ffc600"
+    return "green"
+
+
+
+@register.filter
+def get_section_color(s_report, section):
+    from reports.models import Answer, Question
+
+    questions = Question.objects.filter(field__in=section.fields.all())
+
+    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    try:
+        if points__sum < section.yellow_zone_min:
+            return "red"
+        elif points__sum >= section.green_zone_min:
+            return "green"
+        return "#ffc600"
+    except: return 'red'
 
 @register.filter
 def get_points(answers, question):
@@ -61,6 +100,7 @@ def get_points(answers, question):
         if question.answer_type == 'LST':
             if answer.option is not None:
                 return format_point(answer.option.points)
+            return 0
         elif question.answer_type == 'BL':
             if answer.bool_value:
                 return format_point(question.bool_points)

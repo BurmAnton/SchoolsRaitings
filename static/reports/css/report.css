@@ -37,6 +37,13 @@ input {
   font-size: 20px;
   margin: auto;
   margin-bottom: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+#page-content h2 div {
+  margin-right: 5px;
+  margin-bottom: 1px;
 }
 #page-content #report-school {
   text-align: center;
@@ -81,8 +88,11 @@ input {
   font-weight: 500;
 }
 #page-content .section .section-table .field {
-  margin-left: 15px;
   margin-bottom: 0 !important;
+}
+#page-content .section .section-table .question-zone {
+  margin: auto;
+  margin-top: 23px;
 }
 #page-content .section .section-table .question-points, #page-content .section .section-table .question-points-max {
   padding-top: 25px;

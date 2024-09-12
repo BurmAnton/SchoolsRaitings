@@ -7,5 +7,41 @@
 {% endblock %}
 
 {% block body %}
-
+        <div class="info">
+                <h1>Организационная информация</h1>
+                {% if school is not None %}
+                        <h1 style="text-align: center; font-size: 20px; margin-bottom: 25px;">{{ school.name }}</h1>
+                        <div style="display: flex; gap: 15px; justify-content: space-around; font-size: 18px;">   
+                                <div>
+                                        <p><b>Кластер школы:</b> {{ school.closter }}</p>
+                                        <p><b>Уровень образования:</b> {{ school.closter }}</p>
+                                        <p><b>ТУ/ДО:</b> {{ school.ter_admin }}</p>
+                                </div>
+                                <div>
+                                        <p><b>ФИО Директора:</b> {{ user.last_name }} {{ user.first_name }} {% if user.middle_name is not None %}{{ user.middle_name }} {% endif %}</p>
+                                        <p><b>Email:</b> {{ user.email }}</p>
+                                        <p><b>Телефон:</b> {{ user.phone_number }}</p>
+                                </div>   
+                        </div>
+             
+                {% else %}
+                        <h1 style="text-align: center; font-size: 20px; margin-bottom: 25px;">{{ user.ter_admin.name }}</h1>
+                <div style=" margin-left:5%;display: flex; justify-content: space-around; font-size: 18px; flex-direction: column;">
+                        <p><b>ФИО ответственного:</b> {{ user.last_name }} {{ user.first_name }} {% if user.middle_name is not None %}{{ user.middle_name }} {% endif %}</p>
+                        <p><b>Email:</b> {{ user.email }}</p>
+                        <p><b>Телефон:</b> {{ user.phone_number }}</p>
+                </div> 
+                {% endif %}
+        </div>
+        <div class="messages">
+        {% for message in messages %}
+                <div>
+                {% if school is not None %}
+                        {{message.note_for_school|safe }}
+                {% else %}
+                        {{message.note_for_teradmin|safe }}
+                {% endif %}
+                </div>
+        {% endfor %}
+        </div>
 {% endblock %}

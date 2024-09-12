@@ -11,16 +11,50 @@ from users.models import Notification, User
 from schools.models import School, SchoolCloster
 
 
+
+
 class Report(models.Model):
     year = models.IntegerField('Год', null=False, blank=False)
     name = models.CharField("Название отчёта", max_length=750)
+    closter = models.ForeignKey(
+        SchoolCloster,
+        verbose_name='Кластер',
+        related_name='reports',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    sections = models.ManyToManyField(
+        "Section",
+        verbose_name='показатели',
+        related_name='reports',
+        blank=False 
+    )
+    SCHOOL_LEVELS = [
+        ('A', "1 — 11 классы"),
+        ('M', "1 — 9 классы"),
+        ('S', "1 — 4 классы"),
+        ('G', "10 — 11 классы"),
+        ('MG', "5 — 11 классы"),
+    ]
+    ed_level = models.CharField(
+        "Уровень образования", choices=SCHOOL_LEVELS, max_length=2, blank=False, null=False
+    )
     is_published = models.BooleanField(
         "Опубликовать?", default=False
+    )
+
+    yellow_zone_min = models.DecimalField(
+        "Жёлтая зона (минимум)", max_digits=5,
+        decimal_places=1, null=True, blank=True, default=None
+
+    )
+    green_zone_min = models.DecimalField(
+        "Зеленая зона (минимум)", max_digits=5, decimal_places=1,
+        null=True, blank=True, default=None
     )
     points = models.DecimalField(
         "Макс. баллов", max_digits=5,
         decimal_places=1, null=False, blank=False, default=0
-
     )
 
     class Meta:
@@ -112,6 +146,7 @@ class Attachment(models.Model):
     ATTACHMENT_TYPES = [
         ('DC', "Документ (прикреплённый файл)"),
         ('LNK', 'Ссылка'),
+        ('OTH', 'Иной источник (без ссылки/файла)'),
     ]
     attachment_type = models.CharField(
         "Цель обучения", max_length=3, 
@@ -120,8 +155,8 @@ class Attachment(models.Model):
     )
 
     class Meta:
-        verbose_name = "Вложение"
-        verbose_name_plural = "Вложения"
+        verbose_name = "Источник данных"
+        verbose_name_plural = "Источники данных"
 
     def __str__(self):
         return f'{self.name} ({self.get_attachment_type_display()})'
@@ -130,20 +165,28 @@ class Attachment(models.Model):
 class Section(models.Model):
     number = models.CharField('Номер раздела', null=True, blank=True, max_length=500)
     name = models.CharField("Название раздела", max_length=500)
-    report = models.ForeignKey(
-        Report,
-        verbose_name='отчёт',
-        related_name='sections',
-        on_delete=CASCADE,
-        null=False, blank=False 
+    
+    yellow_zone_min = models.DecimalField(
+        "Жёлтая зона (минимум)", max_digits=5,
+        decimal_places=1, null=True, blank=True, default=None
+
     )
+    green_zone_min = models.DecimalField(
+        "Зеленая зона (минимум)", max_digits=5, decimal_places=1,
+        null=True, blank=True, default=None
+    )
+    points = models.DecimalField(
+        "Макс. баллов", max_digits=5,
+        decimal_places=1, null=False, blank=False, default=0
+    )
+
     note = tinymce_models.HTMLField(
         "Примечание", null=True, blank=True, default=None
     )
 
     class Meta:
-        verbose_name = "Раздел отчёта"
-        verbose_name_plural = "Разделы отчётов"
+        verbose_name = "Показатель отчёта"
+        verbose_name_plural = "Показатели отчётов"
 
     def __str__(self):
         if self.number is None or self.number == "":
@@ -152,22 +195,37 @@ class Section(models.Model):
 
 
 class Field(models.Model):
-    number = models.CharField('Номер поля', null=False, blank=False, max_length=500)
-    name = models.CharField("Название раздела", max_length=750, null=False, blank=False)
+    number = models.CharField('Номер критерия', null=False, blank=False, max_length=500)
+    name = models.CharField("Название критерия", max_length=750, null=False, blank=False)
     section = models.ForeignKey(
         Section,
-        verbose_name='раздел',
+        verbose_name='показатель',
         related_name='fields',
         on_delete=CASCADE,
         null=False, blank=False 
     )
+    yellow_zone_min = models.DecimalField(
+        "Жёлтая зона (минимум)", max_digits=5,
+        decimal_places=1, null=True, blank=True, default=None
+
+    )
+    green_zone_min = models.DecimalField(
+        "Зеленая зона (минимум)", max_digits=5, decimal_places=1,
+        null=True, blank=True, default=None
+    )
+    points = models.DecimalField(
+        "Макс. баллов", max_digits=5,
+        decimal_places=1, null=False, blank=False, default=0
+    )
+
     note = tinymce_models.HTMLField(
         "Примечание", null=True, blank=True, default=None
     )
 
     class Meta:
-        verbose_name = "Показатель"
-        verbose_name_plural = "Показатели"
+        get_latest_by = ["-id", ]
+        verbose_name = "Критерий"
+        verbose_name_plural = "Критерии"
 
     def __str__(self):
         return  f'{self.section.number}.{self.number}. {self.name}'
@@ -175,7 +233,7 @@ class Field(models.Model):
 
 
 class Question(models.Model):
-    name = models.CharField("Название критерия", max_length=750, null=True, blank=True)
+    name = models.CharField("Описание условия", max_length=750, null=True, blank=True)
     field = models.ForeignKey(
         Field,
         verbose_name='показатель',
@@ -198,23 +256,32 @@ class Question(models.Model):
         decimal_places=1,
         default=0,
     )
+    attachment = models.ForeignKey(
+        Attachment,
+        verbose_name='Источник данных',
+        related_name='questions',
+        on_delete=CASCADE,
+        null=True, blank=True 
+    )
+
     note = tinymce_models.HTMLField(
         "Примечание", null=True, blank=True, default=None
     )
 
     class Meta:
-        verbose_name = "Критерий"
-        verbose_name_plural = "Критерии"
+        verbose_name = "Условие"
+        verbose_name_plural = "Условия"
 
     def __str__(self):
         return  f'{self.name} ({self.get_answer_type_display()})' 
 
 
 @receiver(post_save, sender=Question, dispatch_uid='question_save_signal')
-def create_notification(sender, instance, using, **kwargs):
-    report = instance.field.section.report
-    report.points = count_report_points(report)
-    report.save()
+def count_points(sender, instance, using, **kwargs):
+    reports = instance.field.section.reports.all()
+    for report in reports:
+        report.points = count_report_points(report)
+        report.save()
 
 
 class Option(models.Model):
@@ -226,11 +293,28 @@ class Option(models.Model):
         on_delete=CASCADE,
         null=False, blank=False 
     )
+    yellow_zone_min = models.DecimalField(
+        "Жёлтая зона (минимум)", max_digits=5,
+        decimal_places=1, null=True, blank=True, default=None
+
+    )
+    green_zone_min = models.DecimalField(
+        "Зеленая зона (минимум)", max_digits=5, decimal_places=1,
+        null=True, blank=True, default=None
+    )
     points = models.DecimalField(
         "Колво баллов",
         max_digits=5,
         decimal_places=1,
         default=0
+    )
+    ZONE_TYPES = [
+        ('R', "Красная"),
+        ('Y', "Желтая"),
+        ('G', "Зеленая"),
+    ]
+    zone = models.CharField(
+        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
     )
 
     class Meta:
@@ -242,10 +326,11 @@ class Option(models.Model):
 
 
 @receiver(post_save, sender=Option, dispatch_uid='option_save_signal')
-def create_notification(sender, instance, using, **kwargs):
-    report = instance.question.field.section.report
-    report.points = count_report_points(report)
-    report.save()
+def count_points(sender, instance, using, **kwargs):
+    reports = instance.question.field.section.reports.all()
+    for report in reports:
+        report.points = count_report_points(report)
+        report.save()
 
 
 class RangeOption(models.Model):
@@ -264,6 +349,14 @@ class RangeOption(models.Model):
     ]
     range_type = models.CharField(
         "Тип условия", choices=RANGE_TYPES, max_length=1, blank=False, null=False
+    )
+    ZONE_TYPES = [
+        ('R', "Красная"),
+        ('Y', "Желтая"),
+        ('G', "Зеленая"),
+    ]
+    zone = models.CharField(
+        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
     )
     less_or_equal = models.DecimalField(
         "Меьньше или равно",
@@ -293,6 +386,15 @@ class RangeOption(models.Model):
         decimal_places=1,
         default=0
     )
+    yellow_zone_min = models.DecimalField(
+        "Жёлтая зона (минимум)", max_digits=5,
+        decimal_places=1, null=True, blank=True, default=None
+
+    )
+    green_zone_min = models.DecimalField(
+        "Зеленая зона (минимум)", max_digits=5, decimal_places=1,
+        null=True, blank=True, default=None
+    )
 
     class Meta:
         verbose_name = "Диапозон"
@@ -303,10 +405,11 @@ class RangeOption(models.Model):
 
 
 @receiver(post_save, sender=RangeOption, dispatch_uid='range_option_save_signal')
-def create_notification(sender, instance, using, **kwargs):
-    report = instance.question.field.section.report
-    report.points = count_report_points(report)
-    report.save()
+def count_points(sender, instance, using, **kwargs):
+    reports = instance.question.field.section.reports.all()
+    for report in reports:
+        report.points = count_report_points(report)
+        report.save()
 
 
 class SchoolReport(models.Model):
@@ -342,12 +445,13 @@ class SchoolReport(models.Model):
         decimal_places=1,
         default=0
     )
-    zone = models.ForeignKey(
-        ReportZone,
-        verbose_name='Зона',
-        related_name='s_reports',
-        on_delete=CASCADE,
-        null=True, blank=True 
+    ZONE_TYPES = [
+        ('R', "Красная"),
+        ('Y', "Желтая"),
+        ('G', "Зеленая"),
+    ]
+    zone = models.CharField(
+        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
     )
 
     class Meta:
@@ -396,12 +500,22 @@ class Answer(models.Model):
     bool_value = models.BooleanField(
         "Бинарный выбор", default=False, null=True
     )
+    ZONE_TYPES = [
+        ('R', "Красная"),
+        ('Y', "Желтая"),
+        ('G', "Зеленая"),
+    ]
+    zone = models.CharField(
+        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
+    )
+
     is_mod_by_ter = models.BooleanField(
         "Изменён ТУ/ДО?", default=False
     )
     is_mod_by_mo = models.BooleanField(
         "Изменён МинОбром?", default=False
     )
+    
     
     class Meta:
         verbose_name = "Ответ"
