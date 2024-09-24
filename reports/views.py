@@ -78,7 +78,7 @@ def report(request, report_id, school_id):
 
     current_section = request.GET.get('current_section', '')
     if current_section == "":
-        current_section = report.sections.all().order_by('id')[0].id
+        current_section = report.sections.all().last.id
     else: current_section = int(current_section)
 
     s_report, is_new_report = SchoolReport.objects.get_or_create(
