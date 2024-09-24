@@ -56,6 +56,17 @@ def get_point_sum(s_reports):
     
     return format_point(points)
 
+@register.filter
+def get_color_field_dash(answers, field):
+    answers = answers.filter(question__in=field.questions.all())
+    points = answers.aggregate(Sum('points'))['points__sum']
+
+    if points < field.yellow_zone_min:
+        return "red"
+    if points >= field.green_zone_min:
+        return "green"
+    return "#ffc600" 
+
 
 @register.filter
 def get_point_sum_section(s_reports, section):
