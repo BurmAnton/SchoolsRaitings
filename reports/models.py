@@ -128,6 +128,7 @@ class Section(models.Model):
     )
 
     class Meta:
+        ordering = ['-id']
         verbose_name = "Показатель отчёта"
         verbose_name_plural = "Показатели отчётов"
 
