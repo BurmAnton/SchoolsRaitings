@@ -105,9 +105,15 @@ input {
   text-align: center;
   vertical-align: middle;
 }
+#page-content .attachment-section .mb-3 {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 #page-content .attachment-section .alert {
   display: none;
   width: 570px;
+  margin-bottom: 0 !important;
   padding: 10px 10px;
 }
 #page-content .attachment-section .alert .btn-close {

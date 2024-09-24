@@ -130,8 +130,9 @@ def get_max_points(question):
 
 
 @register.filter
-def get_file_link(attachment):
+def get_file_link(answers, question):
+    answer = answers.get(question=question)
     try:
-        return ReportFile.objects.get(attachment=attachment).file.url
+        return ReportFile.objects.get(answers=answer).file.url
     except:
         return None

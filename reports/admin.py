@@ -7,17 +7,9 @@ from django_admin_listfilter_dropdown.filters import (
 
 from .models import (
     Attachment, Question, RangeOption, 
-    Report, Section, Field, Option, SchoolReport
+    Report, ReportFile, Section, Field, Option, SchoolReport
 )
     
-
-class AttachmentInline(admin.TabularInline):
-    model = Attachment
-    
-    def get_extra(self, request, obj=None, **kwargs):
-        if obj: return 0
-        return 1
-
 SectionForm = select2_modelform(Section, attrs={'width': '500px'})
 
 class SectionInline(admin.StackedInline):
@@ -43,6 +35,10 @@ class ReportAdmin(admin.ModelAdmin):
     readonly_fields = ['points',]
     inlines = [SectionInline, ]
 
+
+@admin.register(ReportFile)
+class ReportFileAdmin(admin.ModelAdmin):
+    pass
 
 
 #@admin.register(Section)
@@ -101,8 +97,21 @@ class SchoolReportAdmin(admin.ModelAdmin):
     pass
 
 
+
+@admin.register(Attachment)
+class AttachmentAdmin(admin.ModelAdmin):
+    list_display = ['name', 'attachment_type',]
+    list_filter = [
+        ('attachment_type', ChoiceDropdownFilter),
+    ]
+    search_fields = ["name", 'attachment_type']
+
+
+QuestionForm = select2_modelform(Question, attrs={'width': '500px'})
+
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
+    form=QuestionForm
     list_display = ['name', 'answer_type', 'field']
     list_filter = [
         ('answer_type', ChoiceDropdownFilter),

@@ -52,7 +52,7 @@
         {% endif %}
     </div>
    {% for section in report.report.sections.all %}
-        <div class="section {% if current_section == section.id %}current-section{% endif %} {% if forloop.first %}first{% elif forloop.last and attachments.count == 0 %}last{% endif %}">
+        <div class="section {% if current_section == section.id %}current-section{% endif %} {% if forloop.first %}first{% elif forloop.last %}last{% endif %}">
             <h2><div class="section-zone" style="background-color: {{report|get_section_color:section}}; width: 15px; height: 15px; border-radius: 15px"></div>{{ section }}</h2>
             {% if section.note is not None and section.note != "" %}
                 <div class="alert alert-primary note  d-flex align-items-center" role="alert">
@@ -128,7 +128,32 @@
                                 {% endif %}
                             </td>
                             <td scope="row" class="question-points" id="points_{{ question.id }}">{{ answers|get_points:question }}</td>
-                            <td scope="row" >{{ question.attachment.name }}</td>
+                            <td scope="row" class="attachment-section">
+                                {% comment %} {{ question.attachment.name }} {% endcomment %}
+                                {% if question.attachment.attachment_type == 'LNK' %}
+                                    <div class="mb-3 field">
+                                        <label for="Att{{ question.attachment.id }}">{{question.attachment.name}}</label>
+                                        <input type="link" class="form-control" id="Att{{ question.attachment.id }}" name="{{question.attachment.id}}" placeholder="{{question.attachment.name}}" >
+                                    </div>
+                                {% elif question.attachment.attachment_type == 'DC' %}
+                                    <div class="mb-3">
+                                        <label for="Att{{ question.id }}_{{question.attachment.id}}">{{ attachment.name }}</label> 
+                                        <div id ="alert{{ question.id }}_{{question.attachment.id}}" class="alert alert-success alert-dismissible fade show" role="alert">
+                                            Документ загружен успешно!
+                                        </div>
+                                        {{ question.attachment.name }}
+                                        <div class="get-attachment">
+                                            <!---->
+                                            <a class='attachment{{question.attachment.id}}' {% if answers|get_file_link:question != None %}href="{{ answers|get_file_link:question }}"{% else %}style="display: none; margin-top: 10px"{% endif %} target="_blank">
+                                                <button class="btn btn-outline-success">Скачать прикреплённый файл</button>
+                                            </a>
+                                            <input type="file" name="{{question.id}}" style="margin-top: 10px" class="form-control " id="Att{{ question.id }}_{{question.attachment.id}}">
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    {{ question.attachment.name }}
+                                {% endif %}
+                            </td>
                             {% comment %} <td scope="row" class="question-points-max">{{ question|get_max_points }}</td> {% endcomment %}
                         </tr>
                     {% endfor %}
@@ -142,7 +167,7 @@
             </table>
         </div>
    {% endfor %}
-    {% if attachments.count != 0 %}
+    {% comment %} {% if attachments.count != 0 %}
         <div class="section attachment-section {% if current_section == -1 %}current-section{% endif %} last">
             <h2>Вложения к отчёту</h2>
             <div class="attachments-inputs">
@@ -169,7 +194,7 @@
                 {% endfor %}
             </div>
         </div>
-    {% endif %}
+    {% endif %} {% endcomment %}
     <div class="sections-panel">
         <button style="width: 150px" id="btn-back" class="btn btn-outline-primary" type="submit">Назад</button>
         <button style="width: 150px" id="btn-forward" class="btn btn-primary" type="submit">Вперёд</button>

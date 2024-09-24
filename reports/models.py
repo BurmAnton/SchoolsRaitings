@@ -73,13 +73,6 @@ def create_notification(sender, instance, using, **kwargs):
 
 class Attachment(models.Model):
     name = models.CharField("Название вложения", max_length=750)
-    report = models.ForeignKey(
-        Report,
-        verbose_name='отчёт',
-        related_name='attachments',
-        on_delete=CASCADE,
-        null=False, blank=False 
-    )
     ATTACHMENT_TYPES = [
         ('DC', "Документ (прикреплённый файл)"),
         ('LNK', 'Ссылка'),
@@ -477,6 +470,12 @@ class ReportFile(models.Model):
         related_name='files',
         on_delete=CASCADE,
         null=False, blank=False 
+    )
+    answers = models.ManyToManyField(
+        Answer,
+        verbose_name='условие',
+        related_name='files',
+        blank=True 
     )
     attachment = models.ForeignKey(
         Attachment,

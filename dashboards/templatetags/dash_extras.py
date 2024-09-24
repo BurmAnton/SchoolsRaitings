@@ -44,11 +44,10 @@ def format_point(points):
 
 @register.filter
 def get_section_points(s_report, section):
-    fields = Field.objects.filter(section=section)
-    questions = Question.objects.filter(field__in=fields)
-    points = s_report.answers.filter(question__in=questions).aggregate(points_sum=Sum('points'))['points_sum']
+    questions = Question.objects.filter(field__in=section.fields.all())
 
-    return format_point(points)
+    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    return format_point(points__sum)
 
 
 @register.filter
@@ -60,8 +59,7 @@ def get_point_sum(s_reports):
 
 @register.filter
 def get_point_sum_section(s_reports, section):
-    fields = Field.objects.filter(section=section)
-    questions = Question.objects.filter(field__in=fields)
+    questions = Question.objects.filter(field__in=section.fields.all())
     points = Answer.objects.filter(question__in=questions, s_report__in=s_reports).aggregate(points_sum=Sum('points'))['points_sum']
 
     if points is None:

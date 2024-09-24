@@ -159,9 +159,13 @@ function upload_file(file, name, input){
     .then(result => {
         console.log(result)
         file_link = result['file_link'] 
-        let a = input.parentElement.querySelector('a')
-        a.setAttribute('href', file_link)
-        a.style.display = 'block' 
+        attachment_id = result['attachment_id'] 
+        document.querySelectorAll(`.attachment${attachment_id}`).forEach(a => {
+            console.log(a)
+            a.setAttribute('href', file_link)
+            a.style.display = 'block' 
+        })
+        
         let alert_id = input.parentElement.parentElement.querySelector('.alert').id
         alert_id = `#${alert_id}`
         $(alert_id).fadeTo(4000, 500).slideUp(500, function(){

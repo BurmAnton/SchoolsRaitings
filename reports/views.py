@@ -95,8 +95,6 @@ def report(request, report_id, school_id):
             )
     answers = Answer.objects.filter(s_report=s_report)
     
-    attachments = report.attachments.all().order_by('-attachment_type')
-
     if request.method == 'POST':
         if 'send-report' in request.POST:
             s_report.status = 'A'
@@ -105,12 +103,18 @@ def report(request, report_id, school_id):
         elif request.FILES.get("file") is not None:
             file = request.FILES.get("file")
             id = request.POST.dict()['id']
-            attachment = Attachment.objects.get(id=id)
-            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=attachment)
+
+            question = Question.objects.get(id=id)
+            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=question.attachment)
             file_obj.file = file
+            file_obj.save()
+            questions = Question.objects.filter(attachment=question.attachment)
+            answers_f = Answer.objects.filter(question__in=questions, s_report=s_report)
+            file_obj.answers.add(*answers_f)
             file_obj.save()
             return JsonResponse({
                 "message": "File updated/saved successfully.",
+                "attachment_id": question.attachment.id,
                 "file_link": file_obj.file.url
             }, status=201)
         else:
@@ -180,7 +184,6 @@ def report(request, report_id, school_id):
         'school': school,
         'report': s_report,
         'answers': answers,
-        'attachments': attachments,
         'current_section': current_section
     })
 
@@ -258,7 +261,6 @@ def mo_report(request, s_report_id):
     message = None
     s_report = get_object_or_404(SchoolReport, id=s_report_id)
     answers = Answer.objects.filter(s_report=s_report)
-    attachments = s_report.report.attachments.all().order_by('-attachment_type')
     
     current_section = request.GET.get('current_section', '')
     if current_section == "":
@@ -273,12 +275,18 @@ def mo_report(request, s_report_id):
         elif request.FILES.get("file") is not None:
             file = request.FILES.get("file")
             id = request.POST.dict()['id']
-            attachment = Attachment.objects.get(id=id)
-            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=attachment)
+
+            question = Question.objects.get(id=id)
+            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=question.attachment)
             file_obj.file = file
+            file_obj.save()
+            questions = Question.objects.filter(attachment=question.attachment)
+            answers_f = Answer.objects.filter(question__in=questions, s_report=s_report)
+            file_obj.answers.add(*answers_f)
             file_obj.save()
             return JsonResponse({
                 "message": "File updated/saved successfully.",
+                "attachment_id": question.attachment.id,
                 "file_link": file_obj.file.url
             }, status=201)
         else:
@@ -348,7 +356,6 @@ def mo_report(request, s_report_id):
         'school': s_report.school,
         'report': s_report,
         'answers': answers,
-        'attachments': attachments,
         'current_section': current_section
     })
 
@@ -360,7 +367,6 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
     ter_admin = get_object_or_404(TerAdmin, id=ter_admin_id)
     s_report = get_object_or_404(SchoolReport, id=s_report_id)
     answers = Answer.objects.filter(s_report=s_report)
-    attachments = s_report.report.attachments.all().order_by('-attachment_type')
 
     current_section = request.GET.get('current_section', '')
     if current_section == "":
@@ -375,12 +381,18 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
         elif request.FILES.get("file") is not None:
             file = request.FILES.get("file")
             id = request.POST.dict()['id']
-            attachment = Attachment.objects.get(id=id)
-            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=attachment)
+
+            question = Question.objects.get(id=id)
+            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=question.attachment)
             file_obj.file = file
+            file_obj.save()
+            questions = Question.objects.filter(attachment=question.attachment)
+            answers_f = Answer.objects.filter(question__in=questions, s_report=s_report)
+            file_obj.answers.add(*answers_f)
             file_obj.save()
             return JsonResponse({
                 "message": "File updated/saved successfully.",
+                "attachment_id": question.attachment.id,
                 "file_link": file_obj.file.url
             }, status=201)
         else:
@@ -451,6 +463,5 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
         'school': s_report.school,
         'report': s_report,
         'answers': answers,
-        'attachments': attachments,
         'current_section': current_section
     })
