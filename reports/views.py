@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from reports.models import Answer, Attachment, Field, Option, Question, Report, ReportFile, ReportZone, SchoolReport
+from reports.models import Answer, Attachment, Field, Option, Question, Report, ReportFile, SchoolReport, Section
 from reports.utils import count_points, select_range_option, count_section_points, count_points_field
 from users.models import Group, Notification, MainPageArticle
 from schools.models import School, SchoolCloster, TerAdmin
@@ -86,13 +86,15 @@ def report(request, report_id, school_id):
     )
     if is_new_report:
         sections = report.sections.all()
-        fields = Field.objects.filter(section__in=sections)
+        fields = Field.objects.filter(sections__in=sections)
+        
         for question in Question.objects.filter(field__in=fields):
             Answer.objects.create(
                 s_report=s_report,
                 question=question,
             )
     answers = Answer.objects.filter(s_report=s_report)
+    
     attachments = report.attachments.all().order_by('-attachment_type')
 
     if request.method == 'POST':
@@ -146,22 +148,28 @@ def report(request, report_id, school_id):
             else: s_report.is_ready = False
             zone, points_sum = count_points(s_report)
             
-            s_report.zone = zone
+            if zone != 'W':
+                s_report.zone = zone
+                a_zone = answer.zone
+            else:
+                a_zone = 'W'
+
             s_report.points = points_sum
             s_report.save()
 
             field_z = count_points_field(s_report, question.field)
+            section = Section.objects.get(fields=question.field.id, report=s_report.report)
          
             return JsonResponse(
                 {
                     "message": "Question changed successfully.", 
                     "points": str(answer.points), 
                     "ready":s_report.is_ready,
-                    "zone": s_report.zone, 
+                    "zone": zone, 
                     "report_points": s_report.points,
-                    "answer_z": answer.zone,
+                    "answer_z": a_zone,
                     "field_z": field_z,
-                    "section_z": count_section_points(s_report, question.field.section),
+                    "section_z": count_section_points(s_report, section),
                 
                 }, 
                 status=201
@@ -308,22 +316,28 @@ def mo_report(request, s_report_id):
             else: s_report.is_ready = False
             zone, points_sum = count_points(s_report)
             
-            s_report.zone = zone
+            if zone != 'W':
+                s_report.zone = zone
+                a_zone = answer.zone
+            else:
+                a_zone = 'W'
+
             s_report.points = points_sum
             s_report.save()
 
             field_z = count_points_field(s_report, question.field)
-            
+            section = Section.objects.get(fields=question.field.id, report=s_report.report)
+
             return JsonResponse(
                 {
                     "message": "Question changed successfully.", 
                     "points": str(answer.points), 
                     "ready":s_report.is_ready,
-                    "zone": s_report.zone, 
+                    "zone": zone, 
                     "report_points": s_report.points,
-                    "answer_z": answer.zone,
+                    "answer_z": a_zone,
                     "field_z": field_z,
-                    "section_z": count_section_points(s_report, question.field.section),
+                    "section_z": count_section_points(s_report, section),
                 
                 }, 
                 status=201
@@ -352,7 +366,7 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
     if current_section == "":
         current_section = s_report.report.sections.all()[0].id
     else: current_section = int(current_section)
-
+    
     if request.method == 'POST':
         if 'send-report' in request.POST:
             s_report.status = 'B'
@@ -404,22 +418,28 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
             else: s_report.is_ready = False
             zone, points_sum = count_points(s_report)
             
-            s_report.zone = zone
+            if zone != 'W':
+                s_report.zone = zone
+                a_zone = answer.zone
+            else:
+                a_zone = 'W'
+
             s_report.points = points_sum
             s_report.save()
 
             field_z = count_points_field(s_report, question.field)
-            
+            section = Section.objects.get(fields=question.field.id, report=s_report.report)
+
             return JsonResponse(
                 {
                     "message": "Question changed successfully.", 
                     "points": str(answer.points), 
                     "ready":s_report.is_ready,
-                    "zone": s_report.zone, 
+                    "zone": zone, 
                     "report_points": s_report.points,
-                    "answer_z": answer.zone,
+                    "answer_z": a_zone,
                     "field_z": field_z,
-                    "section_z": count_section_points(s_report, question.field.section),
+                    "section_z": count_section_points(s_report, section),
                 
                 }, 
                 status=201

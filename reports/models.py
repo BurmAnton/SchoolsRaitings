@@ -23,12 +23,6 @@ class Report(models.Model):
         on_delete=CASCADE,
         null=False, blank=False 
     )
-    sections = models.ManyToManyField(
-        "Section",
-        verbose_name='показатели',
-        related_name='reports',
-        blank=False 
-    )
     SCHOOL_LEVELS = [
         ('A', "1 — 11 классы"),
         ('M', "1 — 9 классы"),
@@ -45,12 +39,15 @@ class Report(models.Model):
 
     yellow_zone_min = models.DecimalField(
         "Жёлтая зона (минимум)", max_digits=5,
-        decimal_places=1, null=True, blank=True, default=None
+        decimal_places=1, null=True, blank=True, default=0
 
     )
     green_zone_min = models.DecimalField(
         "Зеленая зона (минимум)", max_digits=5, decimal_places=1,
-        null=True, blank=True, default=None
+        null=True, blank=True, default=0
+    )
+    is_counting = models.BooleanField(
+        "Показывать зоны?", default=False
     )
     points = models.DecimalField(
         "Макс. баллов", max_digits=5,
@@ -72,66 +69,6 @@ def create_notification(sender, instance, using, **kwargs):
             pass
         elif Report.objects.get(id=instance.id).is_published == False:
             create_report_notifications(instance)
-
-
-
-class ReportZone(models.Model):
-    report = models.ForeignKey(
-        Report,
-        verbose_name='отчёт',
-        related_name='zones',
-        on_delete=CASCADE,
-        null=False, blank=False 
-    )
-    closter = models.ForeignKey(
-        SchoolCloster,
-        verbose_name='Кластер',
-        related_name='zones',
-        on_delete=CASCADE,
-        null=False, blank=False 
-    )
-    ZONE_TYPES = [
-        ('R', "Красная"),
-        ('Y', "Желтая"),
-        ('G', "Зеленая"),
-    ]
-    zone = models.CharField(
-        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
-    )
-    SCHOOL_LEVELS = [
-        ('A', "1 — 11 классы"),
-        ('M', "1 — 9 классы"),
-        ('S', "1 — 4 классы"),
-        ('G', "10 — 11 классы"),
-        ('MG', "5 — 11 классы"),
-    ]
-    ed_level = models.CharField(
-        "Уровень образования", choices=SCHOOL_LEVELS, max_length=2, blank=False, null=False
-    )
-    RANGE_TYPES = [
-        ('L', "Меньше или равно"),
-        ('G', "Больше или равно"),
-        ('D', "Диапазон"),
-    ]
-    range_type = models.CharField(
-        "Тип условия", choices=RANGE_TYPES, max_length=1, blank=False, null=False
-    )
-    less_or_equal = models.DecimalField(
-        "Меьньше или равно", max_digits=5,
-        decimal_places=1, null=True, blank=True, default=None
-
-    )
-    greater_or_equal = models.DecimalField(
-        "Больше или равно", max_digits=5, decimal_places=1,
-        null=True, blank=True, default=None
-    )
-
-    class Meta:
-        verbose_name = "Зона"
-        verbose_name_plural = "Зоны"
-
-    def __str__(self):
-        return  f'{self.report}, {self.get_ed_level_display()} ({self.zone})'
 
 
 class Attachment(models.Model):
@@ -165,15 +102,28 @@ class Attachment(models.Model):
 class Section(models.Model):
     number = models.CharField('Номер раздела', null=True, blank=True, max_length=500)
     name = models.CharField("Название раздела", max_length=500)
-    
+    report = models.ForeignKey(
+        Report,
+        verbose_name='отчёт',
+        related_name='sections',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    fields = models.ManyToManyField(
+        "Field",
+        verbose_name="Критерии",
+        related_name="sections",
+        blank=True
+    )
+
     yellow_zone_min = models.DecimalField(
         "Жёлтая зона (минимум)", max_digits=5,
-        decimal_places=1, null=True, blank=True, default=None
+        decimal_places=1, null=False, blank=False, default=0
 
     )
     green_zone_min = models.DecimalField(
         "Зеленая зона (минимум)", max_digits=5, decimal_places=1,
-        null=True, blank=True, default=None
+        null=False, blank=False, default=0
     )
     points = models.DecimalField(
         "Макс. баллов", max_digits=5,
@@ -197,21 +147,15 @@ class Section(models.Model):
 class Field(models.Model):
     number = models.CharField('Номер критерия', null=False, blank=False, max_length=500)
     name = models.CharField("Название критерия", max_length=750, null=False, blank=False)
-    section = models.ForeignKey(
-        Section,
-        verbose_name='показатель',
-        related_name='fields',
-        on_delete=CASCADE,
-        null=False, blank=False 
-    )
+    
     yellow_zone_min = models.DecimalField(
         "Жёлтая зона (минимум)", max_digits=5,
-        decimal_places=1, null=True, blank=True, default=None
+        decimal_places=1, null=False, blank=False, default=0
 
     )
     green_zone_min = models.DecimalField(
         "Зеленая зона (минимум)", max_digits=5, decimal_places=1,
-        null=True, blank=True, default=None
+        null=False, blank=False, default=0
     )
     points = models.DecimalField(
         "Макс. баллов", max_digits=5,
@@ -228,7 +172,7 @@ class Field(models.Model):
         verbose_name_plural = "Критерии"
 
     def __str__(self):
-        return  f'{self.section.number}.{self.number}. {self.name}'
+        return  f'(id: {self.id}) {self.number}. {self.name}'
 
 
 
@@ -278,7 +222,8 @@ class Question(models.Model):
 
 @receiver(post_save, sender=Question, dispatch_uid='question_save_signal')
 def count_points(sender, instance, using, **kwargs):
-    reports = instance.field.section.reports.all()
+    sections = instance.field.sections.all()
+    reports = Report.objects.filter(sections__in=sections)
     for report in reports:
         report.points = count_report_points(report)
         report.save()
@@ -325,12 +270,12 @@ class Option(models.Model):
         return self.name
 
 
-@receiver(post_save, sender=Option, dispatch_uid='option_save_signal')
-def count_points(sender, instance, using, **kwargs):
-    reports = instance.question.field.section.reports.all()
-    for report in reports:
-        report.points = count_report_points(report)
-        report.save()
+# @receiver(post_save, sender=Option, dispatch_uid='option_save_signal')
+# def count_points(sender, instance, using, **kwargs):
+#     reports = instance.question.field.section.reports.all()
+#     for report in reports:
+#         report.points = count_report_points(report)
+#         report.save()
 
 
 class RangeOption(models.Model):
@@ -359,7 +304,7 @@ class RangeOption(models.Model):
         "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
     )
     less_or_equal = models.DecimalField(
-        "Меьньше или равно",
+        "Меньше или равно",
         max_digits=5,
         decimal_places=1,
         null=True, blank=True,
@@ -404,12 +349,12 @@ class RangeOption(models.Model):
         return f"{self.question} ({self.range_type})"
 
 
-@receiver(post_save, sender=RangeOption, dispatch_uid='range_option_save_signal')
-def count_points(sender, instance, using, **kwargs):
-    reports = instance.question.field.section.reports.all()
-    for report in reports:
-        report.points = count_report_points(report)
-        report.save()
+# @receiver(post_save, sender=RangeOption, dispatch_uid='range_option_save_signal')
+# def count_points(sender, instance, using, **kwargs):
+#     reports = instance.question.field.section.reports.all()
+#     for report in reports:
+#         report.points = count_report_points(report)
+#         report.save()
 
 
 class SchoolReport(models.Model):

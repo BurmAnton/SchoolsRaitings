@@ -69,7 +69,7 @@
                     </td>
                     <td scope="row" class="td-center">
                         <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                            <div style="background-color: {{report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                            <div style="background-color: {% if report.report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div>
                             <div>{{ report.points|format_point }}/{{ report.report.points|format_point }}</div>
                         </div>
                     </td>

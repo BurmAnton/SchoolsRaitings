@@ -83,9 +83,7 @@ function change_question_value(id, value, input){
     })
     .then(response => response.json())
     .then(result => {
-        console.log(result);
         document.querySelector(`#points_${id}`).innerHTML = result['points'].replace(",", ".").replace(".0", "")
-        console.log(result['ready']);
         if (result['ready'] === true){
             document.querySelector('#send-button').classList.remove('disabled')
             document.querySelector('#send-button').classList.remove('btn-secondary')
@@ -99,32 +97,42 @@ function change_question_value(id, value, input){
             document.querySelector('#report-zone').style.background = "#ffc600";
         } else if (result['zone'] === 'R'){
             document.querySelector('#report-zone').style.background = "red";
-        } else {
+        } else if (result['zone'] === 'G'){
             document.querySelector('#report-zone').style.background = "green";
+        } else {
+            document.querySelector('#report-zone').style.background = "white";
         }
         let section = document.querySelector('.current-section')
         if (result['section_z']=== 'Y'){
             section.querySelector('.section-zone').style.background = "#ffc600";
         } else if (result['section_z'] === 'R'){
             section.querySelector('.section-zone').style.background = "red";
-        } else {
+        } else if (result['section_z'] === 'G') {
             section.querySelector('.section-zone').style.background = "green";
+        } else {
+            
+            section.querySelector('.section-zone').style.background = "white";
         }
         if (result['answer_z']=== 'Y'){
             section.querySelector(`.question-zone${id}`).style.background = "#ffc600";
         } else if (result['answer_z'] === 'R'){
             section.querySelector(`.question-zone${id}`).style.background = "red";
-        } else {
+        } else if (result['answer_z'] === 'G') {
             section.querySelector(`.question-zone${id}`).style.background = "green";
-        }
-        field = section.querySelector(`.question-zone${id}`).parentElement.parentElement.parentElement
-        console.log(field.querySelector(`.field-zone`))
-        if (result['field_z']=== 'Y'){
-            field.querySelector(`.field-zone`).style.background = "#ffc600";
-        } else if (result['field_z'] === 'R'){
-            field.querySelector(`.field-zone`).style.background = "red";
         } else {
-            field.querySelector(`.field-zone`).style.background = "green";
+            section.querySelector(`.question-zone${id}`).style.background = "white";
+            
+        }
+        field_id = section.querySelector(`.question-zone${id}`).dataset.field
+        field = document.querySelector('#zone-field'+field_id)
+        if (result['field_z']=== 'Y'){
+            field.style.background = "#ffc600";
+        } else if (result['field_z'] === 'R'){
+            field.style.background = "red";
+        } else if (result['field_z'] === 'G'){
+            field.style.background = "green";
+        } else {
+            field.style.background = "white";
         }
         document.querySelector('#report-points').innerHTML = result['report_points'].replace(",", ".").replace(".0", "")
     })

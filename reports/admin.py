@@ -6,20 +6,28 @@ from django_admin_listfilter_dropdown.filters import (
 )
 
 from .models import (
-    Attachment, Question, RangeOption, Report, ReportFile, 
-    SchoolReport, Section, Field, Option,
+    Attachment, Question, RangeOption, 
+    Report, Section, Field, Option, SchoolReport
 )
-
     
 
 class AttachmentInline(admin.TabularInline):
     model = Attachment
+    
     def get_extra(self, request, obj=None, **kwargs):
         if obj: return 0
         return 1
 
-
 SectionForm = select2_modelform(Section, attrs={'width': '500px'})
+
+class SectionInline(admin.StackedInline):
+    #form = SectionForm
+    fields = ['number', 'name', 'fields', 'yellow_zone_min', 'green_zone_min']
+    filter_horizontal = ['fields',]
+    model = Section
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj: return 0
+        return 1
 
 
 @admin.register(Report)
@@ -33,45 +41,40 @@ class ReportAdmin(admin.ModelAdmin):
         'is_published'
     ]
     readonly_fields = ['points',]
-    inlines = [AttachmentInline, ]
-    filter_horizontal = ['sections', ]
+    inlines = [SectionInline, ]
 
 
-class FieldInline(admin.TabularInline):
-    model = Field
-    fields = ['number', 'name']
 
-
-@admin.register(Section)
+#@admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
     list_display = ['name', 'number', ]
-    list_filter = ['reports', ]
     search_fields = ['number', 'name']
-    inlines = [FieldInline, ]
-    list_filter = [
-        ('reports', RelatedDropdownFilter),
-    ]
-    readonly_fields = ['points',]
 
+    readonly_fields = ['points',]
+    filter_horizontal = ['fields',]
     content = HTMLField()
 
 
+QuestionForm = select2_modelform(Question, attrs={'width': '500px'})
+
 class QuestionInline(admin.TabularInline):
     model = Question
-    fields = ['name', 'answer_type']
-    
+    form = QuestionForm
+    fields = ['name', 'answer_type', ]
+
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj: return 1
+        return 1
+
 
 
 @admin.register(Field)
 class FieldAdmin(admin.ModelAdmin):
-    list_display = ['section', 'number', 'name']
-    search_fields = ['section', 'number', 'name']
+    list_display = ['name', 'number', 'id']
+    search_fields = ['number', 'name', 'id']
     readonly_fields = ['points',]
 
     inlines = [QuestionInline, ]
-    list_filter = [
-        ('section', RelatedDropdownFilter),
-    ]
 
     content = HTMLField()
 
@@ -93,30 +96,23 @@ class RangeOptionInline(admin.TabularInline):
             return 0
         return 3
 
+@admin.register(SchoolReport)
+class SchoolReportAdmin(admin.ModelAdmin):
+    pass
+
+
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = ['name', 'answer_type', 'field']
-    search_fields = ['field', 'name', 'answer_type']
-    inlines = [OptionInline, RangeOptionInline]
     list_filter = [
-        ('field__section__reports', RelatedDropdownFilter),
+        ('answer_type', ChoiceDropdownFilter),
         ('field', RelatedDropdownFilter),
     ]
+    search_fields = ['field__name', 'field__number', 'name', 'answer_type', 'field__id']
+    inlines = [OptionInline, RangeOptionInline]
 
     content = HTMLField()
 
     class Media:
         js = ["../static/admin/js/question_change.js",]
 
-
-class ReportFileInline(admin.TabularInline):
-    model = ReportFile
-    def get_extra(self, request, obj=None, **kwargs):
-        if obj:
-            return 0
-        return 3
-
-
-@admin.register(SchoolReport)
-class SchoolReport(admin.ModelAdmin):
-    inlines = [ReportFileInline, ]

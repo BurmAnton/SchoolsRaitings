@@ -63,15 +63,17 @@ def count_report_points(report):
 def count_points(s_report):
     from reports.models import Answer
 
-    points_sum = round(Answer.objects.filter( s_report=s_report).aggregate(Sum('points'))['points__sum'], 1)
     report = s_report.report
+    points_sum = round(Answer.objects.filter( s_report=s_report).aggregate(Sum('points'))['points__sum'], 1)
+    if report.is_counting == False:
+        return 'W', points_sum
+    
     if points_sum < report.yellow_zone_min:
         report_zone = 'R'
     elif points_sum >= report.green_zone_min:
         report_zone = 'G'
     else:
         report_zone = 'Y'
-
 
     return report_zone, points_sum
 
@@ -80,6 +82,8 @@ def count_points_field(s_report, field):
     from reports.models import Answer, Question
     
     points__sum = Answer.objects.filter(question__in=field.questions.all(), s_report=s_report).aggregate(Sum('points'))['points__sum']
+    if s_report.report.is_counting == False:
+        return 'W'
     try:
         if points__sum < field.yellow_zone_min:
             return "R"
@@ -94,6 +98,9 @@ def count_section_points(s_report, section):
 
     questions = Question.objects.filter(field__in=section.fields.all())
     points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    if s_report.report.is_counting == False:
+        return 'W'
+    
     try:
         if points__sum < section.yellow_zone_min:
             return "R"

@@ -13,6 +13,8 @@ def get_item(dictionary, key):
 
 @register.filter
 def get_answer(answers, question):
+    if answers[0].s_report.report.is_counting == False:
+        return 'white'
     answer = answers.get(question=question)
     if answer.zone == "R":
         return "red"
@@ -66,15 +68,16 @@ def get_color(zone):
 
 @register.filter
 def get_color_field(answers, field):
-    if field.yellow_zone_min is None:
-        return "white"
+    if answers[0].s_report.report.is_counting == False:
+        return 'white'
     answers = answers.filter(question__in=field.questions.all())
     points = answers.aggregate(Sum('points'))['points__sum']
+
     if points < field.yellow_zone_min:
         return "red"
     if points >= field.green_zone_min:
-        return "#ffc600"
-    return "green"
+        return "green"
+    return "#ffc600"
 
 
 
@@ -85,6 +88,8 @@ def get_section_color(s_report, section):
     questions = Question.objects.filter(field__in=section.fields.all())
 
     points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    if s_report.report.is_counting == False:
+        return 'white'
     try:
         if points__sum < section.yellow_zone_min:
             return "red"
@@ -104,6 +109,7 @@ def get_points(answers, question):
         elif question.answer_type == 'BL':
             if answer.bool_value:
                 return format_point(question.bool_points)
+            return 0
         elif question.answer_type in ['NMBR', 'PRC']:
             return format_point(answer.points)
     except: return 0

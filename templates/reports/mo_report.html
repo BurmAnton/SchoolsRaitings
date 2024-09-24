@@ -36,7 +36,7 @@
     <h1>{{ report.report }}</h1>
     <h2 id="report-school"><span style="font-weight: 500;">Учебное заведение:</span> {{ school }}</h2>
     <h2 id="report-status"><span style="font-weight: 500; padding-right: 5px;">Статус:</span>  {{ report.get_status_display }}</h2>
-    <h2 id="report-points-zone"><div id="report-zone" style="background-color: {{report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div><span style="font-weight: 500; padding-right: 5px;">Баллы:</span> <span id="report-points">{{ report.points|format_point }}</span>/{{ report.report.points|format_point }} </h2>
+    <h2 id="report-points-zone"><div id="report-zone" style="background-color: {% if report.report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div><span style="font-weight: 500; padding-right: 5px;">Баллы:</span> <span id="report-points">{{ report.points|format_point }}</span>/{{ report.report.points|format_point }} </h2>
     
     {% if message == 'SendToMinObr' %}
         <div class="alert alert-success" role="alert" style="margin-top: 10px; text-align: center;">
@@ -72,7 +72,7 @@
             {%for field in section.fields.all|dictsort:"id" %}
                     <tr class="tr-field">
                         <th colspan="2">
-                            <div>{{ field }}</div>
+                            <div>{{ field.number }}. {{ field.name }}</div> <!-- -->
                             {% if field.note is not None and field.note != "" %}
                                 <div class="alert alert-primary note  d-flex align-items-center" role="alert">
                                     <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
@@ -80,12 +80,12 @@
                                 </div>
                             {% endif %}
                         </th>
-                        <th colspan="1" style="height: 1px;"><div style="display: flex; justify-content: center; align-items: center; height: 100%;"><div class="field-zone field-zone{{field.id}}" style="background-color: {{answers|get_color_field:field}}; width: 15px; height: 15px; border-radius: 15px"></div> </div></th>
+                        <th colspan="1" style="height: 1px;" ><div style="display: flex; justify-content: center; align-items: center; height: 100%;"><div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{answers|get_color_field:field}}; width: 15px; height: 15px; border-radius: 15px"></div> </div></th>
                         <th colspan="2"></th>
                     </tr>             
                     {%for question in field.questions.all %}
-                        <tr class="question">
-                            <td style="width: 10px;"><div class="question-zone question-zone{{question.id}}" style="background-color: {{answers|get_answer:question}}; width: 15px; height: 15px; border-radius: 15px"></div></td>
+                        <tr class="question {% if question.answer_type == 'BL' %}question-bl{% endif %}"> <!---->
+                            <td style="width: 10px;"><div class="question-zone question-zone{{question.id}}" data-field="{{field.id}}" style="background-color: {{answers|get_answer:question}}; width: 15px; height: 15px; border-radius: 15px"></div></td>
                             <td scope="row">
                                 {% if question.answer_type == 'LST' %}
                                     <div class="form-floating mb-3 field filed-select">
