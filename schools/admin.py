@@ -25,10 +25,13 @@ class SchoolTypeAdmin(admin.ModelAdmin):
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
     list_display = [
+        'id',
+        'number',
         '__str__', 
-        'ter_admin', 
+        'ter_admin',
+        'closter',
         'ed_level', 
-        'closter'
+        
     ]
     search_fields = [
         "ais_id", "name", "short_name",

@@ -17,6 +17,7 @@ def select_range_option(options, value):
                     return option
             case 'E':
                 if value == round(float(option.equal), 1): return option
+
     return None
 
 
@@ -34,29 +35,12 @@ def create_report_notifications(report):
 
 
 def count_report_points(report):
-    from reports.models import Option, RangeOption
-    points = 0
     for section in report.sections.all():
-        section_points = 0
-        for field in section.fields.all():
-            field_points = 0
-            for question in field.questions.all():
-                match question.answer_type:
-                    case 'BL':
-                        try: field_points += question.bool_points
-                        except: pass
-                    case 'LST':
-                        try: field_points += Option.objects.filter(question=question).aggregate(Max('points'))['points__max']
-                        except: pass
-                    case _:
-                        try: field_points += RangeOption.objects.filter(question=question).aggregate(Max('points'))['points__max']
-                        except: pass
-            field.points = field_points
-            field.save()
-            section_points += field_points
-        section.points = section_points
+        points = section.fields.all().aggregate(Sum('points'))['points__sum']
+        if points is None: points = 0
+        section.points = points
         section.save()
-        points += section_points
+    points = report.sections.all().aggregate(Sum('points'))['points__sum']
     return points
 
 
@@ -94,10 +78,9 @@ def count_points_field(s_report, field):
 
 
 def count_section_points(s_report, section):
-    from reports.models import Answer, Question
+    from reports.models import Answer
 
-    questions = Question.objects.filter(field__in=section.fields.all())
-    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    points__sum = Answer.objects.filter(question__in=section.fields.all(), s_report=s_report).aggregate(Sum('points'))['points__sum']
     if s_report.report.is_counting == False:
         return 'W'
     

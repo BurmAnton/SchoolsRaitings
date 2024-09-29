@@ -1,19 +1,21 @@
-.form-floating .dropdown-toggle {
-  height: 60px !important;
+.dropdown-toggle {
   border: 1px solid rgba(49, 52, 55, 0.5137254902) !important;
   background-color: white !important;
 }
-.form-floating .dropdown-toggle .filter-option {
-  padding-top: 20px;
+
+.input-group-text {
+  border: 1px solid rgba(49, 52, 55, 0.5137254902) !important;
+  border-right: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
 }
-.form-floating .dropdown-menu {
+
+.dropdown-menu {
   z-index: 100;
 }
 
-.filed-select label {
-  font-size: 16px;
-  opacity: 0.9;
-  transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+label {
+  margin-bottom: 5px;
 }
 
 input {
@@ -98,7 +100,6 @@ input {
   margin-top: 23px;
 }
 #page-content .section .section-table .question-points, #page-content .section .section-table .question-points-max {
-  padding-top: 25px;
   text-align: center;
 }
 #page-content .section .section-table .center {

@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from reports.models import Answer, Attachment, Field, Option, Question, Report, ReportFile, SchoolReport, Section
+from reports.models import Answer, Attachment, Field, Option, Report, ReportFile, SchoolReport, Section
 from reports.utils import count_points, select_range_option, count_section_points, count_points_field
 from users.models import Group, Notification, MainPageArticle
 from schools.models import School, SchoolCloster, TerAdmin
@@ -84,15 +84,14 @@ def report(request, report_id, school_id):
     s_report, is_new_report = SchoolReport.objects.get_or_create(
         report=report, school=school
     )
-    if is_new_report:
-        sections = report.sections.all()
-        fields = Field.objects.filter(sections__in=sections)
-        
-        for question in Question.objects.filter(field__in=fields):
-            Answer.objects.create(
-                s_report=s_report,
-                question=question,
-            )
+    
+    sections = report.sections.all()
+    for question in Field.objects.filter(sections__in=sections):
+        Answer.objects.get_or_create(
+            s_report=s_report,
+            question=question,
+        )
+
     answers = Answer.objects.filter(s_report=s_report)
     
     if request.method == 'POST':
@@ -104,22 +103,18 @@ def report(request, report_id, school_id):
             file = request.FILES.get("file")
             id = request.POST.dict()['id']
 
-            question = Question.objects.get(id=id)
-            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=question.attachment)
-            file_obj.file = file
-            file_obj.save()
-            questions = Question.objects.filter(attachment=question.attachment)
-            answers_f = Answer.objects.filter(question__in=questions, s_report=s_report)
-            file_obj.answers.add(*answers_f)
-            file_obj.save()
+            question = Field.objects.get(id=id)
+            answer = Answer.objects.get(question=question, s_report=s_report)
+            answer.file = file
+            answer.save()
             return JsonResponse({
                 "message": "File updated/saved successfully.",
-                "attachment_id": question.attachment.id,
-                "file_link": file_obj.file.url
+                "question_id": question.id,
+                "file_link": answer.file.url
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
-            question = Question.objects.get(id=data['id'])
+            question = Field.objects.get(id=data['id'])
             answer = Answer.objects.get(question=question, s_report=s_report)
             if question.answer_type == "LST":
                 try:
@@ -161,8 +156,7 @@ def report(request, report_id, school_id):
             s_report.points = points_sum
             s_report.save()
 
-            field_z = count_points_field(s_report, question.field)
-            section = Section.objects.get(fields=question.field.id, report=s_report.report)
+            section = Section.objects.get(fields=question.id, report=s_report.report)
          
             return JsonResponse(
                 {
@@ -172,7 +166,6 @@ def report(request, report_id, school_id):
                     "zone": zone, 
                     "report_points": s_report.points,
                     "answer_z": a_zone,
-                    "field_z": field_z,
                     "section_z": count_section_points(s_report, section),
                 
                 }, 
@@ -276,22 +269,18 @@ def mo_report(request, s_report_id):
             file = request.FILES.get("file")
             id = request.POST.dict()['id']
 
-            question = Question.objects.get(id=id)
-            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=question.attachment)
-            file_obj.file = file
-            file_obj.save()
-            questions = Question.objects.filter(attachment=question.attachment)
-            answers_f = Answer.objects.filter(question__in=questions, s_report=s_report)
-            file_obj.answers.add(*answers_f)
-            file_obj.save()
+            question = Field.objects.get(id=id)
+            answer = Answer.objects.get(question=question, s_report=s_report)
+            answer.file = file
+            answer.save()
             return JsonResponse({
                 "message": "File updated/saved successfully.",
-                "attachment_id": question.attachment.id,
-                "file_link": file_obj.file.url
+                "question_id": question.id,
+                "file_link": answer.file.url
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
-            question = Question.objects.get(id=data['id'])
+            question = Field.objects.get(id=data['id'])
             answer = Answer.objects.get(question=question, s_report=s_report)
             if question.answer_type == "LST":
                 try:
@@ -316,6 +305,7 @@ def mo_report(request, s_report_id):
                 else: 
                     answer.points = r_option.points
                     answer.zone = r_option.zone
+            answer.is_mod_by_mo = True #####
             answer.save()
 
             list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
@@ -333,8 +323,7 @@ def mo_report(request, s_report_id):
             s_report.points = points_sum
             s_report.save()
 
-            field_z = count_points_field(s_report, question.field)
-            section = Section.objects.get(fields=question.field.id, report=s_report.report)
+            section = Section.objects.get(fields=question.id, report=s_report.report)
 
             return JsonResponse(
                 {
@@ -344,7 +333,6 @@ def mo_report(request, s_report_id):
                     "zone": zone, 
                     "report_points": s_report.points,
                     "answer_z": a_zone,
-                    "field_z": field_z,
                     "section_z": count_section_points(s_report, section),
                 
                 }, 
@@ -382,22 +370,18 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
             file = request.FILES.get("file")
             id = request.POST.dict()['id']
 
-            question = Question.objects.get(id=id)
-            file_obj, _ = ReportFile.objects.get_or_create(s_report=s_report, attachment=question.attachment)
-            file_obj.file = file
-            file_obj.save()
-            questions = Question.objects.filter(attachment=question.attachment)
-            answers_f = Answer.objects.filter(question__in=questions, s_report=s_report)
-            file_obj.answers.add(*answers_f)
-            file_obj.save()
+            question = Field.objects.get(id=id)
+            answer = Answer.objects.get(question=question, s_report=s_report)
+            answer.file = file
+            answer.save()
             return JsonResponse({
                 "message": "File updated/saved successfully.",
-                "attachment_id": question.attachment.id,
-                "file_link": file_obj.file.url
+                "question_id": question.id,
+                "file_link": answer.file.url
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
-            question = Question.objects.get(id=data['id'])
+            question = Field.objects.get(id=data['id'])
             answer = Answer.objects.get(question=question, s_report=s_report)
             if question.answer_type == "LST":
                 try:
@@ -422,6 +406,7 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
                 else: 
                     answer.points = r_option.points
                     answer.zone = r_option.zone
+            answer.is_mod_by_ter = True #####
             answer.save()
 
             list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
@@ -439,8 +424,7 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
             s_report.points = points_sum
             s_report.save()
 
-            field_z = count_points_field(s_report, question.field)
-            section = Section.objects.get(fields=question.field.id, report=s_report.report)
+            section = Section.objects.get(fields=question.id, report=s_report.report)
 
             return JsonResponse(
                 {
@@ -450,7 +434,6 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
                     "zone": zone, 
                     "report_points": s_report.points,
                     "answer_z": a_zone,
-                    "field_z": field_z,
                     "section_z": count_section_points(s_report, section),
                 
                 }, 

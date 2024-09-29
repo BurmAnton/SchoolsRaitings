@@ -123,17 +123,17 @@ function change_question_value(id, value, input){
             section.querySelector(`.question-zone${id}`).style.background = "white";
             
         }
-        field_id = section.querySelector(`.question-zone${id}`).dataset.field
-        field = document.querySelector('#zone-field'+field_id)
-        if (result['field_z']=== 'Y'){
-            field.style.background = "#ffc600";
-        } else if (result['field_z'] === 'R'){
-            field.style.background = "red";
-        } else if (result['field_z'] === 'G'){
-            field.style.background = "green";
-        } else {
-            field.style.background = "white";
-        }
+        // field_id = section.querySelector(`.question-zone${id}`).dataset.field
+        // field = document.querySelector('#zone-field'+field_id)
+        // if (result['field_z']=== 'Y'){
+        //     field.style.background = "#ffc600";
+        // } else if (result['field_z'] === 'R'){
+        //     field.style.background = "red";
+        // } else if (result['field_z'] === 'G'){
+        //     field.style.background = "green";
+        // } else {
+        //     field.style.background = "white";
+        // }
         document.querySelector('#report-points').innerHTML = result['report_points'].replace(",", ".").replace(".0", "")
     })
     .then(result => {
@@ -159,8 +159,8 @@ function upload_file(file, name, input){
     .then(result => {
         console.log(result)
         file_link = result['file_link'] 
-        attachment_id = result['attachment_id'] 
-        document.querySelectorAll(`.attachment${attachment_id}`).forEach(a => {
+        question_id = result['question_id'] 
+        document.querySelectorAll(`.attachment${question_id}`).forEach(a => {
             console.log(a)
             a.setAttribute('href', file_link)
             a.style.display = 'block' 

@@ -67,10 +67,7 @@
                             <td scope="row">{{ s_report.school.ter_admin }}</td>
                             <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
                             <td scope="row" style="text-align: center; vertical-align: middle;">
-                                <div style="display: flex;gap: 5px; align-items: center;">
-                                    <div style="background-color: {{s_report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
                                     <div>{{ s_report.points|format_point }}</div>
-                                </div>
                             </td>
                             {% for section in report.sections.all %}
                                 <td scope="row" style="text-align: center; vertical-align: middle;">
@@ -108,7 +105,7 @@
                             <th scope="row">Уровень образования</th>
                             <th scope="row">Итого</th>
                             {% for field in section.fields.all %}
-                                <th  class="section-hdr sticky-top" scope="row" style="text-align: center;">{{field}}</th>
+                                <th  class="section-hdr sticky-top" scope="row" style="text-align: center;">{{ section.number }}.{{ field.number }}. {{ field.name }}</th>
                             {% endfor %}
                         </tr>
                         {% for s_report in schools_reports %}
@@ -119,7 +116,7 @@
                                 <td scope="row" style="text-align: center;">{{ s_report|get_section_points:section }}</td>
                                 {% for field in section.fields.all %}
                                     <td scope="row" style="text-align: center;">
-                                        <div style="display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;"><div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{s_report.answers.all|get_color_field:field}}; width: 15px; height: 15px; border-radius: 15px"></div><div>{{ s_report|get_field_points:field }}</div></div>
+                                        <div style=" {% if s_report.report.is_counting %}display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;{% endif%}"><div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{s_report.answers.all|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div><div>{{ s_report|get_field_points:field }}</div></div>
                                         
                                     </td>
                                 {% endfor %}

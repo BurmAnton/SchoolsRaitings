@@ -1,7 +1,7 @@
 from django import template
 from django.db.models import Sum
 
-from reports.models import Answer, Field, Question
+from reports.models import Answer, Field
 
 register = template.Library()
 
@@ -44,7 +44,7 @@ def format_point(points):
 
 @register.filter
 def get_section_points(s_report, section):
-    questions = Question.objects.filter(field__in=section.fields.all())
+    questions = section.fields.all()
 
     points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
     return format_point(points__sum)
@@ -70,7 +70,7 @@ def get_color_field_dash(answers, field):
 
 @register.filter
 def get_point_sum_section(s_reports, section):
-    questions = Question.objects.filter(field__in=section.fields.all())
+    questions = section.fields.all()
     points = Answer.objects.filter(question__in=questions, s_report__in=s_reports).aggregate(points_sum=Sum('points'))['points_sum']
 
     if points is None:
@@ -80,14 +80,14 @@ def get_point_sum_section(s_reports, section):
 
 @register.filter
 def get_field_points(s_report, field):
-    points = s_report.answers.filter(question__in=field.questions.all()).aggregate(points_sum=Sum('points'))['points_sum']
+    points = s_report.answers.filter(question=field).aggregate(points_sum=Sum('points'))['points_sum']
 
     return format_point(points)
 
 @register.filter
 def get_point_sum_field(s_reports, field):
-    questions = Question.objects.filter(field=field)
-    answers = Answer.objects.filter(s_report__in=s_reports, question__in=questions)
-    points = answers.filter(question__in=field.questions.all()).aggregate(points_sum=Sum('points'))['points_sum']
+
+    answers = Answer.objects.filter(s_report__in=s_reports, question=field)
+    points = answers.filter(question=field).aggregate(points_sum=Sum('points'))['points_sum']
 
     return format_point(points)

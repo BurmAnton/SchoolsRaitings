@@ -3,6 +3,7 @@ from django.db import models
 from django.db.models.deletion import CASCADE, SET_NULL
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
+from django.db.models import Sum, Max
 
 from tinymce import models as tinymce_models
 
@@ -128,7 +129,7 @@ class Section(models.Model):
     )
 
     class Meta:
-        ordering = ['-id']
+        # ordering = ['-id']
         verbose_name = "Показатель отчёта"
         verbose_name_plural = "Показатели отчётов"
 
@@ -141,43 +142,9 @@ class Section(models.Model):
 class Field(models.Model):
     number = models.CharField('Номер критерия', null=False, blank=False, max_length=500)
     name = models.CharField("Название критерия", max_length=750, null=False, blank=False)
-    
-    yellow_zone_min = models.DecimalField(
-        "Жёлтая зона (минимум)", max_digits=5,
-        decimal_places=1, null=False, blank=False, default=0
-
-    )
-    green_zone_min = models.DecimalField(
-        "Зеленая зона (минимум)", max_digits=5, decimal_places=1,
-        null=False, blank=False, default=0
-    )
     points = models.DecimalField(
         "Макс. баллов", max_digits=5,
         decimal_places=1, null=False, blank=False, default=0
-    )
-
-    note = tinymce_models.HTMLField(
-        "Примечание", null=True, blank=True, default=None
-    )
-
-    class Meta:
-        get_latest_by = ["-id", ]
-        verbose_name = "Критерий"
-        verbose_name_plural = "Критерии"
-
-    def __str__(self):
-        return  f'(id: {self.id}) {self.number}. {self.name}'
-
-
-
-class Question(models.Model):
-    name = models.CharField("Описание условия", max_length=750, null=True, blank=True)
-    field = models.ForeignKey(
-        Field,
-        verbose_name='показатель',
-        related_name='questions',
-        on_delete=CASCADE,
-        null=False, blank=False 
     )
     ANSWER_TYPES = [
         ('BL', "Бинарный выбор (Да/Нет)"),
@@ -194,12 +161,18 @@ class Question(models.Model):
         decimal_places=1,
         default=0,
     )
-    attachment = models.ForeignKey(
-        Attachment,
-        verbose_name='Источник данных',
-        related_name='questions',
-        on_delete=CASCADE,
-        null=True, blank=True 
+
+    attachment_name = models.CharField("Название вложения", max_length=750, default="", null=True, blank=True)
+    ATTACHMENT_TYPES = [
+        ('DC', "Документ (прикреплённый файл)"),
+        ('LNK', 'Ссылка'),
+        ('OTH', 'Иной источник (без ссылки/файла)'),
+    ]
+    attachment_type = models.CharField(
+        "Тип вложения", max_length=3, 
+        choices=ATTACHMENT_TYPES,
+        default='OTH',
+        blank=True, null=True
     )
 
     note = tinymce_models.HTMLField(
@@ -207,26 +180,46 @@ class Question(models.Model):
     )
 
     class Meta:
-        verbose_name = "Условие"
-        verbose_name_plural = "Условия"
+        get_latest_by = ["-id", ]
+        verbose_name = "Критерий"
+        verbose_name_plural = "Критерии"
 
     def __str__(self):
-        return  f'{self.name} ({self.get_answer_type_display()})' 
+        return  f'(id: {self.id}) {self.number}. {self.name}'
 
 
-@receiver(post_save, sender=Question, dispatch_uid='question_save_signal')
+@receiver(post_save, sender=Field, dispatch_uid='option_save_signal')
 def count_points(sender, instance, using, **kwargs):
-    sections = instance.field.sections.all()
-    reports = Report.objects.filter(sections__in=sections)
-    for report in reports:
-        report.points = count_report_points(report)
-        report.save()
+    
+    match instance.answer_type:
+        case 'BL':
+            try: field_points = instance.bool_points
+            except: pass
+        case 'LST':
+            try: field_points = Option.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            except: pass
+        case 'NMBR':
+            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            except: pass
+        case 'PRC':
+            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            except: pass
+    if field_points == None:
+        field_points = 0
+    if instance.points != field_points and field_points is not None:
+        instance.points = field_points
+        instance.save()
+        sections = instance.sections.all()
+        for section in sections:
+            report = section.report
+            report.points = count_report_points(report)
+            report.save()
 
 
 class Option(models.Model):
     name = models.CharField("Название", max_length=250, blank=False, null=False)
     question = models.ForeignKey(
-        Question,
+        Field,
         verbose_name='критерий',
         related_name='options',
         on_delete=CASCADE,
@@ -264,17 +257,9 @@ class Option(models.Model):
         return self.name
 
 
-# @receiver(post_save, sender=Option, dispatch_uid='option_save_signal')
-# def count_points(sender, instance, using, **kwargs):
-#     reports = instance.question.field.section.reports.all()
-#     for report in reports:
-#         report.points = count_report_points(report)
-#         report.save()
-
-
 class RangeOption(models.Model):
     question = models.ForeignKey(
-        Question,
+        Field,
         verbose_name='критерий',
         related_name='range_options',
         on_delete=CASCADE,
@@ -343,14 +328,6 @@ class RangeOption(models.Model):
         return f"{self.question} ({self.range_type})"
 
 
-# @receiver(post_save, sender=RangeOption, dispatch_uid='range_option_save_signal')
-# def count_points(sender, instance, using, **kwargs):
-#     reports = instance.question.field.section.reports.all()
-#     for report in reports:
-#         report.points = count_report_points(report)
-#         report.save()
-
-
 class SchoolReport(models.Model):
     report = models.ForeignKey(
         Report,
@@ -411,7 +388,7 @@ class Answer(models.Model):
         null=False, blank=False 
     )
     question = models.ForeignKey(
-        Question,
+        Field,
         verbose_name='критерий',
         related_name='answers',
         on_delete=CASCADE,
@@ -445,7 +422,7 @@ class Answer(models.Model):
         ('G', "Зеленая"),
     ]
     zone = models.CharField(
-        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
+        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False, default='R'
     )
 
     is_mod_by_ter = models.BooleanField(
@@ -454,6 +431,10 @@ class Answer(models.Model):
     is_mod_by_mo = models.BooleanField(
         "Изменён МинОбром?", default=False
     )
+
+    def file_path(instance, filename):
+        return 'media/reports/{0}'.format(filename)
+    file = models.FileField("Файл", upload_to=file_path, max_length=200, null=True, blank=True)
     
     
     class Meta:
@@ -472,19 +453,14 @@ class ReportFile(models.Model):
         on_delete=CASCADE,
         null=False, blank=False 
     )
-    answers = models.ManyToManyField(
+    answer = models.ForeignKey(
         Answer,
         verbose_name='условие',
-        related_name='files',
-        blank=True 
-    )
-    attachment = models.ForeignKey(
-        Attachment,
-        verbose_name='вложение (отчёт)',
         related_name='files',
         on_delete=CASCADE,
         null=False, blank=False 
     )
+
     def file_path(instance, filename):
         return 'media/reports/{0}'.format(filename)
     file = models.FileField("Файл", upload_to=file_path, max_length=200, null=True, blank=True)

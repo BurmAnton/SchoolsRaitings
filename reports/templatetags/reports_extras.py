@@ -13,15 +13,16 @@ def get_item(dictionary, key):
 
 @register.filter
 def get_answer(answers, question):
-    if answers[0].s_report.report.is_counting == False:
-        return 'white'
-    answer = answers.get(question=question)
-    if answer.zone == "R":
-        return "red"
-    if answer.zone == "Y":
-        return "#ffc600"
-    return "green"
-
+    try:
+        if answers[0].s_report.report.is_counting == False:
+            return 'white'
+        answer = answers.get(question=question)
+        if answer.zone == "R":
+            return "red"
+        if answer.zone == "Y":
+            return "#ffc600"
+        return "green"
+    except: return 'white'
 
 @register.filter
 def find_answer(answers, question):
@@ -70,7 +71,8 @@ def get_color(zone):
 def get_color_field(answers, field):
     if answers[0].s_report.report.is_counting == False:
         return 'white'
-    answers = answers.filter(question__in=field.questions.all())
+
+    answers = answers.filter(question=field)
     points = answers.aggregate(Sum('points'))['points__sum']
 
     if points < field.yellow_zone_min:
@@ -80,12 +82,11 @@ def get_color_field(answers, field):
     return "#ffc600"
 
 
-
 @register.filter
 def get_section_color(s_report, section):
-    from reports.models import Answer, Question
+    from reports.models import Answer, Field
 
-    questions = Question.objects.filter(field__in=section.fields.all())
+    questions = section.fields.all()
 
     points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
     if s_report.report.is_counting == False:
@@ -133,6 +134,6 @@ def get_max_points(question):
 def get_file_link(answers, question):
     answer = answers.get(question=question)
     try:
-        return ReportFile.objects.get(answers=answer).file.url
+        return answer.file.url
     except:
         return None
