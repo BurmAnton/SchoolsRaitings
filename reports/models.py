@@ -180,7 +180,7 @@ class Field(models.Model):
     )
 
     class Meta:
-        get_latest_by = ["-id", ]
+        ordering = ['number']
         verbose_name = "Критерий"
         verbose_name_plural = "Критерии"
 
@@ -256,6 +256,33 @@ class Option(models.Model):
     def __str__(self):
         return self.name
 
+@receiver(post_save, sender=Option, dispatch_uid='option_save_signal')
+def count_points(sender, instance, using, **kwargs):
+    instance = instance.question
+    match instance.answer_type:
+        case 'BL':
+            try: field_points = instance.bool_points
+            except: pass
+        case 'LST':
+            try: field_points = Option.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            except: pass
+        case 'NMBR':
+            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            except: pass
+        case 'PRC':
+            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            except: pass
+    if field_points == None:
+        field_points = 0
+    if instance.points != field_points and field_points is not None:
+        instance.points = field_points
+        instance.save()
+        sections = instance.sections.all()
+        for section in sections:
+            report = section.report
+            report.points = count_report_points(report)
+            report.save()
+
 
 class RangeOption(models.Model):
     question = models.ForeignKey(
@@ -326,6 +353,35 @@ class RangeOption(models.Model):
 
     def __str__(self):
         return f"{self.question} ({self.range_type})"
+
+
+@receiver(post_save, sender=RangeOption, dispatch_uid='option_save_signal')
+def count_points(sender, instance, using, **kwargs):
+    instance = instance.question
+    match instance.answer_type:
+        case 'BL':
+            try: field_points = instance.bool_points
+            except: pass
+        case 'LST':
+            try: field_points = Option.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            except: pass
+        case 'NMBR':
+            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            except: pass
+        case 'PRC':
+            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            except: pass
+    if field_points == None:
+        field_points = 0
+    if instance.points != field_points and field_points is not None:
+        instance.points = field_points
+        instance.save()
+        sections = instance.sections.all()
+        for section in sections:
+            report = section.report
+            report.points = count_report_points(report)
+            report.save()
+
 
 
 class SchoolReport(models.Model):

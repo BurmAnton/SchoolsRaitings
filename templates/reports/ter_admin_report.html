@@ -70,7 +70,7 @@
                     <th class="center th-points">Источники данных</th>
                     {% comment %} <th class="center th-points">Макс.</th> {% endcomment %}
                 </tr>
-            {%for field in section.fields.all|dictsort:"id" %}
+            {%for field in section.fields.all %}
                 <tr class="question {% if field.answer_type == 'BL' %}question-bl{% endif %}"> 
                     <td style="width: 10px;"><div class="question-zone question-zone{{field.id}}" data-field="{{field.id}}" style="background-color: {{answers|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div></td>
                     <td scope="row">
