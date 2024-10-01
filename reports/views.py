@@ -58,7 +58,7 @@ def reports(request, school_id):
         notification.save()
     for report in reports:
         if s_reports.filter(report=report).count() != 0:
-            reports_list.append([report, s_reports[0]])
+            reports_list.append([report, s_reports.filter(report=report)[0]])
         else:
             reports_list.append([report, None])
 
@@ -67,6 +67,7 @@ def reports(request, school_id):
         'reports': reports_list,
         'notifications': notifications
     })
+
 
     
 @login_required
