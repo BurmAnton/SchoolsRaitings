@@ -8,6 +8,7 @@ from django.db.models import Sum, Max
 from tinymce import models as tinymce_models
 
 from reports.utils import count_report_points, create_report_notifications
+from reports.utils import count_points as reports_count_points
 from users.models import Notification, User
 from schools.models import School, SchoolCloster
 
@@ -93,6 +94,23 @@ class Attachment(models.Model):
         return f'{self.name} ({self.get_attachment_type_display()})'
 
 
+@receiver(post_save, sender=Report, dispatch_uid='option_save_signal')
+def count_points(sender, instance, using, **kwargs):
+    points = count_report_points(instance)
+    if instance.points != points:
+        instance.points = points
+        instance.save()
+    #s_reports
+    for s_report in instance.schools.all():
+        zone, points_sum = reports_count_points(s_report)
+        if zone != 'W':
+                s_report.zone = zone
+        s_report.points = points_sum
+        s_report.save()
+
+
+
+
 class Section(models.Model):
     number = models.CharField('Номер раздела', null=True, blank=True, max_length=500)
     name = models.CharField("Название раздела", max_length=500)
@@ -137,6 +155,22 @@ class Section(models.Model):
         if self.number is None or self.number == "":
             return self.name
         return  f'{self.number}. {self.name}'
+
+
+@receiver(post_save, sender=Section, dispatch_uid='option_save_signal')
+def count_points(sender, instance, using, **kwargs):
+    report = instance.report
+    points = instance.fields.all().aggregate(Sum('points'))['points__sum']
+    
+    if points is None: points = 0
+    if instance.points != points:
+        instance.points = points
+        instance.save()
+    points = report.sections.all().aggregate(Sum('points'))['points__sum']
+    if report.points != points:
+        report.points = points
+        report.save()
+
 
 
 class Field(models.Model):
@@ -190,7 +224,6 @@ class Field(models.Model):
 
 @receiver(post_save, sender=Field, dispatch_uid='option_save_signal')
 def count_points(sender, instance, using, **kwargs):
-    
     match instance.answer_type:
         case 'BL':
             try: field_points = instance.bool_points
@@ -209,11 +242,11 @@ def count_points(sender, instance, using, **kwargs):
     if instance.points != field_points and field_points is not None:
         instance.points = field_points
         instance.save()
-        sections = instance.sections.all()
-        for section in sections:
-            report = section.report
-            report.points = count_report_points(report)
-            report.save()
+    sections = instance.sections.all()
+    for section in sections:
+        report = section.report
+        report.points = count_report_points(report)
+        report.save()
 
 
 class Option(models.Model):
@@ -277,11 +310,11 @@ def count_points(sender, instance, using, **kwargs):
     if instance.points != field_points and field_points is not None:
         instance.points = field_points
         instance.save()
-        sections = instance.sections.all()
-        for section in sections:
-            report = section.report
-            report.points = count_report_points(report)
-            report.save()
+    sections = instance.sections.all()
+    for section in sections:
+        report = section.report
+        report.points = count_report_points(report)
+        report.save()
 
 
 class RangeOption(models.Model):
@@ -376,11 +409,11 @@ def count_points(sender, instance, using, **kwargs):
     if instance.points != field_points and field_points is not None:
         instance.points = field_points
         instance.save()
-        sections = instance.sections.all()
-        for section in sections:
-            report = section.report
-            report.points = count_report_points(report)
-            report.save()
+    sections = instance.sections.all()
+    for section in sections:
+        report = section.report
+        report.points = count_report_points(report)
+        report.save()
 
 
 

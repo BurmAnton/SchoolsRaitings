@@ -4,6 +4,7 @@ from django.db.models import Sum, Max
 from schools.models import School, SchoolCloster
 from users.models import Notification
 
+
 def select_range_option(options, value):
     for option in options:
         value = round(value, 1)
@@ -35,12 +36,16 @@ def create_report_notifications(report):
 
 
 def count_report_points(report):
+    from reports.models import Field
     for section in report.sections.all():
         points = section.fields.all().aggregate(Sum('points'))['points__sum']
         if points is None: points = 0
-        section.points = points
-        section.save()
-    points = report.sections.all().aggregate(Sum('points'))['points__sum']
+
+        if section.points != points:
+            section.points = points
+            section.save()
+    feilds = Field.objects.filter(sections__in=report.sections.all())
+    points = feilds.aggregate(Sum('points'))['points__sum']
     return points
 
 
