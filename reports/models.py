@@ -423,7 +423,7 @@ class SchoolReport(models.Model):
         ('G', "Зеленая"),
     ]
     zone = models.CharField(
-        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False
+        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False, default='R'
     )
 
     class Meta:
