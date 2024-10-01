@@ -137,3 +137,12 @@ def get_file_link(answers, question):
         return answer.file.url
     except:
         return None
+    
+
+
+@register.filter
+def get_link(answers, question):
+    answer = answers.get(question=question)
+    if answer.link is not None:
+        return answer.link
+    return ""

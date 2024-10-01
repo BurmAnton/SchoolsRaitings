@@ -200,6 +200,7 @@ class Field(models.Model):
     ATTACHMENT_TYPES = [
         ('DC', "Документ (прикреплённый файл)"),
         ('LNK', 'Ссылка'),
+        ('LDC', "Документ или ссылка"),
         ('OTH', 'Иной источник (без ссылки/файла)'),
     ]
     attachment_type = models.CharField(
@@ -524,6 +525,7 @@ class Answer(models.Model):
     def file_path(instance, filename):
         return 'media/reports/{0}'.format(filename)
     file = models.FileField("Файл", upload_to=file_path, max_length=200, null=True, blank=True)
+    link = models.CharField("Ссылка", max_length=1500, blank=True, null=True)
     
     
     class Meta:

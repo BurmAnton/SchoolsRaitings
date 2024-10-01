@@ -107,6 +107,8 @@ def report(request, report_id, school_id):
             question = Field.objects.get(id=id)
             answer = Answer.objects.get(question=question, s_report=s_report)
             answer.file = file
+            if answer.link != "":
+                answer.link = ""
             answer.save()
             return JsonResponse({
                 "message": "File updated/saved successfully.",
@@ -115,8 +117,15 @@ def report(request, report_id, school_id):
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
-            question = Field.objects.get(id=data['id'])
-            answer = Answer.objects.get(question=question, s_report=s_report)
+            if 'link' in data:
+                question = Field.objects.get(id=data['id'])
+                answer = Answer.objects.get(question=question, s_report=s_report)
+                answer.link = data['value']
+                
+                if answer.file.name != "" or answer.file.name is None:
+                    answer.file = ""
+                answer.save()
+                return JsonResponse({"message": "Link updated/saved successfully.",}, status=201)
             if question.answer_type == "LST":
                 try:
                     option = Option.objects.get(id=data['value'])

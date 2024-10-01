@@ -47,6 +47,11 @@ document.addEventListener('DOMContentLoaded', function() {
             upload_file(input.files[0], input.name, input)
         })
     })
+    document.querySelectorAll('input[type="link"]').forEach(input => {
+        input.addEventListener('change', () => {
+            upload_link(input.value, input.name, input)
+        })
+    })
 })
 
 
@@ -143,6 +148,39 @@ function change_question_value(id, value, input){
     )
 }
 
+function upload_link(value, name, input){
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Accept": "application/json",
+            },
+        body: JSON.stringify({
+            'link': true,
+            'value': value,
+            'id': name,
+        }),
+    })
+    .then(response => response.json())
+    .then(result => {
+        console.log(result)
+        let alert_id = input.parentElement.parentElement.querySelector('.alert').id
+        let link = document.querySelector(`.lattachment${name}`)
+        link.parentElement.querySelectorAll('a').forEach(a => {
+            a.style.display = 'none'
+        })
+        link.setAttribute('href', value)
+        link.style.display = 'block' 
+        alert_id = `#${alert_id}`
+        $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
+            $(".alert").slideUp(500);
+            input.value = "";
+        });
+    })
+}
+
+
 function upload_file(file, name, input){
     let formData = new FormData()
     formData.append('file', file)
@@ -160,11 +198,12 @@ function upload_file(file, name, input){
         console.log(result)
         file_link = result['file_link'] 
         question_id = result['question_id'] 
-        document.querySelectorAll(`.attachment${question_id}`).forEach(a => {
-            console.log(a)
-            a.setAttribute('href', file_link)
-            a.style.display = 'block' 
+        let link = document.querySelector(`.attachment${question_id}`)
+        link.parentElement.querySelectorAll('a').forEach(a => {
+            a.style.display = 'none'
         })
+        link.setAttribute('href', file_link)
+        link.style.display = 'block' 
         
         let alert_id = input.parentElement.parentElement.querySelector('.alert').id
         alert_id = `#${alert_id}`
