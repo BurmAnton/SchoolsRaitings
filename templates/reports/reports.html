@@ -33,12 +33,18 @@
                         {% else %}Ожидает заполнения{% endif %}
                     </td>
                     <td scope="row" class="td-center">
-                        {% if report.1 is not None %}
+                        
                         <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                            <div style="background-color: {{report.1.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
-                            <div>{{ report.1.points|format_point }}</div>
+                            {% if report.1 is not None %}
+                                <div style="background-color: {% if report.0.is_counting %}{{report.1.zone|get_color}} {% endif %}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                <div>{{ report.1.points|format_point }}</div>
+                            {% else %}
+                                <div style="background-color: white; width: 15px; height: 15px; border-radius: 15px"></div>
+                                <div>0</div>
+                            {% endif%}
                         </div>
-                    {% else %}0{% endif%}</td>
+                        
+                </td>
                 </tr>
             {% endfor %}
         </table>

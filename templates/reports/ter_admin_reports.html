@@ -63,7 +63,7 @@
                     <td scope="row" class="td-center">{{ report.get_status_display }}</td>
                     <td scope="row" style="text-align: center; ">
                         <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                            <div style="background-color: {{report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                            <div style="background-color:{% if report.report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div>
                             <div>{{ report.points|format_point }}</div>
                         </div>
                     </td>
