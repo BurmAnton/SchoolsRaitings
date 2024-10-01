@@ -124,7 +124,7 @@
                                 {% if field.attachment_name is not None and field.attachment_name != "" %}
                                     <label for="Att{{ field.id }}_{{field.id}}">{{ field.attachment_name }}</label> 
                                 {% endif %}
-                                <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
+                                <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-link alert-dismissible fade show" style="width: 284px;" role="alert">
                                     Ссылка прикреплена успешно!
                                 </div>
                                 <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
@@ -135,7 +135,7 @@
                                 {% if field.attachment_name is not None and field.attachment_name != "" %}
                                     <label for="Att{{ field.id }}_{{field.id}}" style="margin: 0px;">{{ field.attachment_name }}</label> 
                                 {% endif %}
-                                <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
+                                <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-file alert-dismissible fade show" style="width: 284px;" role="alert">
                                     Документ загружен успешно!
                                 </div>
                                 <div class="get-attachment">
@@ -150,10 +150,10 @@
                                     {% if field.attachment_name is not None and field.attachment_name != "" %}
                                         <label for="Att{{ field.id }}_{{field.id}}" style="margin: 0px;">{{ field.attachment_name }}</label> 
                                     {% endif %}
-                                    <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
+                                    <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-link alert-dismissible fade show" style="width: 284px;" role="alert">
                                         Ссылка прикреплена успешно!
                                     </div>
-                                    <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
+                                    <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-file alert-dismissible fade show" style="width: 284px;" role="alert">
                                         Документ загружен успешно!
                                     </div>
                                     <div class="get-attachment" style="display: flex;gap: 5px;flex-direction: column">

@@ -165,16 +165,18 @@ function upload_link(value, name, input){
     .then(response => response.json())
     .then(result => {
         console.log(result)
-        let alert_id = input.parentElement.parentElement.querySelector('.alert').id
+        
         let link = document.querySelector(`.lattachment${name}`)
         link.parentElement.querySelectorAll('a').forEach(a => {
             a.style.display = 'none'
         })
         link.setAttribute('href', value)
         link.style.display = 'block' 
+
+        let alert_id = input.parentElement.parentElement.querySelector('.alert-link').id
         alert_id = `#${alert_id}`
         $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
-            $(".alert").slideUp(500);
+            $(".alert-link").slideUp(500);
             input.value = "";
         });
     })
@@ -205,10 +207,10 @@ function upload_file(file, name, input){
         link.setAttribute('href', file_link)
         link.style.display = 'block' 
         
-        let alert_id = input.parentElement.parentElement.querySelector('.alert').id
+        let alert_id = input.parentElement.parentElement.querySelector('.alert-file').id
         alert_id = `#${alert_id}`
         $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
-            $(".alert").slideUp(500);
+            $(".alert-file").slideUp(500);
             input.value = "";
         });
     })
