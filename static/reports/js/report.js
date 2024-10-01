@@ -165,6 +165,8 @@ function upload_link(value, name, input){
     .then(response => response.json())
     .then(result => {
         console.log(result)
+        let alert_id = input.parentElement.parentElement.querySelector('.alert').id
+        input.parentElement.parentElement.querySelector('.alert').innerHTML ="Ссылка прикреплена успешно!"
         
         let link = document.querySelector(`.lattachment${name}`)
         link.parentElement.querySelectorAll('a').forEach(a => {
@@ -172,11 +174,9 @@ function upload_link(value, name, input){
         })
         link.setAttribute('href', value)
         link.style.display = 'block' 
-
-        let alert_id = input.parentElement.parentElement.querySelector('.alert-link').id
         alert_id = `#${alert_id}`
         $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
-            $(".alert-link").slideUp(500);
+            $(".alert").slideUp(500);
             input.value = "";
         });
     })
@@ -207,10 +207,11 @@ function upload_file(file, name, input){
         link.setAttribute('href', file_link)
         link.style.display = 'block' 
         
-        let alert_id = input.parentElement.parentElement.querySelector('.alert-file').id
+        let alert_id = input.parentElement.parentElement.querySelector('.alert').id
+        input.parentElement.parentElement.querySelector('.alert').innerHTML ="Документ загружен успешно!"
         alert_id = `#${alert_id}`
         $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
-            $(".alert-file").slideUp(500);
+            $(".alert").slideUp(500);
             input.value = "";
         });
     })
