@@ -117,9 +117,9 @@ def report(request, report_id, school_id):
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
+            question = Field.objects.get(id=data['id'])
+            answer = Answer.objects.get(question=question, s_report=s_report)
             if 'link' in data:
-                question = Field.objects.get(id=data['id'])
-                answer = Answer.objects.get(question=question, s_report=s_report)
                 answer.link = data['value']
                 
                 if answer.file.name != "" or answer.file.name is None:
@@ -137,6 +137,7 @@ def report(request, report_id, school_id):
                     answer.points = 0
                     answer.zone = "R"
             elif question.answer_type == "BL":
+                
                 answer.bool_value = data['value']
                 answer.points = question.bool_points if answer.bool_value else 0
                 answer.zone = "G" if answer.bool_value else "R"

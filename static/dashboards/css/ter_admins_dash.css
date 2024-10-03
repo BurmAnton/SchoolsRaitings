@@ -26,9 +26,9 @@ form .btn-outline-primary {
 .filter {
   width: 100%;
   display: grid;
-  grid-template-columns: calc(50% - 8px) calc(50% - 8px);
-  -moz-column-gap: 16px;
-       column-gap: 16px;
+  grid-template-columns: calc(35% - 16px) calc(65% - 16px);
+  -moz-column-gap: 32px;
+       column-gap: 32px;
 }
 .filter .mb-3 {
   width: 100%;

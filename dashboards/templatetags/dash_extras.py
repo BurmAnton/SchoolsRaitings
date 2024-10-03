@@ -1,7 +1,7 @@
 from django import template
 from django.db.models import Sum
 
-from reports.models import Answer, Field
+from reports.models import Answer, Field, Section
 
 register = template.Library()
 
@@ -20,10 +20,18 @@ def get_color(zone):
     return "green"
 
 @register.filter
-def get_section_color(s_report, section):
-    questions = Question.objects.filter(field__in=section.fields.all())
+def get_section_colord(s_report, section):
+    sections = Section.objects.filter(name=section.name, report=s_report.report)
+    if sections.count() > 0:
+        questions = sections[0].fields.all()
+    else:
+        return 'white'
 
     points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    if points__sum is None:
+        return 'white'
+    if s_report.report.is_counting == False:
+        return 'white'
     try:
         if points__sum < section.yellow_zone_min:
             return "red"
@@ -36,7 +44,7 @@ def get_section_color(s_report, section):
 @register.filter
 def format_point(points):
     if points is None:
-        return "—"
+        return "0"
     if points % 1 == 0:
         return int(points)
     return str(points).replace(',', '.')
@@ -44,7 +52,11 @@ def format_point(points):
 
 @register.filter
 def get_section_points(s_report, section):
-    questions = section.fields.all()
+    sections = Section.objects.filter(name=section.name, report=s_report.report)
+    if sections.count() > 0:
+        questions = sections[0].fields.all()
+    else:
+        return "-"
 
     points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
     return format_point(points__sum)
@@ -74,14 +86,19 @@ def get_point_sum_section(s_reports, section):
     points = Answer.objects.filter(question__in=questions, s_report__in=s_reports).aggregate(points_sum=Sum('points'))['points_sum']
 
     if points is None:
-        return "—"
+        return "0"
     return format_point(points)
 
 
 @register.filter
 def get_field_points(s_report, field):
-    points = s_report.answers.filter(question=field).aggregate(points_sum=Sum('points'))['points_sum']
+    answer = Answer.objects.filter(s_report=s_report, question=field)
 
+    if answer.count() == 0:
+        return "-"
+    points = s_report.answers.filter(question=field).aggregate(points_sum=Sum('points'))['points_sum']
+    if points is None:
+        return "-"
     return format_point(points)
 
 @register.filter
@@ -91,3 +108,22 @@ def get_point_sum_field(s_reports, field):
     points = answers.filter(question=field).aggregate(points_sum=Sum('points'))['points_sum']
 
     return format_point(points)
+
+@register.filter
+def get_year_points(s_reports, year):
+    points = s_reports.filter(report__year=str(year)).aggregate(points_sum=Sum('points'))['points_sum']
+    return format_point(points)
+
+@register.filter
+def max_value(section, s_reports):
+    questions = section.fields.all()
+    points = Answer.objects.filter(question__in=questions, s_report__in=s_reports).aggregate(points_sum=Sum('points'))['points_sum']
+    return format_point(points)
+
+
+@register.filter
+def avg_value(section, s_reports):
+    questions = section.fields.all()
+    points = Answer.objects.filter(question__in=questions, s_report__in=s_reports).aggregate(points_sum=Sum('points'))['points_sum']
+    return format_point(points)
+

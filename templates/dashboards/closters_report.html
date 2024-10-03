@@ -1,0 +1,99 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load dash_extras %}
+{% load reports_extras %}
+{% block title %}Статистика{% endblock %}
+
+{% block style %}
+        <link href="{% static 'dashboards/css/ter_admins_dash.css' %}" rel="stylesheet">
+{% endblock %}
+{% block script %}
+    <script src="{% static 'dashboards/js/ter_admins_reports.js' %}" rel="stylesheet"></script>
+{% endblock %}
+
+{% block body %}
+    <form action="{% url 'ter_admins_dash' %}" method="post">
+        <h2>Фильтр</h2>
+        <div class="filter">
+            <div class="form mb-3">
+                <label for="YearFilter">Год</label>
+                <select class="selectpicker" title="Выберите год" name="year" id="YearFilter" data-width="100%" data-container="body" required>
+                    {% for year in years %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form mb-3">
+                <label for="TerAdminFilter">Территориальные управления/Департаменты образования</label>
+                <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admins" id="TerAdminFilter" required data-width="100%" data-container="body" data-live-search="true">
+                    {% for ter_admin in ter_admins %}
+                        <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i"  in filter|get_item:"ter_admins" %}selected{% endif %}>{{ ter_admin }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form mb-3">
+                <label for="EdLevelsFilter">Уровень образования</label>
+                <select class="selectpicker" title="Выберите уровни образования" name="ed_levels" id="EdLevelsFilter" multiple data-width="100%" data-container="body" data-live-search="true">
+                    {% for key, name in ed_levels.items %}
+                        <option value="{{ key }}"  {% if key in filter|get_item:"ed_levels" %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form mb-3">
+                <label for="ClosterFilter">Кластеры</label>
+                <select class="selectpicker" title="Выберите кластеры" name="closters" id="ClosterFilter" multiple data-selected-text-format="static" data-width="100%" data-container="body" data-live-search="true">
+                    {% for closter in closters %}
+                        <option value="{{ closter.id }}" {% if closter.id|stringformat:"i"  in filter|get_item:"closters" %}selected{% endif %}>{{ closter }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+        </div>
+        <div style="width: 100%; display: flex; justify-content: space-between;flex-direction: row-reverse; margin-top: 10px;">
+            <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
+            {% if filter is not None %}<a style="width: 150px" href="{% url 'ter_admins_dash' %}" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
+        </div>
+    </form>
+    <div id="ReportSchools">
+        <h1>Показатели рейтинга общеобразовательных организаций Самарской области</h1>
+        <div class="outer-container">
+            <div class="table-container">
+                <table class="table">
+                    <tr>
+                        <th scope="row"class="sticky-top"></th>
+                        <th scope="row" class="sticky-top" style="text-align: center;">Максимально значение</th>
+                        <th scope="row" class="sticky-top" style="text-align: center;">Среднее значение</th>
+                        {% for s_report in s_reports %}
+                            <th scope="row" style="text-align: center;" class="section-hdr sticky-top">
+                                {{s_report.school}}
+                            </th>
+                        {% endfor %}
+                    </tr>
+                    {% for section in sections %}
+                        <tr>
+                            <td scope="row" class="sticky-row">{{ section.number }}. {{ section.name }}</td>
+                            <td scope="row" style="text-align: center;">{{ section|max_value:s_reports }}</td>
+                            <td scope="row" style="text-align: center;">{{ section|avg_value:s_reports }}</td>
+                            {% for s_report in s_reports %}
+                                <td scope="row" style="text-align: center;">{{ s_report|get_section_points:section }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% for section in sections %}
+        <div class="section">
+            <h2>{{ section }}</h2>
+            <div class="outer-container">
+                <div class="table-container">
+                    <table class="table">
+
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}

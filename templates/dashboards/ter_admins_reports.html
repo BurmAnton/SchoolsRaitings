@@ -13,19 +13,23 @@
 {% block body %}
 <div id="reports">
     <h2>Отчёты</h2>
-    <table class="table">
-        <tr class="">
-            <th scope="row">Название</th>
-            <th scope="row" class="th-center">Год</th>
-        </tr>
-        {% for report in reports %}
-            <tr>
-                <td scope="row">
-                    <a href="{% url 'ter_admins_dash' report.id %}">{{ report.name }}</a>
-                </td>
-                <td scope="row"  class="td-center">{{ report.year }}</td>
-            </tr>
-        {% endfor %}
-    </table>
+    <div class="reports">
+        <div class="report-plate">
+            <a href="{% url 'ter_admins_dash' %}">
+                <h3>Показатели рейтинга общеобразовательных организаций Самарской области</h3>
+            </a>
+        </div>
+        <div class="report-plate">
+            <a href="{% url 'school_report' %}">
+                <h3>Динамика результатов по показателям в разрезе конкретной школы</h3>
+            </a>
+        </div>
+        <div class="report-plate">
+            <div class="disabled-link">
+                <h3>Показатели рейтинга общеобразовательных организаций Самарской области по кластеру</h3>
+            </div>
+        </div>
+        <div class="report-plate empty"></div>
+    </div>
 </div>
 {% endblock %}
