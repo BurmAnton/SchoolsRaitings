@@ -66,7 +66,7 @@
                             <th scope="row" class="sticky-top" style="vertical-align: middle;">ТУ/ДО</th>
                             <th scope="row" class="sticky-top" style="vertical-align: middle;">Уровень образования</th>
                             <th scope="row" class="sticky-top" style="text-align: center; vertical-align: middle;">Итого</th>
-                            {% for section in sections %}
+                            {% for section in sections reversed %}
                                 <th scope="row" style="text-align: center; vertical-align: middle;"" class="section-hdr sticky-top">
                                     {{section}}
                                 </th>
@@ -83,7 +83,7 @@
                                 <td scope="row" style="text-align: center; vertical-align: middle;">
                                         <div>{{ s_report.points|format_point }}</div>
                                 </td>
-                                {% for section in sections.all %}
+                                {% for section in sections reversed %}
                                     <td scope="row" tyle="text-align: center; vertical-align: middle;">
                                         <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
                                             <div class="section-zone" style="background-color: {{s_report|get_section_color:section}}; width: 15px; height: 15px; border-radius: 15px"></div>
@@ -141,7 +141,7 @@
             </div>
         </div>
 
-        {% for section in sections %}
+        {% for section in sections reversed %}
             <div class="section">
                 <h2>{{ section }}</h2>
                 <div class="outer-container">

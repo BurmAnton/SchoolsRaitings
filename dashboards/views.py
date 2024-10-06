@@ -94,8 +94,8 @@ def school_report(request):
         s_reports = SchoolReport.objects.filter(report__in=reports, school=school).order_by('report__year')
         filter = {
             'years': f_years,
-            'school': school.id,
-            'ter_admin': school.ter_admin.id
+            'school': str(school.id),
+            'ter_admin': str(school.ter_admin.id)
         }
         stats, section_data = utils.calculate_stats_and_section_data(f_years, reports, sections, s_reports)
     return render(request, "dashboards/school_report.html", {

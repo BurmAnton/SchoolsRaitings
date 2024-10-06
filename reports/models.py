@@ -227,6 +227,8 @@ def count_points(sender, instance, using, **kwargs):
         case 'PRC':
             try: field.points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
             except: pass
+    if field.points == None:
+        field.points = 0
     Field.objects.filter(pk=field.pk).update(points=field.points)
 
     # Update the points of the related Sections
