@@ -1,7 +1,7 @@
 import os
 from django.db import models
 from django.db.models.deletion import CASCADE, SET_NULL
-from django.db.models.signals import pre_save, post_save
+from django.db.models.signals import pre_save, post_save, m2m_changed
 from django.dispatch import receiver
 from django.db.models import Sum, Max
 
@@ -11,7 +11,6 @@ from reports.utils import count_report_points, create_report_notifications
 from reports.utils import count_points as reports_count_points
 from users.models import Notification, User
 from schools.models import School, SchoolCloster
-
 
 
 
@@ -64,6 +63,14 @@ class Report(models.Model):
         return  f'{self.name} ({self.year})'
 
 
+# Signal to calculate points in Report and Section when a Report is modified
+@receiver(post_save, sender=Report)
+def update_report_points(sender, instance, **kwargs):
+    # Recalculate points for the Report instance
+    report_points = instance.sections.aggregate(Sum('points'))['points__sum'] or 0
+    Report.objects.filter(pk=instance.pk).update(points=report_points)
+
+
 @receiver(pre_save, sender=Report, dispatch_uid='report_save_signal')
 def create_notification(sender, instance, using, **kwargs):
     if instance.is_published:
@@ -92,23 +99,6 @@ class Attachment(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.get_attachment_type_display()})'
-
-
-@receiver(post_save, sender=Report, dispatch_uid='option_save_signal')
-def count_points(sender, instance, using, **kwargs):
-    points = count_report_points(instance)
-    if instance.points != points:
-        instance.points = points
-        instance.save()
-    #s_reports
-    for s_report in instance.schools.all():
-        zone, points_sum = reports_count_points(s_report)
-        if zone != 'W':
-                s_report.zone = zone
-        s_report.points = points_sum
-        s_report.save()
-
-
 
 
 class Section(models.Model):
@@ -141,7 +131,7 @@ class Section(models.Model):
         "Макс. баллов", max_digits=5,
         decimal_places=1, null=False, blank=False, default=0
     )
-
+    
     note = tinymce_models.HTMLField(
         "Примечание", null=True, blank=True, default=None
     )
@@ -157,20 +147,18 @@ class Section(models.Model):
         return  f'{self.number}. {self.name}'
 
 
-@receiver(post_save, sender=Section, dispatch_uid='option_save_signal')
-def count_points(sender, instance, using, **kwargs):
-    report = instance.report
-    points = instance.fields.all().aggregate(Sum('points'))['points__sum']
-    
-    if points is None: points = 0
-    if instance.points != points:
-        instance.points = points
-        instance.save()
-    points = report.sections.all().aggregate(Sum('points'))['points__sum']
-    if report.points != points:
-        report.points = points
-        report.save()
-
+# Signal to calculate points in Report and Section when a Section is modified
+@receiver(m2m_changed, sender=Section.fields.through)
+def update_section_points(sender, instance, action, **kwargs):
+    if action in ["post_add", "post_remove", "post_clear"]:
+        # Recalculate points for the Section instance
+        section_points = instance.fields.aggregate(Sum('points'))['points__sum'] or 0
+        Section.objects.filter(pk=instance.pk).update(points=section_points)
+        
+        # Update the points of the related Report
+        report = instance.report
+        report_points = report.sections.aggregate(Sum('points'))['points__sum'] or 0
+        Report.objects.filter(pk=report.pk).update(points=report_points)
 
 
 class Field(models.Model):
@@ -225,29 +213,32 @@ class Field(models.Model):
 
 @receiver(post_save, sender=Field, dispatch_uid='option_save_signal')
 def count_points(sender, instance, using, **kwargs):
+    field = instance
     match instance.answer_type:
         case 'BL':
-            try: field_points = instance.bool_points
+            try: field.points = instance.bool_points
             except: pass
         case 'LST':
-            try: field_points = Option.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            try: field.points = Option.objects.filter(question=instance).aggregate(Max('points'))['points__max']
             except: pass
         case 'NMBR':
-            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            try: field.points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
             except: pass
         case 'PRC':
-            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
+            try: field.points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
             except: pass
-    if field_points == None:
-        field_points = 0
-    if instance.points != field_points and field_points is not None:
-        instance.points = field_points
-        instance.save()
-    sections = instance.sections.all()
+    Field.objects.filter(pk=field.pk).update(points=field.points)
+
+    # Update the points of the related Sections
+    sections = field.sections.all()
     for section in sections:
+        section_points = section.fields.aggregate(Sum('points'))['points__sum'] or 0
+        Section.objects.filter(pk=section.pk).update(points=section_points)
+        
+        # Update the points of the related Report
         report = section.report
-        report.points = count_report_points(report)
-        report.save()
+        report_points = report.sections.aggregate(Sum('points'))['points__sum'] or 0
+        Report.objects.filter(pk=report.pk).update(points=report_points)
 
 
 class Option(models.Model):
@@ -466,7 +457,6 @@ class SchoolReport(models.Model):
 
     def __str__(self):
         return  f'{self.school} ({self.report})'
-    
 
 
 class Answer(models.Model):

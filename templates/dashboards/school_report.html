@@ -70,7 +70,6 @@
                             </div>
                         </td>
                     {% endfor %}
-                    
                 </tr>
                 
                 {% for section in sections %}
@@ -95,7 +94,7 @@
                 <tr>
                     <td style="color: #ffc600; font-weight: bold"><b>Кол-во школ в жёлтой зоне</b></td>
                     {% for year, dict in stats.items  %}
-                        <td style="text-align: center; color: #ffc600; font-weight: bold;"><b style="padding-left: 15px;">{{ dict|get_item:"yellow_zone"}}</b>   </td>
+                        <td style="text-align: center; color: #f8c102; font-weight: bold;"><b style="padding-left: 15px;">{{ dict|get_item:"yellow_zone"}}</b>   </td>
                     {% endfor %}
                 </tr>
                 <tr>
@@ -104,7 +103,13 @@
                         <td style="text-align: center; color: red; font-weight: bold"><b style="padding-left: 15px;">{{ dict|get_item:"red_zone"}}</b></td>
                     {% endfor %}
                 </tr>
+               
             </table>
+            <div style="width: 100%; display: flex; justify-content: center; align-items: center; overflow-x: auto;">
+                <div style="min-width: 100%; text-align: center;">
+                    {{ sections|get_school_report_chart:section_data }}
+                </div>
+            </div>
         {% endif %}
     </div>
     {% for section in sections %}

@@ -25,9 +25,9 @@
             </div>
             <div class="form mb-3">
                 <label for="TerAdminFilter">Территориальные управления/Департаменты образования</label>
-                <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admins" id="TerAdminFilter" required data-width="100%" data-container="body" data-live-search="true">
+                <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admin" id="TerAdminFilter" required data-width="100%" data-container="body" data-live-search="true">
                     {% for ter_admin in ter_admins %}
-                        <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i"  in filter|get_item:"ter_admins" %}selected{% endif %}>{{ ter_admin }}</option>
+                        <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i"  == filter|get_item:"ter_admin" %}selected{% endif %}>{{ ter_admin }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -75,7 +75,12 @@
                             <td scope="row" style="text-align: center;">{{ section|max_value:s_reports }}</td>
                             <td scope="row" style="text-align: center;">{{ section|avg_value:s_reports }}</td>
                             {% for s_report in s_reports %}
-                                <td scope="row" style="text-align: center;">{{ s_report|get_section_points:section }}</td>
+                                <td scope="row" style="text-align: center; vertical-align: middle;">
+                                    <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
+                                        <div class="section-zone" style="background-color: {{s_report|get_section_color:section}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                        <div>{{ s_report|get_section_points:section }}</div>
+                                    </div>
+                                </td>
                             {% endfor %}
                         </tr>
                     {% endfor %}
@@ -90,7 +95,30 @@
             <div class="outer-container">
                 <div class="table-container">
                     <table class="table">
-
+                        <tr>
+                            <th scope="row" class="sticky-top" >Показатель</th>
+                            <th scope="row" class="sticky-top" style="text-align: center; max-width: 90px;">Максимальное значение</th>
+                            <th scope="row" class="sticky-top" style="text-align: center; max-width: 90px;">Среднее значение</th>
+                            {% for s_report in s_reports %}
+                                <th scope="row" class="sticky-top" style="text-align: center; max-width: 200px; min-width: 150px;">{{ s_report.school }}</th>
+                            {% endfor %}
+                        </tr>
+                        {% for question in section.fields.all %}
+                            <tr>
+                                <td>{{ section.number }}.{{ question.number }}. {{ question.name }}</td>
+                                <td style="text-align: center;">{{ question|max_value_section:s_reports }}</td>
+                                <td style="text-align: center;">{{ question|avg_value_section:s_reports }}</td>
+                                {% for s_report in s_reports %}
+                                    <td scope="row" style="text-align: center;">
+                                        <div style="display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;">
+                                            <div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{s_report.answers.all|get_answer:question}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                            <div>{{ s_report|get_field_points:question }}</div>
+                                        </div>
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                        
                     </table>
                 </div>
             </div>

@@ -6,3 +6,4 @@ email_validator==2.1.1
 django-easy-select2==1.5.8
 django-admin-list-filter-dropdown==1.0.3
 django-tinymce==4.1.0
+matplotlib==3.8.1

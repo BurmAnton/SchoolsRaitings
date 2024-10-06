@@ -1,7 +1,8 @@
 from django import template
-from django.db.models import Sum
+from django.db.models import Sum, Max, Avg
 
 from reports.models import Answer, Field, Section
+from dashboards import utils
 
 register = template.Library()
 
@@ -117,13 +118,71 @@ def get_year_points(s_reports, year):
 @register.filter
 def max_value(section, s_reports):
     questions = section.fields.all()
-    points = Answer.objects.filter(question__in=questions, s_report__in=s_reports).aggregate(points_sum=Sum('points'))['points_sum']
-    return format_point(points)
+    max_points = 0
+    for s_report in s_reports:
+        points = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(points_sum=Sum('points'))['points_sum'] or 0
+        max_points = max(max_points, points)
+    return format_point(max_points)
+
 
 
 @register.filter
 def avg_value(section, s_reports):
     questions = section.fields.all()
-    points = Answer.objects.filter(question__in=questions, s_report__in=s_reports).aggregate(points_sum=Sum('points'))['points_sum']
-    return format_point(points)
+    total_points = 0
+    count = 0
+    for s_report in s_reports:
+        points = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(points_sum=Sum('points'))['points_sum'] or 0
+        total_points += points
+        count += 1
+    
+    if count == 0:
+        return "0.00"
+    
+    avg_points = total_points / count
+    rounded_avg = round(avg_points, 1)
+    return format_point(rounded_avg)
+
+
+@register.filter
+def max_value_section(question, s_reports):
+    max_points = Answer.objects.filter(question=question, s_report__in=s_reports).aggregate(points_sum=Max('points'))['points_sum'] or 0
+
+    return format_point(max_points)
+
+
+
+@register.filter
+def avg_value_section(question, s_reports):
+    avg_points = Answer.objects.filter(question=question, s_report__in=s_reports).aggregate(points_sum=Avg('points'))['points_sum'] or 0
+
+    rounded_avg = round(avg_points, 1)
+    return format_point(rounded_avg)
+
+
+@register.filter
+def get_school_report_chart(categories, section_data):
+    return utils.generate_school_report_chart(section_data, categories)
+
+
+@register.filter
+def count_zone_answers(answers, zone):
+    return answers.filter(zone=zone).count()
+
+@register.filter
+def count_zone_answers_percent(answers, zone):
+    return f'{answers.filter(zone=zone).count() / answers.count() * 100:.1f}%'
+
+
+@register.filter
+def green_zone_count(s_reports, field):
+    return f'{s_reports.filter(answers__zone="G", answers__question=field).count()} ({s_reports.filter(answers__zone="G", answers__question=field).count() / s_reports.count() * 100:.1f}%)'
+
+@register.filter
+def yellow_zone_count(s_reports, field):
+    return f'{s_reports.filter(answers__zone="Y", answers__question=field).count()} ({s_reports.filter(answers__zone="Y", answers__question=field).count() / s_reports.count() * 100:.1f}%)'
+
+@register.filter
+def red_zone_count(s_reports, field):
+    return f'{s_reports.filter(answers__zone="R", answers__question=field).count()} ({s_reports.filter(answers__zone="R", answers__question=field).count() / s_reports.count() * 100:.1f}%)'    
 
