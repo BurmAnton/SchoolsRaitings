@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 
 from dashboards import utils
-from reports.models import Answer, Report, SchoolReport, Section
+from reports.models import Answer, Report, SchoolReport, Section, Field
 from reports.utils import count_section_points
 from schools.models import SchoolCloster, School, TerAdmin
 
@@ -57,7 +57,7 @@ def ter_admins_dash(request):
         
 
     schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools)
-    sections = Section.objects.filter(report__in=reports).distinct('name')
+    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
     stats, overall_stats = utils.calculate_stats(year, schools_reports)
 
     return render(request, "dashboards/ter_admins_dash.html", {
@@ -90,7 +90,7 @@ def school_report(request):
         school = School.objects.get(id=request.POST["school"])
         f_years = request.POST.getlist("years")
         reports = Report.objects.filter(year__in=f_years)
-        sections = Section.objects.filter(report__in=reports).distinct('name')
+        sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
         s_reports = SchoolReport.objects.filter(report__in=reports, school=school).order_by('report__year')
         filter = {
             'years': f_years,
@@ -142,12 +142,12 @@ def closters_report(request, year=2024):
             schools = schools.filter(ed_level__in=ed_levels_f)
             filter['ed_levels'] = ed_levels_f
 
-
-    sections = Section.objects.filter(report__year=year).distinct('name')
-
+    sections = Section.objects.filter(report__year=year).values('number', 'name').distinct().order_by('number')
+    sections_list = []
+    for section in sections:
+        sections = Section.objects.filter(name=section['name'], report__year=year)
+        sections_list.append([section['number'], section['name'], Field.objects.filter(sections__in=sections).distinct()])
     schools = School.objects.filter(reports__in=s_reports)
-
-
 
     return render(request, "dashboards/closters_report.html", {
         'years': years,
@@ -155,6 +155,6 @@ def closters_report(request, year=2024):
         'closters': closters,
         'ed_levels': ed_levels,
         's_reports': s_reports,
-        'sections': sections,
+        'sections': sections_list,
         'schools': schools
     })

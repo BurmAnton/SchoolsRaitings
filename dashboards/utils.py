@@ -96,7 +96,11 @@ def calculate_stats(year, s_reports):
             elif color == 'R':
                 stats[section.name]['red_zone'][0] += 1
                 stats[section.name]['red_zone'][1] = f'{stats[section.name]['red_zone'][0] / s_reports_year.count() * 100:.1f}%'
-    overall_stats['green_zone'][0] = sum([stats[section.name]['green_zone'][0] for section in sections])
-    overall_stats['yellow_zone'][0] = sum([stats[section.name]['yellow_zone'][0] for section in sections])
-    overall_stats['red_zone'][0] = sum([stats[section.name]['red_zone'][0] for section in sections])    
+    s_reports = s_reports.filter(report__in=reports)
+    overall_stats['green_zone'][0] = sum([1 for s_report in s_reports if s_report.zone == 'G'])
+    overall_stats['yellow_zone'][0] = sum([1 for s_report in s_reports if s_report.zone == 'Y'])
+    overall_stats['red_zone'][0] = sum([1 for s_report in s_reports if s_report.zone == 'R'])
+    overall_stats['green_zone'][1] = f'{overall_stats['green_zone'][0] / s_reports_year.count() * 100:.1f}%'
+    overall_stats['yellow_zone'][1] = f'{overall_stats['yellow_zone'][0] / s_reports_year.count() * 100:.1f}%'
+    overall_stats['red_zone'][1] = f'{overall_stats['red_zone'][0] / s_reports_year.count() * 100:.1f}%'
     return stats, overall_stats

@@ -52,7 +52,7 @@
             </button>
         {% endif %}
     </div>
-   {% for section in report.report.sections.all %}
+    {% for section in report.report.sections.all|dictsort:"id" %}
         <div class="section {% if current_section == section.id %}current-section{% endif %} {% if forloop.first %}first{% elif forloop.last %}last{% endif %}">
             <h2><div class="section-zone" style="background-color: {{report|get_section_color:section}}; width: 15px; height: 15px; border-radius: 15px"></div>{{ section }}</h2>
             {% if section.note is not None and section.note != "" %}
@@ -70,14 +70,14 @@
                     <th class="center th-points">Источники данных</th>
                     {% comment %} <th class="center th-points">Макс.</th> {% endcomment %}
                 </tr>
-                {%for field in section.fields.all %}
+                {%for field in section.fields.all|dictsort:"id"  %}
                     <tr class="question {% if field.answer_type == 'BL' %}question-bl{% endif %}"> 
                         <td style="width: 10px;"><div class="question-zone question-zone{{field.id}}" data-field="{{field.id}}" style="background-color: {{answers|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div></td>
                         <td scope="row">
                             {% if field.answer_type == 'LST' %}
                                 <div class="mb-3 field filed-select">
                                     <label for="{{ question.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
-                                    <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ field.id }}" name="{{ field.id }}" {% if report.status != 'A'%}disabled{% endif%}>
+                                    <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ field.id }}" name="{{ field.id }}" {% if report.status != 'A' and not request.user.is_superuser  %}disabled{% endif%}>
                                         <option data-points="0" value="">Не заполнено</option>
                                         {% for option in field.options.all %}
                                             <option value="{{ option.id }}"  data-points="{{option.points}}" {% if answers|find_answer:field == option.id %}selected{% endif %}>
@@ -95,12 +95,12 @@
                                             <span class="input-group-text">%</span>
                                         </div>
                                     {% endif %}
-                                    <input type="number" maxlength="4" class="form-control number-input" id="{{ field.id }}" data-points="{{ answers|get_points:field }}" value="{{answers|find_answer:field}}"  name="{{ field.id }}" placeholder="" {% if report.status != 'A'%}disabled{% endif%}>
+                                    <input type="number" maxlength="4" class="form-control number-input" id="{{ field.id }}" data-points="{{ answers|get_points:field }}" value="{{answers|find_answer:field}}"  name="{{ field.id }}" placeholder="" {% if report.status != 'A' and not request.user.is_superuser  %}disabled{% endif%}>
                                 </div>
                                 {% if answers|is_answer_changed_by_mo:field %}<br><span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
                             {% elif field.answer_type == 'BL' %}
                                 <div class="form-check field">
-                                    <input class="form-check-input" type="checkbox" data-points="{{field.bool_points}}" name="{{ field.id }}" id="{{ field.id }}" {% if answers|find_answer:field %}checked{% endif %} {% if report.status != 'A'%}disabled{% endif%}>
+                                    <input class="form-check-input" type="checkbox" data-points="{{field.bool_points}}" name="{{ field.id }}" id="{{ field.id }}" {% if answers|find_answer:field %}checked{% endif %} {% if report.status != 'A' and not request.user.is_superuser  %}disabled{% endif%}>
                                     <label class="form-check-label" for="{{ field.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
                                 </div>
                                 {% if answers|is_answer_changed_by_mo:field %}<br><span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
@@ -182,7 +182,7 @@
                     {% if attachment.attachment_type == 'LNK' %}
                         <div class="mb-3 field">
                             <label for="Att{{ attachment.id }}">{{attachment.name}}</label>
-                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if report.status != 'A'%}disabled{% endif%}>
+                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if report.status != 'A' or not request.user.is_superuser  %}disabled{% endif%}>
                         </div>
                     {% elif attachment.attachment_type == 'DC' %}
                         <div class="mb-3">
@@ -191,7 +191,7 @@
                                 Документ загружен успешно!
                             </div>
                             <div class="get-attachment">
-                                <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" {% if report.status != 'A'%}disabled{% endif%}>
+                                <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" {% if report.status != 'A' or not request.user.is_superuser  %}disabled{% endif%}>
                                 <a {% if attachment|get_file_link != None %}href="{{ attachment|get_file_link }}"{% else %}style="display: none;"{% endif %} target="_blank">
                                     <button class="btn btn-outline-success">Скачать прикреплённый файл</button>
                                 </a>

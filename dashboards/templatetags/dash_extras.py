@@ -42,6 +42,28 @@ def get_section_colord(s_report, section):
     except: return 'red'
 
 
+@register.filter        
+def get_section_color_by_name(s_report, section_name):
+    sections = Section.objects.filter(name=section_name, report=s_report.report)
+    if sections.count() > 0:
+        questions = sections[0].fields.all()
+    else:
+        return 'white'
+    section = sections[0]
+    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    if points__sum is None:
+        return 'white'
+    if s_report.report.is_counting == False:
+        return 'white'
+    try:
+        if points__sum < section.yellow_zone_min:
+            return "red"
+        elif points__sum >= section.green_zone_min: 
+            return "green"
+        return "#ffc600"
+    except: return 'red'
+
+
 @register.filter
 def format_point(points):
     if points is None:
@@ -54,6 +76,18 @@ def format_point(points):
 @register.filter
 def get_section_points(s_report, section):
     sections = Section.objects.filter(name=section.name, report=s_report.report)
+    if sections.count() > 0:
+        questions = sections[0].fields.all()
+    else:
+        return "-"
+
+    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    return format_point(points__sum)
+
+
+@register.filter
+def get_section_points_by_name(s_report, section_name):
+    sections = Section.objects.filter(name=section_name, report=s_report.report)
     if sections.count() > 0:
         questions = sections[0].fields.all()
     else:
@@ -116,8 +150,7 @@ def get_year_points(s_reports, year):
     return format_point(points)
 
 @register.filter
-def max_value(section, s_reports):
-    questions = section.fields.all()
+def max_value(questions, s_reports):
     max_points = 0
     for s_report in s_reports:
         points = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(points_sum=Sum('points'))['points_sum'] or 0
@@ -127,8 +160,7 @@ def max_value(section, s_reports):
 
 
 @register.filter
-def avg_value(section, s_reports):
-    questions = section.fields.all()
+def avg_value(questions, s_reports):
     total_points = 0
     count = 0
     for s_report in s_reports:

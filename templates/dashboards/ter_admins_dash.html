@@ -66,8 +66,8 @@
                             <th scope="row" class="sticky-top" style="vertical-align: middle;">ТУ/ДО</th>
                             <th scope="row" class="sticky-top" style="vertical-align: middle;">Уровень образования</th>
                             <th scope="row" class="sticky-top" style="text-align: center; vertical-align: middle;">Итого</th>
-                            {% for section in sections reversed %}
-                                <th scope="row" style="text-align: center; vertical-align: middle;"" class="section-hdr sticky-top">
+                            {% for section in sections  %}
+                                <th scope="row" style="text-align: center; vertical-align: middle;" class="section-hdr sticky-top">
                                     {{section}}
                                 </th>
                             {% endfor %}
@@ -83,7 +83,7 @@
                                 <td scope="row" style="text-align: center; vertical-align: middle;">
                                         <div>{{ s_report.points|format_point }}</div>
                                 </td>
-                                {% for section in sections reversed %}
+                                {% for section in sections  %}
                                     <td scope="row" tyle="text-align: center; vertical-align: middle;">
                                         <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
                                             <div class="section-zone" style="background-color: {{s_report|get_section_color:section}}; width: 15px; height: 15px; border-radius: 15px"></div>
@@ -103,7 +103,7 @@
                             <td scope="row" colspan="1" style="text-align: left;" class="sticky-row"><b>Итого</b></td>
                             <td colspan="2"></td>
                             <td scope="row" style="text-align: center;"><b>{{ schools_reports|get_point_sum }}</b></td>
-                            {% for section in sections.all %}
+                            {% for section in sections.all|dictsortreversed:"id"  %}
                                 <td scope="row"style="text-align: center;"><b>{{ schools_reports|get_point_sum_section:section }}</b></td>
                             {% endfor %}
                             <td colspan="6"></td>
@@ -141,7 +141,7 @@
             </div>
         </div>
 
-        {% for section in sections reversed %}
+        {% for section in sections %}
             <div class="section">
                 <h2>{{ section }}</h2>
                 <div class="outer-container">
@@ -152,7 +152,7 @@
                                 <th scope="row">ТУ/ДО</th>
                                 <th scope="row">Уровень образования</th>
                                 <th scope="row" style="text-align: center;">Итого</th>
-                                {% for field in section.fields.all %}
+                                {% for field in section.fields.all|dictsort:"id"  %}
                                     <th  class="section-hdr sticky-top" scope="row" style="text-align: center;">{{ section.number }}.{{ field.number }}. {{ field.name }}</th>
                                 {% endfor %}
                             </tr>
@@ -162,9 +162,9 @@
                                     <td scope="row">{{ s_report.school.ter_admin }}</td>
                                     <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
                                     <td scope="row" style="text-align: center;">{{ s_report|get_section_points:section }}</td>
-                                    {% for field in section.fields.all %}
+                                    {% for field in section.fields.all|dictsort:"id"  %}
                                         <td scope="row" style="text-align: center;">
-                                            <div style=" {% if s_report.report.is_counting %}display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;{% endif%}"><div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{s_report.answers.all|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div><div>{{ s_report|get_field_points:field }}</div></div>
+                                            <div style="{% if s_report.report.is_counting %}display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;{% endif%}"><div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{s_report.answers.all|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div><div>{{ s_report|get_field_points:field }}</div></div>
                                         </td>
                                     {% endfor %}
                                 </tr>
@@ -173,7 +173,7 @@
                                 <td scope="row" colspan="1" style="text-align: left;"><b>Итого</b></td>
                                 <td colspan="2"></td>
                                 <td scope="row" style="text-align: center;"><b>{{ schools_reports|get_point_sum_section:section }}</b></td>
-                                {% for field in section.fields.all %}
+                                {% for field in section.fields.all|dictsort:"id"  %}
                                     <td scope="row" style="text-align: center;"><b>{{ schools_reports|get_point_sum_field:field }}</b></td>
                                 {% endfor %}
                             </tr>
@@ -183,7 +183,7 @@
                                 <td style="text-align: center;">
                                     <td style="text-align: center; color: green; font-weight: bold; white-space: nowrap;"><b style="padding-left: 15px;">{{ stats|get_item:section.name|get_item:"green_zone"|first }} ({{ stats|get_item:section.name|get_item:"green_zone"|last }})</b></td>
                                 </td>
-                                {% for field in section.fields.all %}
+                                {% for field in section.fields.all|dictsort:"id"  %}
                                     <td style="text-align: center; color: green; font-weight: bold; white-space: nowrap;">{{ schools_reports|green_zone_count:field }}</td>
                                 {% endfor %}
                             </tr>
@@ -193,7 +193,7 @@
                                 <td style="text-align: center;">
                                     <td style="text-align: center; color: #ffc600; font-weight: bold; white-space: nowrap;"><b style="padding-left: 15px;">{{ stats|get_item:section.name|get_item:"yellow_zone"|first }} ({{ stats|get_item:section.name|get_item:"yellow_zone"|last }})</b></td>
                                 </td>
-                                {% for field in section.fields.all %}
+                                {% for field in section.fields.all|dictsort:"id"  %}
                                     <td style="text-align: center; color: #ffc600; font-weight: bold; white-space: nowrap;">{{ schools_reports|yellow_zone_count:field }}</td>
                                 {% endfor %}
                             </tr>
@@ -203,7 +203,7 @@
                                 <td style="text-align: center;">
                                     <td style="text-align: center; color: red; font-weight: bold; white-space: nowrap;"><b style="padding-left: 15px;">{{ stats|get_item:section.name|get_item:"red_zone"|first }} ({{ stats|get_item:section.name|get_item:"red_zone"|last }})</b></td>
                                 </td>
-                                {% for field in section.fields.all %}
+                                {% for field in section.fields.all|dictsort:"id"  %}
                                     <td style="text-align: center; color: red; font-weight: bold; white-space: nowrap;">{{ schools_reports|red_zone_count:field }}</td> 
                                 {% endfor %}
                             </tr>

@@ -268,7 +268,7 @@ def mo_report(request, s_report_id):
     
     current_section = request.GET.get('current_section', '')
     if current_section == "":
-        current_section = s_report.report.sections.all()[0].id
+        current_section = s_report.report.sections.all().first().id
     else: current_section = int(current_section)
 
     if request.method == 'POST':
@@ -369,7 +369,7 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
 
     current_section = request.GET.get('current_section', '')
     if current_section == "":
-        current_section = s_report.report.sections.all()[0].id
+        current_section = s_report.report.sections.all().first().id
     else: current_section = int(current_section)
     
     if request.method == 'POST':

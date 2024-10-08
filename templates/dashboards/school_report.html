@@ -73,7 +73,7 @@
                     {% endfor %}
                 </tr>
                 
-                {% for section in sections reversed %}
+                {% for section in sections %}
                     <tr>
                         <td>{{ section.number }}. {{ section.name }}</td>
                         {% for s_report in s_reports %}
@@ -113,7 +113,7 @@
             </div>
         {% endif %}
     </div>
-    {% for section in sections reversed %}
+    {% for section in sections  %}
         <div class="section">
             <h2>{{ section.number }}. {{ section.name }}</h2>
             <table class="table">
@@ -134,9 +134,9 @@
                         </td>
                     {% endfor %}
                 </tr>
-                {% for field in section.fields.all %}
+                {% for field in section.fields.all|dictsort:"id"  %}
                     <tr>
-                        <td>{{ field.name }}</td>
+                        <td>{{ section.number }}.{{ field.number }}. {{ field.name }}</td>
                         {% for s_report in s_reports %}
                             <td>
                                 <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">

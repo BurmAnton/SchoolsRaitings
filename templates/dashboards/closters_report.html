@@ -69,16 +69,16 @@
                             </th>
                         {% endfor %}
                     </tr>
-                    {% for section in sections reversed %}
+                    {% for section in sections %}
                         <tr>
-                            <td scope="row" class="sticky-row">{{ section.number }}. {{ section.name }}</td>
-                            <td scope="row" style="text-align: center;">{{ section|max_value:s_reports }}</td>
-                            <td scope="row" style="text-align: center;">{{ section|avg_value:s_reports }}</td>
+                            <td scope="row" class="sticky-row">{{ section.0 }}. {{ section.1 }}</td>
+                            <td scope="row" style="text-align: center;">{{ section.2|max_value:s_reports }}</td>
+                            <td scope="row" style="text-align: center;">{{ section.2|avg_value:s_reports }}</td>
                             {% for s_report in s_reports %}
                                 <td scope="row" style="text-align: center; vertical-align: middle;">
                                     <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                                        <div class="section-zone" style="background-color: {{s_report|get_section_color:section}}; width: 15px; height: 15px; border-radius: 15px"></div>
-                                        <div>{{ s_report|get_section_points:section }}</div>
+                                        <div class="section-zone" style="background-color: {{s_report|get_section_color_by_name:section.1}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                        <div>{{ s_report|get_section_points_by_name:section.1 }}</div>
                                     </div>
                                 </td>
                             {% endfor %}
@@ -89,9 +89,9 @@
         </div>
     </div>
 
-    {% for section in sections reversed %}
+    {% for section in sections %}
         <div class="section">
-            <h2>{{ section }}</h2>
+            <h2>{{ section.0 }}. {{ section.1 }}</h2>
             <div class="outer-container">
                 <div class="table-container">
                     <table class="table">
@@ -103,9 +103,9 @@
                                 <th scope="row" class="sticky-top" style="text-align: center; max-width: 200px; min-width: 150px;">{{ s_report.school }}</th>
                             {% endfor %}
                         </tr>
-                        {% for question in section.fields.all %}
+                        {% for question in section.2|dictsort:"id"  %}
                             <tr>
-                                <td>{{ section.number }}.{{ question.number }}. {{ question.name }}</td>
+                                <td>{{ section.0 }}.{{ question.number }}. {{ question.name }}</td>
                                 <td style="text-align: center;">{{ question|max_value_section:s_reports }}</td>
                                 <td style="text-align: center;">{{ question|avg_value_section:s_reports }}</td>
                                 {% for s_report in s_reports %}
