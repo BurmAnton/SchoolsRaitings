@@ -8,7 +8,7 @@
         <link href="{% static 'dashboards/css/school_report.css' %}" rel="stylesheet">
 {% endblock %}
 {% block script %}
-    <script src="{% static 'dashboards/js/ter_admins_reports.js' %}" rel="stylesheet"></script>
+    <script src="{% static 'dashboards/js/school_report.js' %}" rel="stylesheet"></script>
 {% endblock %}
 
 {% block body %}
@@ -29,12 +29,12 @@
             </div>
             <div class="form mb-3">
                 <label for="TerAdminFilter">Территориальные управления/Департаменты образования</label>
-                <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admin" id="TerAdminFilter" required data-width="100%" data-container="body" data-live-search="true">
+                <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admin" id="TerAdminFilter" data-width="100%" data-container="body" data-live-search="true">
                     {% if request.user|is_ter_admin_exist %}
                         <option value="{{ ter_admins.0.id }}" selected>{{ ter_admins.0 }}</option>
                     {% else %}
                         {% for ter_admin in ter_admins %}
-                            <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i" == filter|get_item:"ter_admin" %}selected{% endif %}>{{ ter_admin }}</option>
+                            <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i" in filter|get_item:"ter_admin" %}selected{% endif %}>{{ ter_admin }}</option>
                         {% endfor %}
                     {% endif %}
                 </select>

@@ -244,7 +244,7 @@ def count_points(sender, instance, using, **kwargs):
 
 
 class Option(models.Model):
-    name = models.CharField("Название", max_length=250, blank=False, null=False)
+    name = models.CharField("Название", max_length=500, blank=False, null=False)
     question = models.ForeignKey(
         Field,
         verbose_name='критерий',

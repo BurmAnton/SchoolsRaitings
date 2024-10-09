@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     terAdminSelect.addEventListener('change', function() {
         const selectedTerAdminId = this.value;
-        
+        console.log(selectedTerAdminId)
         // Hide all options in the school select
         Array.from(schoolSelect.options).forEach(option => {
             if (option.dataset.terAdminId !== selectedTerAdminId) {
