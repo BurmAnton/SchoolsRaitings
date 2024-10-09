@@ -60,14 +60,20 @@ form .btn-outline-primary {
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
+@media (max-width: 1199px) {
+  #reports .reports {
+    grid-template-columns: 1fr;
+  }
+}
 #reports .reports .report-plate {
+  cursor: pointer;
   background-color: #f8f9fa;
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
   border-radius: 10px;
+  height: 200px;
   padding: 20px;
   transition: all 0.3s ease;
   border: 1px solid #e0e0e0;
-  aspect-ratio: 4/1;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% load static %}
+{% block title %}Документация{% endblock %}
+
+{% block style %}
+        <link href="{% static 'users/css/documentation.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block script %}
+    <script src="{% static 'users/js/documentation.js' %}" rel="stylesheet"></script>
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1>Документация</h1>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Название документа</th>
+                            <th>Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in documentation %}
+                        <tr>
+                            <td>{{ doc.header }}</td>
+                            <td><a href="{{ doc.file.url }}" class="btn btn-primary">Скачать</a></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center">Документов нет</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+{% endblock %}

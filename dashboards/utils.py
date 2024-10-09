@@ -78,13 +78,13 @@ def calculate_stats(year, s_reports):
     overall_stats['green_zone'] = [0, "0.0%"]
     overall_stats['yellow_zone'] = [0, "0.0%"]
     overall_stats['red_zone'] = [0, "0.0%"]
+    s_reports_year = s_reports.filter(report__year=year)
     for section in sections:
         stats[section.name] = {
             'green_zone': [0, "0.0%"],
             'yellow_zone': [0, "0.0%"],
             'red_zone': [0, "0.0%"],
         }
-        s_reports_year = s_reports.filter(report__year=year)
         for s_report in s_reports_year:
             color = count_section_points(s_report, section)
             if color == 'G':
@@ -100,7 +100,10 @@ def calculate_stats(year, s_reports):
     overall_stats['green_zone'][0] = sum([1 for s_report in s_reports if s_report.zone == 'G'])
     overall_stats['yellow_zone'][0] = sum([1 for s_report in s_reports if s_report.zone == 'Y'])
     overall_stats['red_zone'][0] = sum([1 for s_report in s_reports if s_report.zone == 'R'])
-    overall_stats['green_zone'][1] = f'{overall_stats['green_zone'][0] / s_reports_year.count() * 100:.1f}%'
-    overall_stats['yellow_zone'][1] = f'{overall_stats['yellow_zone'][0] / s_reports_year.count() * 100:.1f}%'
-    overall_stats['red_zone'][1] = f'{overall_stats['red_zone'][0] / s_reports_year.count() * 100:.1f}%'
+    try:
+        overall_stats['green_zone'][1] = f'{overall_stats['green_zone'][0] / s_reports_year.count() * 100:.1f}%'
+        overall_stats['yellow_zone'][1] = f'{overall_stats['yellow_zone'][0] / s_reports_year.count() * 100:.1f}%'
+        overall_stats['red_zone'][1] = f'{overall_stats['red_zone'][0] / s_reports_year.count() * 100:.1f}%'
+    except ZeroDivisionError:
+        pass
     return stats, overall_stats

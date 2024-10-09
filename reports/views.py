@@ -14,18 +14,19 @@ from schools.models import School, SchoolCloster, TerAdmin
 @login_required
 def index(request):
     user = request.user
-    return HttpResponseRedirect(reverse('start'))
     principal_group = Group.objects.get(name='Представитель школы')
-    if user.groups.filter(id=principal_group.id).count() == 1:
-        return HttpResponseRedirect(reverse('reports', kwargs={'school_id': user.school.id}))
+    if user.groups.filter(id=principal_group.id).count() == 1 and user.school != None:
+        return HttpResponseRedirect(reverse('start'))
     teradmin_group = Group.objects.get(name='Представитель ТУ/ДО')
-    if user.groups.filter(id=teradmin_group.id).count() == 1:
-        return HttpResponseRedirect(reverse('ter_admin_reports', kwargs={'user_id': user.id}))
+    if user.groups.filter(id=teradmin_group.id).count() == 1 and user.ter_admin != None:
+        return HttpResponseRedirect(reverse('start'))
     mo_group = Group.objects.get(name='Представитель МинОбр')
     if user.groups.filter(id=mo_group.id).count() == 1:
-        return HttpResponseRedirect(reverse('mo_reports'))
+        return HttpResponseRedirect(reverse('start'))
     if user.is_superuser:
         return HttpResponseRedirect(reverse('admin:index'))
+    return HttpResponseRedirect(reverse('undefined_user'))
+        
 
 
 @login_required
@@ -230,8 +231,8 @@ def ter_admin_reports(request, user_id):
     ter_admin = get_object_or_404(TerAdmin, representative=user_id)
     schools = School.objects.filter(ter_admin=ter_admin)
     all_schools = schools
-    closters = SchoolCloster.objects.filter(schools__in=schools)
-    s_reports = SchoolReport.objects.filter(school__in=schools)  
+    closters = SchoolCloster.objects.filter(schools__in=schools).distinct()
+    s_reports = SchoolReport.objects.filter(school__in=schools)
 
     filter = None
     if 'filter' in request.POST:

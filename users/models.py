@@ -73,3 +73,17 @@ class MainPageArticle(models.Model):
 
     def __str__(self):
         return  f'{self.header}'
+
+
+class Documentation(models.Model):
+    header = models.CharField("Название", max_length=750)
+    file = models.FileField("Файл", upload_to='documentation/')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField("Активен", default=True)
+
+    class Meta:
+        verbose_name = "Документация"
+        verbose_name_plural = "Документация"
+
+    def __str__(self):
+        return  f'{self.header}'

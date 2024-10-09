@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required
 
 from schools.models import School
 from .tokens import account_activation_token
-from .models import User, Group
+from .models import Documentation, User, Group
 
 # Create your views here.
 @csrf_exempt
@@ -129,4 +129,16 @@ def reg_confirm_view(request, user_id, token):
         user: user
     })
         
-        
+
+@login_required
+def documentation(request):
+    documentation = Documentation.objects.filter(is_active=True)
+    
+    return render(request, "users/documentation.html", {
+        "documentation": documentation
+    })
+
+
+def undefined_user(request):
+    logout(request)
+    return render(request, "users/undefined_user.html")

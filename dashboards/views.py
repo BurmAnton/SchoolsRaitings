@@ -21,7 +21,11 @@ def ter_admins_reports(request):
 @login_required
 @csrf_exempt
 def ter_admins_dash(request):
-    ter_admins = TerAdmin.objects.all()
+    # Check if the user is a TerAdmin representative
+    ter_admins = TerAdmin.objects.filter(representative=request.user)
+    if not ter_admins.first():
+        ter_admins = TerAdmin.objects.all()
+
     closters = SchoolCloster.objects.all()
     ed_levels = {
         'A': "1 — 11 классы",
@@ -34,8 +38,7 @@ def ter_admins_dash(request):
     years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
     
     filter = {}
-    schools = School.objects.all()
-
+    schools = School.objects.filter(ter_admin__in=ter_admins)
 
     if request.method != 'POST':
         year = years[0]
@@ -78,14 +81,18 @@ def ter_admins_dash(request):
 @login_required
 @csrf_exempt
 def school_report(request):
-    ter_admins = TerAdmin.objects.all()
-    years = Report.objects.values_list('year', flat=True).distinct().order_by('year')
+    ter_admins = TerAdmin.objects.filter(representative=request.user)
+    if not ter_admins.first():
+        ter_admins = TerAdmin.objects.all()
+    years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
+    
     school = None
     s_reports = None
     sections = None
     section_data = {}
     stats = {}
     filter = {}
+
     if request.method == 'POST':
         school = School.objects.get(id=request.POST["school"])
         f_years = request.POST.getlist("years")
@@ -98,6 +105,7 @@ def school_report(request):
             'ter_admin': str(school.ter_admin.id)
         }
         stats, section_data = utils.calculate_stats_and_section_data(f_years, reports, sections, s_reports)
+
     return render(request, "dashboards/school_report.html", {
         'years': years,
         'ter_admins': ter_admins,
@@ -109,10 +117,13 @@ def school_report(request):
         'section_data': section_data
     })
 
-
+@login_required
+@csrf_exempt
 def closters_report(request, year=2024):
-    ter_admins = TerAdmin.objects.all()
-    years = Report.objects.values_list('year', flat=True).distinct().order_by('year')
+    ter_admins = TerAdmin.objects.filter(representative=request.user)
+    if not ter_admins.first():
+        ter_admins = TerAdmin.objects.all()
+    years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
     closters = SchoolCloster.objects.all()
     ed_levels = {
         'A': "1 — 11 классы",
@@ -121,8 +132,9 @@ def closters_report(request, year=2024):
         'MG': "5 — 11 классы",
         'G': "10 — 11 классы",
     }
+    
+    schools = School.objects.filter(ter_admin__in=ter_admins)
     s_reports = SchoolReport.objects.filter(report__year=year)
-
     filter = {}
     if request.method != 'POST':
         year = years[0]
@@ -148,6 +160,7 @@ def closters_report(request, year=2024):
         sections = Section.objects.filter(name=section['name'], report__year=year)
         sections_list.append([section['number'], section['name'], Field.objects.filter(sections__in=sections).distinct()])
     schools = School.objects.filter(reports__in=s_reports)
+    
 
     return render(request, "dashboards/closters_report.html", {
         'years': years,

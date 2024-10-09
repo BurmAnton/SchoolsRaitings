@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group as DefaultGroup
 from django.contrib.auth.admin import GroupAdmin, UserAdmin
 
 from .forms import CustomUserChangeForm, CustomUserCreationForm
-from .models import User, Group, Permission, Notification, MainPageArticle
+from .models import User, Group, Permission, Documentation, MainPageArticle
 
 
 # Register your models here.
@@ -24,9 +24,16 @@ class GroupAdmin(GroupAdmin):
 class PermissionAdmin(admin.ModelAdmin):
     pass
 
-@admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    pass
+# @admin.register(Notification)
+# class NotificationAdmin(admin.ModelAdmin):
+#     pass
+
+@admin.register(Documentation)
+class DocumentationAdmin(admin.ModelAdmin):
+    list_display = ('header', 'timestamp', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('header',)
+    ordering = ('-timestamp',)
 
 @admin.register(User)
 class UserAdmin(UserAdmin):

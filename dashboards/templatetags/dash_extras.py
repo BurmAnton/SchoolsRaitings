@@ -3,6 +3,7 @@ from django.db.models import Sum, Max, Avg
 
 from reports.models import Answer, Field, Section
 from dashboards import utils
+from schools.models import TerAdmin
 
 register = template.Library()
 
@@ -218,3 +219,7 @@ def yellow_zone_count(s_reports, field):
 def red_zone_count(s_reports, field):
     return f'{s_reports.filter(answers__zone="R", answers__question=field).count()} ({s_reports.filter(answers__zone="R", answers__question=field).count() / s_reports.count() * 100:.1f}%)'    
 
+@register.filter
+def is_ter_admin_exist(user):
+    ter_admin = TerAdmin.objects.filter(representative=user)
+    return ter_admin.count() != 0
