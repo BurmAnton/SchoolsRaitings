@@ -89,7 +89,7 @@ input {
 #page-content .section .section-table .question-bl .question-zone {
   margin-top: 6px;
 }
-#page-content .section .section-table .field-cell {
+#page-content .section .section-table .field-cell, #page-content .section .section-table .filed-select {
   width: 700px;
 }
 #page-content .section .section-table th {
