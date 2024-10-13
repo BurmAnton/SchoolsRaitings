@@ -48,6 +48,20 @@ class SchoolAdmin(admin.ModelAdmin):
         ('ter_admin', RelatedDropdownFilter),
         ('closter', RelatedDropdownFilter),
     ]
+    readonly_fields = ['ais_id', ]
+    def get_readonly_fields(self, request, obj=None):
+        if obj and request.user.groups.filter(name='Представитель ТУ/ДО').exists():
+            return self.readonly_fields + [
+                'ais_id', 'name', 'short_name', 'email', 'city', 'number',
+                'school_type', 'ter_admin', 'principal'
+            ]
+        return self.readonly_fields
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.groups.filter(name='Представитель ТУ/ДО').exists():
+            return qs.filter(ter_admin=request.user.ter_admin)
+        return qs
 
 @admin.register(QuestionCategory)
 class QuestionCategoryAdmin(admin.ModelAdmin):

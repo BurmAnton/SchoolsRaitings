@@ -62,118 +62,120 @@
                     </div>
                 </div>
             {% endif %}
-            <table class="table section-table">
-                <tr class="tr-section sticky-top">
-                    <th colspan="2">Показатели/критерии</th>
-                    <th class="center th-points">Баллы</th>
-                    <th class="center th-points">Источники данных</th>
-                    {% comment %} <th class="center th-points">Макс.</th> {% endcomment %}
-                </tr>
-                {%for field in section.fields.all|dictsort:"id" %}
-                <tr class="question {% if field.answer_type == 'BL' %}question-bl{% endif %}"> 
-                    <td style="width: 10px;"><div class="question-zone question-zone{{field.id}}" data-field="{{field.id}}" style="background-color: {{answers|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div></td>
-                    <td scope="row">
-                        {% if field.answer_type == 'LST' %}
-                            <div class="mb-3 field filed-select">
-                                <label for="{{ question.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
-                                <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ field.id }}" name="{{ field.id }}" {% if report.status != 'C' and not request.user.is_superuser  %}disabled{% endif%}>
-                                    <option data-points="0" value="">Не заполнено</option>
-                                    {% for option in field.options.all %}
-                                        <option value="{{ option.id }}"  data-points="{{option.points}}" {% if answers|find_answer:field == option.id %}selected{% endif %}>
-                                            {{ option.name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                                {% if answers|is_answer_changed:field %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span>{% endif %}
-                                {% if answers|is_answer_changed_by_mo:field %}<br><span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
-                            </div>
-                        {% elif field.answer_type == 'NMBR' or field.answer_type == 'PRC' %}
-                            <label for="{{ field.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
-                            <div class="mb-3 input-group field">
-                                {% if field.answer_type == 'PRC' %}
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text">%</span>
+            <div class="table-responsive">
+                <table class="table section-table">
+                    <tr class="tr-section sticky-top">
+                        <th colspan="2">Показатели/критерии</th>
+                        <th class="center th-points">Баллы</th>
+                        <th class="center th-points">Источники данных</th>
+                        {% comment %} <th class="center th-points">Макс.</th> {% endcomment %}
+                    </tr>
+                    {%for field in section.fields.all|dictsort:"id" %}
+                    <tr class="question {% if field.answer_type == 'BL' %}question-bl{% endif %}"> 
+                        <td style="width: 10px;"><div class="question-zone question-zone{{field.id}}" data-field="{{field.id}}" style="background-color: {{answers|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div></td>
+                        <td scope="row">
+                            {% if field.answer_type == 'LST' %}
+                                <div class="mb-3 field filed-select">
+                                    <label for="{{ question.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
+                                    <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ field.id }}" name="{{ field.id }}" {% if report.status != 'C' and not request.user.is_superuser  %}disabled{% endif%}>
+                                        <option data-points="0" value="">Не заполнено</option>
+                                        {% for option in field.options.all %}
+                                            <option value="{{ option.id }}"  data-points="{{option.points}}" {% if answers|find_answer:field == option.id %}selected{% endif %}>
+                                                {{ option.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if answers|is_answer_changed:field %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span>{% endif %}
+                                    {% if answers|is_answer_changed_by_mo:field %}<br><span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
+                                </div>
+                            {% elif field.answer_type == 'NMBR' or field.answer_type == 'PRC' %}
+                                <label for="{{ field.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
+                                <div class="mb-3 input-group field">
+                                    {% if field.answer_type == 'PRC' %}
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    {% endif %}
+                                    <input type="number" maxlength="4" class="form-control number-input" id="{{ field.id }}" data-points="{{ answers|get_points:field }}" value="{{answers|find_answer:field}}"  name="{{ field.id }}" placeholder="" {% if report.status != 'C' and not request.user.is_superuser  %}disabled{% endif%}>
+                                </div>
+                                {% if answers|is_answer_changed:field %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span><br>{% endif %}
+                                {% if answers|is_answer_changed_by_mo:field %}<span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
+                            {% elif field.answer_type == 'BL' %}
+                                <div class="form-check field">
+                                    <input class="form-check-input" type="checkbox" data-points="{{field.bool_points}}" name="{{ field.id }}" id="{{ field.id }}" {% if answers|find_answer:field %}checked{% endif %} {% if report.status != 'C' and not request.user.is_superuser  %}disabled{% endif%}>
+                                    <label class="form-check-label" for="{{ field.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
+                                </div>
+                                {% if answers|is_answer_changed:field %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span><br>{% endif %}
+                                {% if answers|is_answer_changed_by_mo:field %}<span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
+                            {% endif %}
+                            {% if field.note is not None and field.note != "" %}
+                                <div class="alert alert-primary note  d-flex align-items-center" role="alert">
+                                    <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
+                                    <div >
+                                        {{ field.note |safe  }}
                                     </div>
-                                {% endif %}
-                                <input type="number" maxlength="4" class="form-control number-input" id="{{ field.id }}" data-points="{{ answers|get_points:field }}" value="{{answers|find_answer:field}}"  name="{{ field.id }}" placeholder="" {% if report.status != 'C' and not request.user.is_superuser  %}disabled{% endif%}>
-                            </div>
-                            {% if answers|is_answer_changed:field %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span><br>{% endif %}
-                            {% if answers|is_answer_changed_by_mo:field %}<span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
-                        {% elif field.answer_type == 'BL' %}
-                            <div class="form-check field">
-                                <input class="form-check-input" type="checkbox" data-points="{{field.bool_points}}" name="{{ field.id }}" id="{{ field.id }}" {% if answers|find_answer:field %}checked{% endif %} {% if report.status != 'C' and not request.user.is_superuser  %}disabled{% endif%}>
-                                <label class="form-check-label" for="{{ field.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
-                            </div>
-                            {% if answers|is_answer_changed:field %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span><br>{% endif %}
-                            {% if answers|is_answer_changed_by_mo:field %}<span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
-                        {% endif %}
-                        {% if field.note is not None and field.note != "" %}
-                            <div class="alert alert-primary note  d-flex align-items-center" role="alert">
-                                <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
-                                <div >
-                                    {{ field.note |safe  }}
                                 </div>
-                            </div>
-                        {% endif %}
-                    </td>
-                    <td scope="row" class="question-points" id="points_{{ field.id }}">{{ answers|get_points:field }}</td>
-                    <td scope="row" class="attachment-section" style="width: 300px;">
-                        {% comment %} {{ field.attachment.name }} {% endcomment %}
-                        {% if field.attachment_type == 'LNK' %}
-                            <div class="mb-3 field">
-                                {% if field.attachment_name is not None and field.attachment_name != "" %}
-                                    <label for="Att{{ field.id }}_{{field.id}}">{{ field.attachment_name }}</label> 
-                                {% endif %}
-                                <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
-                                    Ссылка прикреплена успешно!
+                            {% endif %}
+                        </td>
+                        <td scope="row" class="question-points" id="points_{{ field.id }}">{{ answers|get_points:field }}</td>
+                        <td scope="row" class="attachment-section" style="width: 300px;">
+                            {% comment %} {{ field.attachment.name }} {% endcomment %}
+                            {% if field.attachment_type == 'LNK' %}
+                                <div class="mb-3 field">
+                                    {% if field.attachment_name is not None and field.attachment_name != "" %}
+                                        <label for="Att{{ field.id }}_{{field.id}}">{{ field.attachment_name }}</label> 
+                                    {% endif %}
+                                    <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
+                                        Ссылка прикреплена успешно!
+                                    </div>
+                                    <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
+                                    <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
                                 </div>
-                                <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
-                                <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
-                            </div>
-                        {% elif field.attachment_type == 'DC' %}
-                            <div class="mb-3">
-                                {% if field.attachment_name is not None and field.attachment_name != "" %}
-                                    <label for="Att{{ field.id }}_{{field.id}}" style="margin: 0px;">{{ field.attachment_name }}</label> 
-                                {% endif %}
-                                <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
-                                    Документ загружен успешно!
-                                </div>
-                                <div class="get-attachment">
-                                    <a class='attachment{{field.id}}' {% if answers|get_file_link:field != None %}href="{{ answers|get_file_link:field }}"{% else %}style="display: none;"{% endif %} target="_blank">
-                                        <button class="btn btn-outline-success btn-sm" style="width: 100%;margin-bottom: 5px;">Скачать прикреплённый файл</button>
-                                    </a>
-                                    <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}">
-                                </div>
-                            </div>
-                            {% elif field.attachment_type == 'LDC' %}
-                                <div class="mb-3" style="gap: 5px;">
+                            {% elif field.attachment_type == 'DC' %}
+                                <div class="mb-3">
                                     {% if field.attachment_name is not None and field.attachment_name != "" %}
                                         <label for="Att{{ field.id }}_{{field.id}}" style="margin: 0px;">{{ field.attachment_name }}</label> 
                                     {% endif %}
                                     <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
                                         Документ загружен успешно!
                                     </div>
-                                    
-                                    <div class="get-attachment" style="display: flex;gap: 5px;flex-direction: column">
-                                        <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
+                                    <div class="get-attachment">
                                         <a class='attachment{{field.id}}' {% if answers|get_file_link:field != None %}href="{{ answers|get_file_link:field }}"{% else %}style="display: none;"{% endif %} target="_blank">
                                             <button class="btn btn-outline-success btn-sm" style="width: 100%;margin-bottom: 5px;">Скачать прикреплённый файл</button>
                                         </a>
                                         <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}">
-                                        <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
                                     </div>
                                 </div>
-                        {% endif %}
-                    </td>
-                </tr>
-            {% endfor %}
-                <tr class="tr-section">
-                    <th colspan="2">Всего</th>
-                    <th class="center section-points"></th>
-                    <th></th>
-                    {% comment %} <th class="center section-points-max"></th> {% endcomment %}
-                </tr>
-            </table>
+                                {% elif field.attachment_type == 'LDC' %}
+                                    <div class="mb-3" style="gap: 5px;">
+                                        {% if field.attachment_name is not None and field.attachment_name != "" %}
+                                            <label for="Att{{ field.id }}_{{field.id}}" style="margin: 0px;">{{ field.attachment_name }}</label> 
+                                        {% endif %}
+                                        <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
+                                            Документ загружен успешно!
+                                        </div>
+                                        
+                                        <div class="get-attachment" style="display: flex;gap: 5px;flex-direction: column">
+                                            <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
+                                            <a class='attachment{{field.id}}' {% if answers|get_file_link:field != None %}href="{{ answers|get_file_link:field }}"{% else %}style="display: none;"{% endif %} target="_blank">
+                                                <button class="btn btn-outline-success btn-sm" style="width: 100%;margin-bottom: 5px;">Скачать прикреплённый файл</button>
+                                            </a>
+                                            <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}">
+                                            <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
+                                        </div>
+                                    </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                    <tr class="tr-section">
+                        <th colspan="2">Всего</th>
+                        <th class="center section-points"></th>
+                        <th></th>
+                        {% comment %} <th class="center section-points-max"></th> {% endcomment %}
+                    </tr>
+                </table>
+            </div>
         </div>
    {% endfor %}
     {% comment %} {% if attachments.count != 0 %}

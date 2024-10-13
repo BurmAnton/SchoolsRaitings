@@ -12,6 +12,10 @@
 
 .dropdown-menu {
   z-index: 100;
+  max-width: 100% !important;
+}
+.dropdown-menu .dropdown-item span {
+  white-space: wrap !important;
 }
 
 label {
@@ -67,6 +71,10 @@ input {
 }
 #page-content .note p {
   margin-bottom: 0;
+}
+#page-content .table-responsive {
+  overflow-x: auto;
+  max-width: 100%;
 }
 #page-content .section {
   display: none;

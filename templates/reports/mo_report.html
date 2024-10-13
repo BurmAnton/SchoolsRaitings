@@ -62,8 +62,9 @@
                     </div>
                 </div>
             {% endif %}
-            <table class="table section-table">
-                <tr class="tr-section sticky-top">
+            <div class="table-responsive">
+                <table class="table section-table">
+                    <tr class="tr-section sticky-top">
                     <th colspan="2">Показатели/критерии</th>
                     <th class="center th-points">Баллы</th>
                     <th class="center th-points">Источники данных</th>
@@ -174,6 +175,7 @@
                     {% comment %} <th class="center section-points-max"></th> {% endcomment %}
                 </tr>
             </table>
+            </div>
         </div>
    {% endfor %}
     {% comment %} {% if attachments.count != 0 %}
