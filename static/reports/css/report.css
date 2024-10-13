@@ -89,6 +89,9 @@ input {
 #page-content .section .section-table .question-bl .question-zone {
   margin-top: 6px;
 }
+#page-content .section .section-table .field-cell {
+  width: 700px;
+}
 #page-content .section .section-table th {
   background-color: white !important;
 }

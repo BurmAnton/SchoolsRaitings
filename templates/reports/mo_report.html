@@ -73,7 +73,7 @@
             {%for field in section.fields.all|dictsort:"id"  %}
                 <tr class="question {% if field.answer_type == 'BL' %}question-bl{% endif %}"> 
                     <td style="width: 10px;"><div class="question-zone question-zone{{field.id}}" data-field="{{field.id}}" style="background-color: {{answers|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div></td>
-                    <td scope="row">
+                    <td scope="row" class="field-cell">
                         {% if field.answer_type == 'LST' %}
                             <div class="mb-3 field filed-select">
                                 <label for="{{ question.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
