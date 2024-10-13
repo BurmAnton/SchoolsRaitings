@@ -79,9 +79,16 @@
                     <a class="nav-link report-link" href="{% if request.user|is_school_exist %}{% url 'reports' request.user.school.id %}{% elif request.user|is_ter_admin_exist %}{% url 'ter_admin_reports' request.user.id %}{% else %}{% url 'mo_reports' %}{% endif %}"  type="button" role="tab" aria-controls="v-pills-home" aria-selected="true">Отчёты</a>
                     {% if not request.user|is_school_exist %}<a class="nav-link dashboard-link" href="{% url 'ter_admins_reports' %}" type="button" role="tab" aria-controls="v-pills-profile" disabled aria-selected="false">Статистика</a>{% endif %}
                     <a class="nav-link doc-link" type="button" role="tab" aria-controls="v-pills-disabled" href="{% url 'documentation' %}"  aria-selected="false">Документация</a>
-                    <a class="nav-link"  type="button" role="tab" aria-controls="v-pills-messages" style="color: grey;"  disabled aria-selected="false">Вопросы и ответы</a>
+                    <a class="nav-link questions-link"  type="button" role="tab" aria-controls="v-pills-messages" href="{% url 'questions' %}" disabled aria-selected="false">Вопросы и ответы</a>
                 </div>
+                {% if user.is_staff or user.is_superuser %}
+                    <hr>
+                    <div class="admin-panel-link">
+                        <a href="{% url 'admin:index' %}" class="btn btn-outline-primary" target="_blank" role="button">Админ панель</a>
+                    </div>
+                {% endif %}
             </div>
+            
         {% endif %}
         <div id="page-content">
             {% block body %}{% endblock %}

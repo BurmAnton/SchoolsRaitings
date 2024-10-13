@@ -64,6 +64,12 @@ body .body #main-menu .active {
   background-color: #a61849;
   border-color: #a61849;
 }
+body .body #main-menu .admin-panel-link {
+  width: 100%;
+}
+body .body #main-menu .admin-panel-link a {
+  width: 100%;
+}
 body header {
   width: 100%;
   height: -moz-min-content;

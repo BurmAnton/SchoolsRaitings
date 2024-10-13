@@ -4,6 +4,8 @@ from django.utils.translation import gettext_lazy as _
 
 from users.models import User
 
+from tinymce import models as tinymce_models
+
 
 # Create your models here.
 class TerAdmin(models.Model):
@@ -113,3 +115,54 @@ class School(models.Model):
         elif self.number is None:
             return f"{self.school_type} ({self.city})"
         return f"{self.school_type} №{self.number} ({self.city})"
+    
+
+
+class QuestionCategory(models.Model):
+    name = models.CharField("Название", max_length=250)
+    description = models.TextField("Описание", blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Категория вопроса"
+        verbose_name_plural = "Категории вопросов"
+
+    def __str__(self):
+        return self.name
+    
+
+class Question(models.Model):
+    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+    updated_at = models.DateTimeField("Дата обновления", auto_now=True)
+    short_question = models.CharField("Вопрос", max_length=250, blank=False, null=False)
+    question = tinymce_models.HTMLField("Пояснение", null=True, blank=True)
+    
+    category = models.ForeignKey(
+        QuestionCategory, 
+        verbose_name="Категория",
+        related_name="questions",
+        blank=False,
+        null=False,
+        on_delete=CASCADE
+    )
+    user = models.ForeignKey(
+        User, 
+        verbose_name="Пользователь",
+        related_name="questions",
+        blank=True,
+        null=True,
+        on_delete=CASCADE
+    )
+
+    answer = tinymce_models.HTMLField(
+        "Ответ", null=True, blank=True, default=None
+    )
+    is_resolved = models.BooleanField("Решено", default=False)
+    answer_at = models.DateTimeField("Дата ответа", blank=True, null=True)
+    is_visible = models.BooleanField("Отображать на сайте", default=False)
+
+    class Meta:
+        verbose_name = "Вопрос"
+        verbose_name_plural = "Вопросы"
+
+    def __str__(self):
+        return self.short_question

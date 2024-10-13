@@ -1,0 +1,93 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load schools_extras %}
+{% block title %}Часто задаваемые вопросы{% endblock %}
+
+{% block style %}
+        <link href="{% static 'schools/css/questions.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block script %}
+    <script src="{% static 'schools/js/questions.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+    <div class="row">
+        <div id="questions-header">
+            <div class="flex-grow-1"></div>
+            <h1>Часто задаваемые вопросы</h1>
+            <div class="d-flex align-items-center">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#askQuestionModal">
+                    Задать вопрос
+                </button>
+            </div>
+        </div>
+        <div id="questions-categories">
+            {% for category in categories|filter_categories:request.user %}
+                <h2>{{ category.name }}</h2>
+                <div class="questions-list">
+                    {% for question in category.questions.all %}
+                        {% if question.is_visible or question.user == request.user %}
+                            <div class="question">
+                                <div class="question-header" onclick="toggleAnswer('{{ question.id }}')">
+                                    <span class="plus-minus show-answer-btn" data-question-id="{{ question.id }}">+</span>
+                                    <p>{{ question.short_question }}</p>
+                                </div>
+                                <div class="question-answer" id="answer-{{ question.id }}" style="display: none;">
+                                    {% if question.question != "" %}
+                                        <p class="answer-title">Дополнение к вопросу: </p>
+                                        {{ question.question|safe }}
+                                    {% endif%}
+                                    {% if question.answer != None %}
+                                        <p class="answer-title">Ответ: </p>
+                                        {{ question.answer|safe }}
+                                    {% else %}
+                                        <p class="answer-title">Пока ответ не получен, проверьте чуть позже</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif%}
+                    {% endfor %}
+                </div>
+            {% empty %}
+                <p class="no-questions">Тут пока нет вопросов, чтобы их добавить, нажмите на кнопку "Задать вопрос"</p>
+            {% endfor %}    
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="askQuestionModal" tabindex="-1" aria-labelledby="askQuestionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="askQuestionModalLabel">Задать вопрос</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="ask-question-form" method="post" url="{% url 'questions' %}"> 
+                        <div class="mb-3 form-floating category-selecter">
+                            <label for="category-select">Категория:</label>
+                            <select class="selectpicker" id="category-select" data-width="100%" data-live-search="true" name="category" title="Выберите категорию" required>
+                                {% for category in categories %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3 form-floating">
+                            <input type="text" class="form-control" id="short-question-input" name="short_question" required>
+                            <label for="short-question-input">Введите ваш вопрос</label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="question-input">Опишите подробнее (если необходимо):</label>
+                            {{ form.media }}
+                            {{ form.question }}
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" form="ask-question-form" class="btn btn-primary" id="ask-question-button">Задать вопрос</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

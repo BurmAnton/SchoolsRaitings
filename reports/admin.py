@@ -2,7 +2,7 @@ from django.contrib import admin
 from tinymce.models import HTMLField
 from easy_select2 import select2_modelform
 from django_admin_listfilter_dropdown.filters import (
-    RelatedDropdownFilter, ChoiceDropdownFilter, DropdownFilter
+    RelatedDropdownFilter, ChoiceDropdownFilter, DropdownFilter, 
 )
 
 from .models import (
