@@ -6,12 +6,14 @@ document.addEventListener('DOMContentLoaded', function() {
         current_section.classList.remove('current-section')
         current_section.nextElementSibling.classList.add('current-section')
         check_section()
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     })
     document.querySelector('#btn-back').addEventListener('click', (btn) => {
         let current_section = document.querySelector('.current-section')
         current_section.classList.remove('current-section')
         current_section.previousElementSibling.classList.add('current-section')
         check_section()
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     })
     document.querySelectorAll('.selectpicker').forEach(input => {
         input.addEventListener('change', () => {

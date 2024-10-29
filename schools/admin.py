@@ -28,9 +28,10 @@ class SchoolTypeAdmin(admin.ModelAdmin):
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
     list_display = [
+        'ais_id',
+        '__str__', 
         'id',
         'number',
-        '__str__', 
         'ter_admin',
         'closter',
         'ed_level', 
