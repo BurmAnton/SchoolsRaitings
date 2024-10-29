@@ -95,12 +95,12 @@ def schools(form):
     schools_id = School.objects.all().values_list("ais_id", flat=True)
     for row in range(len(sheet['ID в АИС \"Кадры в образовании\"'])):
         responce = load_school(sheet, row, schools_id)
-        if responce['status'] == 'MissingField':
+        if responce[0] == 'MissingField':
             missing_fields.append(responce)
-        elif responce['is_exist']:
-            update_schools.append(responce['school'])
+        elif responce[1]:
+            update_schools.append(responce[2])
         else: 
-            add_schools.append(responce['school'])
+            add_schools.append(responce[2])
     School.objects.bulk_create(add_schools, batch_size=50)
     School.objects.bulk_update(
         update_schools, 
@@ -134,8 +134,8 @@ def load_school(sheet, row, id_list):
         missing_fields.append("ID в АИС \"Кадры в образовании\"")
     else: ais_id = int(ais_id)
     email = is_missing(sheet["Email"][row])
-    try: email = validate_email(email)["email"]
-    except EmailNotValidError: missing_fields.append("Email")
+    if email == True:
+        missing_fields.append("Email")
     name = is_missing(sheet["Полное наименование"][row])
     if name == True: missing_fields.append("Полное наименование")
     short_name = is_missing(sheet["Сокращенное наименование"][row])
@@ -148,7 +148,8 @@ def load_school(sheet, row, id_list):
     else: number = None
     ed_level = is_missing(sheet["Уровень образования"][row])
     if ed_level == True or ed_level not in SCHOOL_LEVELS.keys(): 
-        missing_fields.append("Населённый пункт")
+        #missing_fields.append("Уровень образования")
+        pass
     else:
         ed_level = SCHOOL_LEVELS[ed_level]
     
@@ -179,8 +180,6 @@ def load_school(sheet, row, id_list):
     school.closter = closter
     school.ed_level = ed_level
 
-    return {
-        'status': 'OK',  
-        'is_exist': is_exist, 
-        'school': school
-    }
+    return [
+        'OK', is_exist, school
+    ]

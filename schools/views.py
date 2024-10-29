@@ -31,7 +31,7 @@ def questions(request):
     if request.user.is_superuser:
         questions = Question.objects.all()
     else:
-        questions = Question.objects.filter(display_on_site=True) | Question.objects.filter(user=request.user)
+        questions = Question.objects.filter(is_visible=True) | Question.objects.filter(user=request.user)
 
     if request.method == 'POST':
         form = QuestionForm(request.POST)

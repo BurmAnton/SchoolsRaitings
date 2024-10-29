@@ -55,8 +55,8 @@ class School(models.Model):
     ais_id = models.IntegerField(
         "ID в АИС \"Кадры в образовании\"", blank=False, null=True, unique=True
     )
-    name = models.CharField("Полное наименование", max_length=500, blank=False, null=True)
-    short_name = models.CharField("Сокращенное наименование", max_length=125, blank=False, null=True)
+    name = models.CharField("Полное наименование", max_length=1000, blank=False, null=True)
+    short_name = models.CharField("Сокращенное наименование", max_length=500, blank=False, null=True)
     email = models.EmailField("Официальный email",  blank=False, null=True)
     city = models.CharField("Населённый пункт", max_length=250, blank=False, null=True)
     number = models.IntegerField("Номер школы", blank=True, null=True)
@@ -102,7 +102,7 @@ class School(models.Model):
         ('MG', "5 — 11 классы"),
     ]
     ed_level = models.CharField(
-        "Уровень образования", choices=SCHOOL_LEVELS, max_length=2, blank=True, null=True
+        "Уровень образования", choices=SCHOOL_LEVELS, max_length=4, blank=True, null=True
     )
 
     class Meta:

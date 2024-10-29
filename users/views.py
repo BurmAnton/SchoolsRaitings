@@ -54,7 +54,7 @@ def send_confirm_link(confirm_link, user, token):
     send_mail(
         "Подтверждения регистрации в АИС «Рейтингование ОО»",
         f"Ссылка для подтверждения регистрации в АИС «Рейтингование ОО»: {confirm_link}.",
-        "a.burmatsky@gmail.com",
+        "r.oo@ctrtlt.ru",
         [user.email,],
         fail_silently=False,
     )
@@ -74,7 +74,7 @@ def reg_view(request):
         if School.objects.filter(email=email).count() == 0:
             message = {
                 "message_type": "danger", 
-                "message":"Школа с такой электронной почтой не найдена! Нужно использовать официальную почту школы (@samara.edu.ru)."
+                "message":"Школа с такой электронной почтой не найдена! Нужно использовать официальную почту школы (@63edu.ru)."
             }
         elif password != conf_password:
             message = {"message_type": "danger",  "message":"Пароли не совпадают!"}
