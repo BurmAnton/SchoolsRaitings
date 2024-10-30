@@ -59,7 +59,7 @@ def ter_admins_dash(request):
             filter['ed_levels'] = ed_levels_f
         
 
-    schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools)
+    schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools, status='D')
     sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
     stats, overall_stats = utils.calculate_stats(year, schools_reports)
 
@@ -98,7 +98,7 @@ def school_report(request):
         f_years = request.POST.getlist("years")
         reports = Report.objects.filter(year__in=f_years)
         sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
-        s_reports = SchoolReport.objects.filter(report__in=reports, school=school).order_by('report__year')
+        s_reports = SchoolReport.objects.filter(report__in=reports, school=school, status='D').order_by('report__year')
         filter = {
             'years': f_years,
             'school': str(school.id),
@@ -134,7 +134,7 @@ def closters_report(request, year=2024):
     }
     
     schools = School.objects.filter(ter_admin__in=ter_admins)
-    s_reports = SchoolReport.objects.filter(report__year=year)
+    s_reports = SchoolReport.objects.filter(report__year=year, status='D')
     filter = {}
     if request.method != 'POST':
         year = years[0]

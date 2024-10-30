@@ -54,6 +54,25 @@ document.addEventListener('DOMContentLoaded', function() {
             upload_link(input.value, input.name, input)
         })
     })
+    document.querySelectorAll('.delete-file').forEach(btn => {
+        btn.addEventListener('click', () => {
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "Accept": "application/json",
+                    'Content-Type': 'application/json'
+                    },
+                body: JSON.stringify({
+                    'file_id': btn.dataset.fileid,
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                btn.parentElement.style.display = 'none';
+            })
+        })
+    })
 })
 
 
@@ -199,16 +218,36 @@ function upload_file(file, name, input){
     })
     .then(response => response.json())
     .then(result => {
-        console.log(result)
+
         file_link = result['file_link'] 
+        file_name = result['filename']
         question_id = result['question_id'] 
-        let link = document.querySelector(`.attachment${question_id}`)
-        link.parentElement.querySelectorAll('a').forEach(a => {
-            a.style.display = 'none'
-        })
+        let files = document.querySelector(`.files${question_id}`)
+        // link.parentElement.querySelectorAll('a').forEach(a => {
+        //     a.style.display = 'none'
+        // })
+        const div = document.createElement("div")
+        div.style = "display: flex; align-items: stretch; gap: 5px; justify-content: space-between;"
+        const link = document.createElement("a")
         link.setAttribute('href', file_link)
-        link.style.display = 'block' 
-        
+        link.classList.add(`attachment${question_id}`)
+        link.style = "width: 100%;"
+        const btn = document.createElement("button")
+        btn.style = "width: 100%; height: 100%;"
+        btn.innerHTML = file_name
+        btn.classList.add(`btn`)
+        btn.classList.add(`btn-outline-success`)
+        btn.classList.add(`btn-sm`)
+        link.appendChild(btn)
+        div.appendChild(link)
+        const btn_delete = document.createElement("button")
+        btn_delete.style = "width: 50px; height: 100%;"
+        btn_delete.classList.add(`btn`)
+        btn_delete.classList.add(`btn-danger`)
+        btn_delete.classList.add(`delete-file`)
+        btn_delete.innerHTML = "—"
+        div.appendChild(btn_delete)
+        files.appendChild(div)
         let alert_id = input.parentElement.parentElement.querySelector('.alert').id
         input.parentElement.parentElement.querySelector('.alert').innerHTML ="Документ загружен успешно!"
         alert_id = `#${alert_id}`

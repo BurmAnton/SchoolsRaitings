@@ -136,9 +136,15 @@
                                     Документ загружен успешно!
                                 </div>
                                 <div class="get-attachment">
-                                    <a class='attachment{{field.id}}' {% if answers|get_file_link:field != None %}href="{{ answers|get_file_link:field }}"{% else %}style="display: none;"{% endif %} target="_blank">
-                                        <button class="btn btn-outline-success btn-sm" style="width: 100%;margin-bottom: 5px;">Скачать прикреплённый файл</button>
-                                    </a>
+                                    <div class="files{{field.id}}" style="display: flex; gap: 5px; flex-direction: column;">
+                                        {% for file in answers|get_files:field %}
+                                            <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
+                                                <a class='attachment{{field.id}}' href="{{ file.file.url }}"  style="width: 100%;" target="_blank">
+                                                    <button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>
+                                                </a>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
                                     {% if report.status == 'B' and request.user.is_superuser  %}
                                         <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}">
                                     {% endif %}
@@ -155,9 +161,15 @@
                                     
                                     <div class="get-attachment" style="display: flex;gap: 5px;flex-direction: column">
                                         <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
-                                        <a class='attachment{{field.id}}' {% if answers|get_file_link:field != None %}href="{{ answers|get_file_link:field }}"{% else %}style="display: none;"{% endif %} target="_blank">
-                                            <button class="btn btn-outline-success btn-sm" style="width: 100%;margin-bottom: 5px;">Скачать прикреплённый файл</button>
-                                        </a>
+                                        <div class="files{{field.id}}" style="display: flex; gap: 5px; flex-direction: column;">
+                                            {% for file in answers|get_files:field %}
+                                                <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
+                                                    <a class='attachment{{field.id}}' href="{{ file.file.url }}"  style="width: 100%;" target="_blank">
+                                                        <button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>
+                                                    </a>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
                                         {% if report.status == 'B' or request.user.is_superuser  %}
                                         <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}">
                                         <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >

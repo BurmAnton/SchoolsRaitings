@@ -107,17 +107,29 @@ def report(request, report_id, school_id):
 
             question = Field.objects.get(id=id)
             answer = Answer.objects.get(question=question, s_report=s_report)
-            answer.file = file
-            if answer.link != "":
-                answer.link = ""
-            answer.save()
+            # answer.file = file
+            # if answer.link != "":
+            #     answer.link = ""
+            # answer.save()
+            file = ReportFile.objects.create(
+                s_report=answer.s_report,
+                answer=answer,
+                file = file
+            )
             return JsonResponse({
                 "message": "File updated/saved successfully.",
                 "question_id": question.id,
-                "file_link": answer.file.url
+                "file_link": file.file.url,
+                "filename": file.file.name
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
+            if 'file_id' in data:
+                file_id = data['file_id']
+                ReportFile.objects.get(id=file_id).delete()
+                return JsonResponse({"message": "File deleted successfully.",}, status=201)
+            
+           
             question = Field.objects.get(id=data['id'])
             answer = Answer.objects.get(question=question, s_report=s_report)
             if 'link' in data:

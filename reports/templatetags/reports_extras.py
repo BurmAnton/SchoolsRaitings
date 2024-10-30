@@ -1,3 +1,4 @@
+import os
 from django import template
 from django.db.models import Max, Sum
 
@@ -139,6 +140,11 @@ def get_file_link(answers, question):
         return None
     
 
+@register.filter
+def get_files(answers, question):
+    answer = answers.get(question=question)
+    return answer.files.all()
+
 
 @register.filter
 def get_link(answers, question):
@@ -146,3 +152,8 @@ def get_link(answers, question):
     if answer.link is not None:
         return answer.link
     return ""
+
+
+@register.filter
+def filename(value):
+    return os.path.basename(value.file.name)
