@@ -102,8 +102,8 @@ class Attachment(models.Model):
 
 
 class Section(models.Model):
-    number = models.CharField('Номер раздела', null=True, blank=True, max_length=500)
-    name = models.CharField("Название раздела", max_length=500)
+    number = models.CharField('Номер критерия', null=True, blank=True, max_length=500)
+    name = models.CharField("Название критерия", max_length=500)
     report = models.ForeignKey(
         Report,
         verbose_name='отчёт',
@@ -113,7 +113,7 @@ class Section(models.Model):
     )
     fields = models.ManyToManyField(
         "Field",
-        verbose_name="Критерии",
+        verbose_name="Показатели",
         related_name="sections",
         blank=True
     )
@@ -138,8 +138,8 @@ class Section(models.Model):
 
     class Meta:
         # ordering = ['-id']
-        verbose_name = "Показатель отчёта"
-        verbose_name_plural = "Показатели отчётов"
+        verbose_name = "Критерий"
+        verbose_name_plural = "Критерии"
 
     def __str__(self):
         if self.number is None or self.number == "":
@@ -162,8 +162,8 @@ def update_section_points(sender, instance, action, **kwargs):
 
 
 class Field(models.Model):
-    number = models.CharField('Номер критерия', null=False, blank=False, max_length=500)
-    name = models.CharField("Название критерия", max_length=750, null=False, blank=False)
+    number = models.CharField('Номер показатель', null=False, blank=False, max_length=500)
+    name = models.CharField("Название показателя", max_length=750, null=False, blank=False)
     points = models.DecimalField(
         "Макс. баллов", max_digits=5,
         decimal_places=1, null=False, blank=False, default=0
@@ -204,8 +204,8 @@ class Field(models.Model):
 
     class Meta:
         ordering = ['number']
-        verbose_name = "Критерий"
-        verbose_name_plural = "Критерии"
+        verbose_name = "Показатель"
+        verbose_name_plural = "Показатели"
 
     def __str__(self):
         return  f'(id: {self.id}) {self.number}. {self.name}'
@@ -429,7 +429,7 @@ class SchoolReport(models.Model):
     STATUSES = [
         ('C', "Заполнение"),
         ('A', "На согласовании в ТУ/ДО"),
-        ('B', "На согласовании в МинОбр"),
+        ('B', "Отправлено в МинОбр"),
         ('D', "Принят")
     ]
     status = models.CharField(
