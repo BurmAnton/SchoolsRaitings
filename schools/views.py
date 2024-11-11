@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 
@@ -42,6 +42,7 @@ def questions(request):
                 short_question=request.POST['short_question'],
                 question=form.cleaned_data['question'],
             )
+        return redirect('questions')
 
     return render(request, "schools/questions.html", {
         'questions': questions,

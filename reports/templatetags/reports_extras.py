@@ -147,6 +147,12 @@ def get_files(answers, question):
 
 
 @register.filter
+def get_links(answers, question):
+    answer = answers.get(question=question)
+    return answer.links.all()
+
+
+@register.filter
 def get_link(answers, question):
     answer = answers.get(question=question)
     if answer.link is not None:

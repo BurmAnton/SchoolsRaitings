@@ -221,5 +221,5 @@ def red_zone_count(s_reports, field):
 
 @register.filter
 def is_ter_admin_exist(user):
-    ter_admin = TerAdmin.objects.filter(representative=user)
+    ter_admin = TerAdmin.objects.filter(representatives=user)
     return ter_admin.count() != 0

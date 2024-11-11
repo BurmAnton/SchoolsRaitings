@@ -11,13 +11,11 @@ from tinymce import models as tinymce_models
 class TerAdmin(models.Model):
     name = models.CharField("Название", max_length=250)
     
-    representative = models.OneToOneField(
+    representatives = models.ManyToManyField(
         User, 
         verbose_name="Представитель ТУ/ДО", 
         related_name="ter_admin", 
         blank=True,
-        null=True,
-        on_delete=SET_NULL
     )
 
     class Meta:

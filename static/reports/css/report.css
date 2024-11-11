@@ -1,10 +1,10 @@
 .dropdown-toggle {
-  border: 1px solid rgba(49, 52, 55, 0.5137254902) !important;
+  border: 1px solid #31343783 !important;
   background-color: white !important;
 }
 
 .input-group-text {
-  border: 1px solid rgba(49, 52, 55, 0.5137254902) !important;
+  border: 1px solid #31343783 !important;
   border-right: 0 !important;
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
@@ -14,6 +14,7 @@
   z-index: 100;
   max-width: 100% !important;
 }
+
 .dropdown-menu .dropdown-item span {
   white-space: wrap !important;
 }
@@ -23,7 +24,7 @@ label {
 }
 
 input {
-  border: 1px solid rgba(49, 52, 55, 0.5137254902) !important;
+  border: 1px solid #31343783 !important;
 }
 
 #main-menu {
@@ -34,133 +35,194 @@ input {
   padding: 25px 25px;
   width: 100%;
 }
+
 #page-content h1 {
   font-size: 24px;
   margin: auto;
   margin-bottom: 15px;
 }
+
 #page-content h2 {
   font-size: 20px;
   margin: auto;
   margin-bottom: 5px;
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
 }
+
 #page-content h2 div {
   margin-right: 5px;
   margin-bottom: 1px;
 }
+
 #page-content #report-school {
   text-align: center;
 }
+
 #page-content #report-status {
   text-align: center;
 }
+
 #page-content #report-points-zone {
   text-align: center;
   margin-bottom: 15px;
 }
+
 #page-content h3 {
   font-size: 18px;
 }
+
 #page-content .note {
   padding: 7px 15px !important;
   margin-top: 5px;
   margin-bottom: 5px;
 }
+
 #page-content .note p {
   margin-bottom: 0;
 }
+
 #page-content .table-responsive {
   overflow-x: auto;
   max-width: 100%;
 }
+
 #page-content .section {
   display: none;
   margin-top: 15px;
   margin-bottom: 15px;
   margin-left: 15px;
 }
+
 #page-content .section .section-table {
   width: 95%;
   margin: auto;
 }
+
 #page-content .section .section-table .question-bl .question-zone {
   margin-top: 6px;
 }
+
 #page-content .section .section-table .field-cell, #page-content .section .section-table .filed-select {
   width: 700px;
 }
+
 #page-content .section .section-table th {
   background-color: white !important;
 }
+
 #page-content .section .section-table .tr-section th {
   font-size: 18px;
   font-weight: 500;
 }
+
 #page-content .section .section-table .tr-field th {
   font-size: 16px;
   font-weight: 500;
 }
+
 #page-content .section .section-table .field {
   margin-bottom: 0 !important;
 }
+
 #page-content .section .section-table .question-zone {
   margin: auto;
   margin-top: 23px;
 }
+
 #page-content .section .section-table .question-points, #page-content .section .section-table .question-points-max {
   text-align: center;
 }
+
 #page-content .section .section-table .center {
   text-align: center;
   vertical-align: middle;
 }
+
 #page-content .attachment-section .mb-3 {
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
-  flex-direction: column;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
   gap: 5px;
 }
+
 #page-content .attachment-section .alert {
   display: none;
   width: 570px;
   margin-bottom: 0 !important;
   padding: 10px 10px;
 }
+
 #page-content .attachment-section .alert .btn-close {
   padding: 0.9rem 1rem;
 }
+
 #page-content .attachment-section .attachments-inputs {
   padding-left: 15px;
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
-  -moz-column-gap: 25px;
-       column-gap: 25px;
-  flex-wrap: wrap;
-  flex-direction: column;
+  -webkit-column-gap: 25px;
+          column-gap: 25px;
+  -ms-flex-wrap: wrap;
+      flex-wrap: wrap;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
 }
+
 #page-content .attachment-section .attachments-inputs .mb-3 input {
   width: 300px;
 }
+
 #page-content .attachment-section .attachments-inputs .get-attachment {
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
-  flex-direction: row;
+  -webkit-box-orient: horizontal;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: row;
+          flex-direction: row;
   gap: 15px;
 }
+
 #page-content .sections-panel {
   width: 95%;
   margin: auto;
   margin-top: 25px;
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
-  justify-content: flex-end;
-  -moz-column-gap: 15px;
-       column-gap: 15px;
+  -webkit-box-pack: end;
+      -ms-flex-pack: end;
+          justify-content: flex-end;
+  -webkit-column-gap: 15px;
+          column-gap: 15px;
 }
+
 #page-content .current-section {
   display: block;
 }
+
 #page-content .control-panel {
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
-  justify-content: space-between;
+  -webkit-box-pack: justify;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
   margin-bottom: 25px;
-}/*# sourceMappingURL=report.css.map */
+}
+/*# sourceMappingURL=report.css.map */

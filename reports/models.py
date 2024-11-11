@@ -528,20 +528,44 @@ class Answer(models.Model):
         return  f'{self.question}'
 
 
+class ReportLink(models.Model):
+    s_report = models.ForeignKey(
+        SchoolReport,
+        verbose_name='отчёт',
+        related_name='links',
+        on_delete=CASCADE,
+        blank=False 
+    )
+    answer = models.ForeignKey(
+        Answer,
+        verbose_name='ответ',
+        related_name='links',
+        on_delete=CASCADE,
+        blank=False 
+    )
+    link = models.CharField("Ссылка", max_length=1500, blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Ссылка"
+        verbose_name_plural = "Ссылки"
+
+    def __str__(self):
+        return  f'{self.link}'
+
 class ReportFile(models.Model):
     s_report = models.ForeignKey(
         SchoolReport,
         verbose_name='отчёт',
         related_name='files',
         on_delete=CASCADE,
-        null=False, blank=False 
+        blank=False 
     )
     answer = models.ForeignKey(
         Answer,
         verbose_name='условие',
         related_name='files',
         on_delete=CASCADE,
-        null=False, blank=False 
+        blank=False 
     )
 
     def file_path(instance, filename):

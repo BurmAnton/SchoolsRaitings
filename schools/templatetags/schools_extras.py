@@ -19,8 +19,9 @@ def is_school_exist(user):
 
 @register.filter
 def is_ter_admin_exist(user):
-    ter_admin = TerAdmin.objects.filter(representative=user)
+    ter_admin = TerAdmin.objects.filter(representatives=user)
     return ter_admin.count() != 0
+
 
 @register.filter
 def filter_categories(categories, user) :

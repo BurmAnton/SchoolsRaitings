@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from reports.models import Answer, Attachment, Field, Option, Report, ReportFile, SchoolReport, Section
+from reports.models import Answer, Attachment, Field, Option, Report, ReportFile, ReportLink, SchoolReport, Section
 from reports.utils import count_points, select_range_option, count_section_points, count_points_field
 from users.models import Group, Notification, MainPageArticle
 from schools.models import School, SchoolCloster, TerAdmin
@@ -107,10 +107,7 @@ def report(request, report_id, school_id):
 
             question = Field.objects.get(id=id)
             answer = Answer.objects.get(question=question, s_report=s_report)
-            # answer.file = file
-            # if answer.link != "":
-            #     answer.link = ""
-            # answer.save()
+
             file = ReportFile.objects.create(
                 s_report=answer.s_report,
                 answer=answer,
@@ -120,7 +117,8 @@ def report(request, report_id, school_id):
                 "message": "File updated/saved successfully.",
                 "question_id": question.id,
                 "file_link": file.file.url,
-                "filename": file.file.name
+                "filename": file.file.name,
+                "file_id": file.id
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
@@ -128,17 +126,28 @@ def report(request, report_id, school_id):
                 file_id = data['file_id']
                 ReportFile.objects.get(id=file_id).delete()
                 return JsonResponse({"message": "File deleted successfully.",}, status=201)
+            elif 'link_id' in data:
+                link_id = data['link_id']
+                ReportLink.objects.get(id=link_id).delete()
+                return JsonResponse({"message": "Link deleted successfully.",}, status=201)
             
            
             question = Field.objects.get(id=data['id'])
             answer = Answer.objects.get(question=question, s_report=s_report)
             if 'link' in data:
-                answer.link = data['value']
-                
-                if answer.file.name != "" or answer.file.name is None:
-                    answer.file = ""
-                answer.save()
-                return JsonResponse({"message": "Link updated/saved successfully.",}, status=201)
+                link = data['value']
+                link = ReportLink.objects.create(
+                    s_report=answer.s_report,
+                    answer=answer,
+                    link = link,
+                )
+                link.save()
+                return JsonResponse({
+                    "message": "Link updated/saved successfully.",
+                    "question_id": question.id,
+                    "link": link.link,
+                    "link_id": link.id
+                }, status=201)
             if question.answer_type == "LST":
                 try:
                     option = Option.objects.get(id=data['value'])
@@ -240,7 +249,7 @@ def mo_reports(request):
 @login_required
 @csrf_exempt
 def ter_admin_reports(request, user_id):
-    ter_admin = get_object_or_404(TerAdmin, representative=user_id)
+    ter_admin = get_object_or_404(TerAdmin, representatives=user_id)
     schools = School.objects.filter(ter_admin=ter_admin)
     all_schools = schools
     closters = SchoolCloster.objects.filter(schools__in=schools).distinct()

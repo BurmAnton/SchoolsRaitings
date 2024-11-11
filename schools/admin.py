@@ -10,8 +10,8 @@ from .models import TerAdmin, SchoolType, School, SchoolCloster, QuestionCategor
 @admin.register(TerAdmin)
 class TerAdminAdmin(admin.ModelAdmin):
     search_fields = ['name', ]
-    list_display = ['name', 'representative']
-    autocomplete_fields = ['representative', ]
+    list_display = ['name',]
+    autocomplete_fields = ['representatives', ]
 
 
 @admin.register(SchoolCloster)
@@ -53,7 +53,7 @@ class SchoolAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         if obj and request.user.groups.filter(name='Представитель ТУ/ДО').exists():
             return self.readonly_fields + [
-                'ais_id', 'name', 'short_name', 'email', 'city', 'number',
+                'name', 'short_name', 'email', 'city', 'number',
                 'school_type', 'ter_admin', 'principal'
             ]
         return self.readonly_fields
@@ -61,7 +61,7 @@ class SchoolAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.groups.filter(name='Представитель ТУ/ДО').exists():
-            return qs.filter(ter_admin=request.user.ter_admin)
+            return qs.filter(ter_admin__in=request.user.ter_admin.all())
         return qs
 
 @admin.register(QuestionCategory)

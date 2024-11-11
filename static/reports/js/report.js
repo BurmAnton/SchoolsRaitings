@@ -73,6 +73,25 @@ document.addEventListener('DOMContentLoaded', function() {
             })
         })
     })
+    document.querySelectorAll('.delete-link').forEach(btn => {
+        btn.addEventListener('click', () => {
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "Accept": "application/json",
+                    'Content-Type': 'application/json'
+                    },
+                body: JSON.stringify({
+                    'link_id': btn.dataset.linkid,
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                btn.parentElement.style.display = 'none';
+            })
+        })
+    })
 })
 
 
@@ -186,15 +205,55 @@ function upload_link(value, name, input){
     .then(response => response.json())
     .then(result => {
         console.log(result)
+        
+        alink = result['link'] 
+        question_id = result['question_id'] 
+        let files = document.querySelector(`.files${question_id}`)
+        // link.parentElement.querySelectorAll('a').forEach(a => {
+        //     a.style.display = 'none'
+        // })
+        const div = document.createElement("div")
+        div.style = "display: flex; align-items: stretch; gap: 5px; justify-content: space-between;"
+        const link = document.createElement("a")
+        link.setAttribute('href', alink)
+        link.classList.add(`attachment${question_id}`)
+        link.style = "width: 100%;"
+        const btn = document.createElement("button")
+        btn.style = "width: 100%; height: 100%;"
+        btn.innerHTML = alink
+        btn.classList.add(`btn`)
+        btn.classList.add(`btn-outline-success`)
+        btn.classList.add(`btn-sm`)
+        link.appendChild(btn)
+        div.appendChild(link)
+        const btn_delete = document.createElement("button")
+        btn_delete.style = "width: 50px; height: 100%;"
+        btn_delete.classList.add(`btn`)
+        btn_delete.classList.add(`btn-danger`)
+        btn_delete.classList.add(`delete-lin`)
+        btn_delete.innerHTML = "—"
+        btn_delete.dataset.linkid = result['link_id']
+        btn_delete.addEventListener('click', () => {
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "Accept": "application/json",
+                    'Content-Type': 'application/json'
+                    },
+                body: JSON.stringify({
+                    'link_id': result['link_id'],
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                btn_delete.parentElement.style.display = 'none';
+            })
+        })
+        div.appendChild(btn_delete)
+        files.appendChild(div)
         let alert_id = input.parentElement.parentElement.querySelector('.alert').id
         input.parentElement.parentElement.querySelector('.alert').innerHTML ="Ссылка прикреплена успешно!"
-        
-        let link = document.querySelector(`.lattachment${name}`)
-        link.parentElement.querySelectorAll('a').forEach(a => {
-            a.style.display = 'none'
-        })
-        link.setAttribute('href', value)
-        link.style.display = 'block' 
         alert_id = `#${alert_id}`
         $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
             $(".alert").slideUp(500);
@@ -246,6 +305,24 @@ function upload_file(file, name, input){
         btn_delete.classList.add(`btn-danger`)
         btn_delete.classList.add(`delete-file`)
         btn_delete.innerHTML = "—"
+        btn_delete.dataset.fileid = result['file_id']
+        btn_delete.addEventListener('click', () => {
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "Accept": "application/json",
+                    'Content-Type': 'application/json'
+                    },
+                body: JSON.stringify({
+                    'file_id': result['file_id'],
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                btn_delete.parentElement.style.display = 'none';
+            })
+        })
         div.appendChild(btn_delete)
         files.appendChild(div)
         let alert_id = input.parentElement.parentElement.querySelector('.alert').id

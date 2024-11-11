@@ -6,20 +6,24 @@
   padding: 40px 40px 40px 40px;
   background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  -webkit-box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
+
 .container h1 {
   color: #333;
   margin-top: 100px;
   margin-bottom: 20px;
   text-align: center;
 }
+
 .container p {
   font-size: 16px;
   color: #666;
   line-height: 1.5;
   text-align: center;
 }
+
 .container a {
   width: 300px;
   margin: 0 auto;
@@ -30,4 +34,5 @@
 
 #page-content {
   background-color: transparent;
-}/*# sourceMappingURL=undefined_user.css.map */
+}
+/*# sourceMappingURL=undefined_user.css.map */

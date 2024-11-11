@@ -5,22 +5,29 @@
 #page-content {
   padding: 25px 35px;
   min-width: 420px;
+  height: -webkit-min-content;
   height: -moz-min-content;
   height: min-content;
 }
+
 #page-content h1 {
   text-align: center;
 }
+
 #page-content h4 {
   font-size: 20px;
 }
+
 #page-content .alert p, #page-content .alert ul {
   font-weight: 500;
   margin: 0;
 }
+
 #page-content form, #page-content .btn {
   width: 100%;
 }
+
 #page-content .btn {
   margin-bottom: 10px;
-}/*# sourceMappingURL=import_schools.css.map */
+}
+/*# sourceMappingURL=import_schools.css.map */

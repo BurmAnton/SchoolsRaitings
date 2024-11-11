@@ -29,8 +29,8 @@
                 <select class="selectpicker" title="Выберите статусы" name="status" id="StatusFilter" multiple data-selected-text-format="static" data-width="100%" data-container="body" data-live-search="true">
                     <option value="C" {% if 'C' in filter|get_item:'status' %}selected{% endif %}>Заполнение</option>
                     <option value="A" {% if 'A' in filter|get_item:'status' %}selected{% endif %}>На согласовании в ТУ/ДО</option>
-                    <option value="B" {% if 'B' in filter|get_item:'status' %}selected{% endif %}>На согласовании в МинОбр</option>
-                    <option value="D" {% if 'D' in filter|get_item:'status' %}selected{% endif %}>Принят</option>
+                    <option value="B" {% if 'B' in filter|get_item:'status' %}selected{% endif %}>Отправлено в МинОбр</option>
+                    <option value="D" {% if 'D' in filter|get_item:'status' %}selected{% endif %}>Отчёт принят</option>
                 </select>
             </div>
             <div class="form mb-3" style="grid-column: 2;  grid-row: 2;">

@@ -21,8 +21,8 @@ def ter_admins_reports(request):
 @login_required
 @csrf_exempt
 def ter_admins_dash(request):
-    # Check if the user is a TerAdmin representative
-    ter_admins = TerAdmin.objects.filter(representative=request.user)
+    # Check if the user is a TerAdmin representatives
+    ter_admins = TerAdmin.objects.filter(representatives=request.user)
     if not ter_admins.first():
         ter_admins = TerAdmin.objects.all()
 
@@ -81,7 +81,7 @@ def ter_admins_dash(request):
 @login_required
 @csrf_exempt
 def school_report(request):
-    ter_admins = TerAdmin.objects.filter(representative=request.user)
+    ter_admins = TerAdmin.objects.filter(representatives=request.user)
     if not ter_admins.first():
         ter_admins = TerAdmin.objects.all()
     years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
@@ -120,7 +120,7 @@ def school_report(request):
 @login_required
 @csrf_exempt
 def closters_report(request, year=2024):
-    ter_admins = TerAdmin.objects.filter(representative=request.user)
+    ter_admins = TerAdmin.objects.filter(representatives=request.user)
     if not ter_admins.first():
         ter_admins = TerAdmin.objects.all()
     years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')

@@ -25,7 +25,7 @@
                         </div>
              
                 {% else %}
-                        <h1 style="text-align: center; font-size: 20px; margin-bottom: 25px;">{{ user.ter_admin.name }}</h1>
+                        <h1 style="text-align: center; font-size: 20px; margin-bottom: 25px;">{{ user.ter_admin.all.0.name }}</h1>
                 <div style=" margin-left:5%;display: flex; justify-content: space-around; font-size: 18px; flex-direction: column;">
                         <p><b>ФИО ответственного:</b> {{ user.last_name }} {{ user.first_name }} {% if user.middle_name is not None %}{{ user.middle_name }} {% endif %}</p>
                         <p><b>Email:</b> {{ user.email }}</p>

@@ -125,13 +125,27 @@
                                     {% if field.attachment_name is not None and field.attachment_name != "" %}
                                         <label for="Att{{ field.id }}_{{field.id}}">{{ field.attachment_name }}</label> 
                                     {% endif %}
-                                    <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
+                                    <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 100%;" role="alert">
                                         Ссылка прикреплена успешно!
                                     </div>
-                                    <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
+                                    <!-- <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a> -->
+                                    <div class="get-attachment">
+                                        <div class="files{{field.id}}" style="display: flex; gap: 5px; flex-direction: column;">
+                                            {% for link in answers|get_links:field %}
+                                                <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
+                                                    <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ link.link}}"  style="width: 100%;"target="_blank" rel="noopener noreferrer">{{ link.link}}</a>
+                                                    {% if report.status == 'C' or request.user.is_superuser  %}
+                                                        <button style="width: 50px; height: 100%;" class="btn btn-danger delete-link" data-linkid="{{link.id}}" name="delete-link">—</button>
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+
                                     {% if report.status == 'C' or request.user.is_superuser  %}
                                         <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка">
                                     {% endif %}
+
                                 </div>
                             {% elif field.attachment_type == 'DC' %}
                                 <div class="mb-3">
@@ -169,7 +183,7 @@
                                         </div>
                                         
                                         <div class="get-attachment" style="display: flex;gap: 5px;flex-direction: column">
-                                            <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
+                                            <!-- <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a> -->
                                             <div class="files{{field.id}}" style="display: flex; gap: 5px; flex-direction: column;">
                                                 {% for file in answers|get_files:field %}
                                                     <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
@@ -178,6 +192,16 @@
                                                         </a>
                                                         {% if report.status == 'C' or request.user.is_superuser  %}
                                                             <button style="width: 50px; height: 100%;" class="btn btn-danger delete-file" data-fileid="{{file.id}}" name="delete-file">—</button>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="files{{field.id}}" style="display: flex; gap: 5px; flex-direction: column;">
+                                                {% for link in answers|get_links:field %}
+                                                    <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
+                                                        <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ link.link}}"  style="width: 100%;"target="_blank" rel="noopener noreferrer">{{ link.link}}</a>
+                                                        {% if report.status == 'C' or request.user.is_superuser  %}
+                                                            <button style="width: 50px; height: 100%;" class="btn btn-danger delete-link" data-linkid="{{link.id}}" name="delete-link">—</button>
                                                         {% endif %}
                                                     </div>
                                                 {% endfor %}

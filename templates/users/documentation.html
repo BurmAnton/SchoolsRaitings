@@ -31,7 +31,7 @@
                         {% for doc in documentation %}
                         <tr>
                             <td>{{ doc.header }}</td>
-                            <td><a href="{{ doc.file.url }}" class="btn btn-primary">Скачать</a></td>
+                            <td><a href="{{ doc.file.url }}" target="_blank" class="btn btn-primary">Просмотреть</a></td>
                         </tr>
                         {% empty %}
                         <tr>
