@@ -577,7 +577,7 @@ class ReportFile(models.Model):
         verbose_name_plural = "Файлы"
 
     def __str__(self):
-        return  f'{self.attachment.name} (файл)'
+        return  f'{self.file.name} (файл)'
     
 
 @receiver(models.signals.post_delete, sender=ReportFile)
