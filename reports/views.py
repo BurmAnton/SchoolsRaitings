@@ -237,7 +237,10 @@ def mo_reports(request):
             'closters': request.POST.getlist('closters'),
             'status': request.POST.getlist('status')
         }
-
+    if 'send-reports' in request.POST:
+        s_reports.filter(status='B').update(status='D')
+        return HttpResponseRedirect(reverse('mo_reports'))
+        
     return render(request, "reports/mo_reports.html", {
         'reports': s_reports,
         'ter_admins': ter_admins,

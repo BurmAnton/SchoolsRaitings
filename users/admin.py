@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.contrib.auth.models import Group as DefaultGroup
 from django.contrib.auth.admin import GroupAdmin, UserAdmin
 
+from schools.models import School
+
 from .forms import CustomUserChangeForm, CustomUserCreationForm
 from .models import User, Group, Permission, Documentation, MainPageArticle
 
@@ -63,3 +65,10 @@ class UserAdmin(UserAdmin):
             'fields': ('email', 'password1', 'password2', 'is_staff', 'is_active')}
         ),
     )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.groups.filter(name='Представитель ТУ/ДО').exists():
+            schools = School.objects.filter(ter_admin__in=request.user.ter_admin.all())
+            return qs.filter(school__in=schools)
+        return qs

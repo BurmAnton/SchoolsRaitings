@@ -13,7 +13,7 @@
 {% block body %}
     
     
-    <form method="post" action="{% url 'mo_reports' %}">
+    <form method="post" action="{% url 'mo_reports' %}" id="filter-form">
         <h2>Фильтр отчётов</h2>
         <div class="filter">
             <div class="form mb-3" style="grid-column-start: 1; grid-column-end: 3; grid-row: 1;">
@@ -46,11 +46,19 @@
             <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
             {% if filter is not None %}<a style="width: 150px" href="{% url 'mo_reports' %}" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
         </div>
-    </form>
-    <div id="reports">
+</form>
+
+    <form id="reports" action="{% url 'mo_reports' %}" method="post">
+
         <h2>Отчёты</h2>
+        <button type="submit" class="btn btn-sm btn-outline-primary" id="SendReports" name="send-reports" disabled>Принять отчёты (<span class="selected-row-count">0</span>)</button>
         <table class="table">
             <tr class="">
+                <th scope="col" id="CheckAll">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="">
+                    </div>
+                </th>
                 <th scope="row">Школа</th>
                 <th scope="row">Название отчёта</th>
                 <th scope="row" class="th-center">Год</th>
@@ -59,6 +67,11 @@
             </tr>
             {% for report in reports %}
                 <tr>
+                    <td scope="row" class="check-td">
+                        <div class="form-check">
+                            <input class="form-check-input center-checkbox" type="checkbox" value="{{center.id}}">
+                        </div>
+                    </td>
                     <td scope="row">
                         <a href="{% url 'mo_report' report.id %}">{{ report.school }}</a>
                     </td>
@@ -80,5 +93,7 @@
                 </tr>
             {% endfor %}
         </table>
-    </div>  
+    </form>
+        
+    
 {% endblock %}
