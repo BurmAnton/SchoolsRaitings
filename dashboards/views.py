@@ -47,7 +47,8 @@ def ter_admins_dash(request):
         year = int(request.POST["year"])
         reports = Report.objects.filter(year=year)  
         ter_admins_f = request.POST["ter_admin"]
-        schools = schools.filter(ter_admin=ter_admins_f)
+        if ter_admins_f != '':
+            schools = schools.filter(ter_admin=ter_admins_f)
         filter['ter_admin'] = ter_admins_f
         closters_f = request.POST.getlist("closters")
         if len(closters_f) != 0:
@@ -142,9 +143,11 @@ def closters_report(request, year=2024):
     else:
         year = int(request.POST["year"])
         reports = Report.objects.filter(year=year)  
-        ter_admins_f = request.POST["ter_admin"]
-        schools = schools.filter(ter_admin=ter_admins_f)
-        filter['ter_admin'] = ter_admins_f
+        ter_admin_f = request.POST["ter_admin"]
+        if ter_admin_f != '':
+            ter_admin = TerAdmin.objects.get(id=ter_admin_f)
+            schools = schools.filter(ter_admin=ter_admin)
+        filter['ter_admin'] = ter_admin_f
         closters_f = request.POST.getlist("closters")
         if len(closters_f) != 0:
             schools = schools.filter(closter__in=closters_f)
@@ -153,14 +156,14 @@ def closters_report(request, year=2024):
         if len(ed_levels_f) != 0:
             schools = schools.filter(ed_level__in=ed_levels_f)
             filter['ed_levels'] = ed_levels_f
+        s_reports = s_reports.filter(school__in=schools)
 
     sections = Section.objects.filter(report__year=year).values('number', 'name').distinct().order_by('number')
     sections_list = []
     for section in sections:
         sections = Section.objects.filter(name=section['name'], report__year=year)
         sections_list.append([section['number'], section['name'], Field.objects.filter(sections__in=sections).distinct()])
-    schools = School.objects.filter(reports__in=s_reports)
-    
+
 
     return render(request, "dashboards/closters_report.html", {
         'years': years,
@@ -169,5 +172,6 @@ def closters_report(request, year=2024):
         'ed_levels': ed_levels,
         's_reports': s_reports,
         'sections': sections_list,
-        'schools': schools
+        'schools': schools,
+        'filter': filter
     })

@@ -7,6 +7,7 @@ from django.db.models import Sum, Max
 
 from tinymce import models as tinymce_models
 
+from reports import utils
 from reports.utils import count_report_points, create_report_notifications
 from reports.utils import count_points as reports_count_points
 from users.models import Notification, User
@@ -69,6 +70,21 @@ def update_report_points(sender, instance, **kwargs):
     # Recalculate points for the Report instance
     report_points = instance.sections.aggregate(Sum('points'))['points__sum'] or 0
     Report.objects.filter(pk=instance.pk).update(points=report_points)
+
+    school_reports = SchoolReport.objects.filter(report=instance)
+    for school_report in school_reports:
+        try:
+            points_sum = round(Answer.objects.filter( s_report=school_report).aggregate(Sum('points'))['points__sum'], 1)
+        except:
+            points_sum = 0
+        if points_sum < instance.yellow_zone_min:
+            report_zone = 'R'
+        elif points_sum >= instance.green_zone_min:
+            report_zone = 'G'
+        else:
+            report_zone = 'Y'
+        school_report.zone = report_zone
+        school_report.save()
 
 
 @receiver(pre_save, sender=Report, dispatch_uid='report_save_signal')
@@ -160,6 +176,31 @@ def update_section_points(sender, instance, action, **kwargs):
         report_points = report.sections.aggregate(Sum('points'))['points__sum'] or 0
         Report.objects.filter(pk=report.pk).update(points=report_points)
 
+        school_reports = SchoolReport.objects.filter(report=instance.report)
+        #Delete answers for questions that are not in the section
+        questions = Field.objects.filter(sections__in=instance.report.sections.all())
+        Answer.objects.filter(s_report__report=instance.report).exclude(question__in=questions).delete()
+        #Add answers for questions that are in the section but not in the school report
+        for question in questions:
+            if not Answer.objects.filter(s_report__in=school_reports, question=question).exists():
+                for school_report in school_reports:
+                    Answer.objects.create(s_report=school_report, question=question)
+        #Recalculate points for school reports
+        for school_report in school_reports:
+            try:
+                points_sum = round(Answer.objects.filter(s_report=school_report).aggregate(Sum('points'))['points__sum'], 1)
+            except:
+                points_sum = 0
+            if points_sum < school_report.report.yellow_zone_min:
+                report_zone = 'R'
+            elif points_sum >= school_report.report.green_zone_min:
+                report_zone = 'G'
+            else:
+                report_zone = 'Y'
+            school_report.points = points_sum
+            school_report.zone = report_zone
+            school_report.save()
+
 
 class Field(models.Model):
     number = models.CharField('Номер показатель', null=False, blank=False, max_length=500)
@@ -241,6 +282,7 @@ def count_points(sender, instance, using, **kwargs):
         report = section.report
         report_points = report.sections.aggregate(Sum('points'))['points__sum'] or 0
         Report.objects.filter(pk=report.pk).update(points=report_points)
+    
 
 
 class Option(models.Model):
@@ -309,6 +351,22 @@ def count_points(sender, instance, using, **kwargs):
         report = section.report
         report.points = count_report_points(report)
         report.save()
+    utils.count_answers_points(instance.answers.all())
+    school_reports = SchoolReport.objects.filter(report__sections__in=instance.sections.all())
+    for school_report in school_reports:
+        try:
+            points_sum = round(Answer.objects.filter(s_report=school_report).aggregate(Sum('points'))['points__sum'], 1)
+        except:
+            points_sum = 0
+        if points_sum < school_report.report.yellow_zone_min:
+            report_zone = 'R'
+        elif points_sum >= school_report.report.green_zone_min:
+            report_zone = 'G'
+        else:
+            report_zone = 'Y'
+        school_report.points = points_sum
+        school_report.zone = report_zone
+        school_report.save()
 
 
 class RangeOption(models.Model):
@@ -459,7 +517,7 @@ class SchoolReport(models.Model):
 
     def __str__(self):
         return  f'{self.school} ({self.report})'
-
+    
 
 class Answer(models.Model):
     s_report = models.ForeignKey(

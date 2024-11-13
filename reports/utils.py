@@ -96,3 +96,27 @@ def count_section_points(s_report, section):
             return "G"
         return "Y"
     except: return 'R'
+
+
+def count_answers_points(answers):
+    from reports.models import Answer
+
+    for answer in answers:
+        field = answer.question
+        if field.answer_type == 'LST':
+            answer.points = answer.option.points
+            answer.zone = answer.option.zone
+        elif field.answer_type == 'BL':
+            answer.points = field.bool_points if answer.bool_value else 0
+            answer.zone = "G" if answer.bool_value else "R"
+        elif field.answer_type in ['NMBR', 'PRC']:
+            r_option = select_range_option(field.range_options.all(), answer.number_value)
+            if r_option == None: 
+                answer.points = 0
+                answer.zone = "R"
+            else: 
+                answer.points = r_option.points
+                answer.zone = r_option.zone
+        answer.save()
+
+

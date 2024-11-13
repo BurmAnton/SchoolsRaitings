@@ -79,7 +79,7 @@ def calculate_stats(year, s_reports):
     overall_stats["yellow_zone"] = [0, "0.0%"]
     overall_stats["red_zone"] = [0, "0.0%"]
     s_reports_year = s_reports.filter(report__year=year)
-    for section in sections:
+    for section in sections.order_by('id'):
         stats[section.name] = {
             "green_zone": [0, "0.0%"],
             "yellow_zone": [0, "0.0%"],
