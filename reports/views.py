@@ -219,7 +219,7 @@ def report(request, report_id, school_id):
 def mo_reports(request):
     schools = School.objects.all()
     ter_admins = TerAdmin.objects.all()
-    closters = SchoolCloster.objects.filter(schools__in=schools)
+    closters = SchoolCloster.objects.filter(schools__in=schools).distinct()
     s_reports = SchoolReport.objects.filter(school__in=schools)
     
     filter = None

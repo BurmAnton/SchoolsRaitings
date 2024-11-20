@@ -41,7 +41,10 @@ def ter_admins_dash(request):
     schools = School.objects.filter(ter_admin__in=ter_admins)
 
     if request.method != 'POST':
-        year = years[0]
+        try:
+            year = years[0]
+        except:
+            year = 2024
         reports = Report.objects.filter(year=year)
     else:
         year = int(request.POST["year"])
@@ -138,7 +141,10 @@ def closters_report(request, year=2024):
     s_reports = SchoolReport.objects.filter(report__year=year, status='D')
     filter = {}
     if request.method != 'POST':
-        year = years[0]
+        try:
+            year = years[0]
+        except:
+            year = 2024
         reports = Report.objects.filter(year=year)
     else:
         year = int(request.POST["year"])
