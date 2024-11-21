@@ -9,6 +9,7 @@
 {% endblock %}
 {% block script %}
     <script src="{% static 'dashboards/js/ter_admins_reports.js' %}" rel="stylesheet"></script>
+    <script src="{% static 'dashboards/js/closters_report.js' %}" rel="stylesheet"></script>
 {% endblock %}
 
 {% block body %}
@@ -66,14 +67,14 @@
         <h1>Показатели рейтинга общеобразовательных организаций Самарской области</h1>
         <div class="outer-container">
             <div class="table-container">
-                <table class="table">
+                <table class="table" id="table-overall">
                     <tr>
                         <th scope="row"class="sticky-top"></th>
-                        <th scope="row" class="sticky-top" style="text-align: center;">Максимально значение</th>
-                        <th scope="row" class="sticky-top" style="text-align: center;">Среднее значение</th>
+                        <th scope="row" class="sticky-top" style="text-align: center; cursor: pointer;"onclick="sortTable(1)"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>Максимально значение</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                        <th scope="row" class="sticky-top" style="text-align: center; cursor: pointer;"onclick="sortTable(2)"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>Среднее значение</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                         {% for s_report in s_reports %}
-                            <th scope="row" style="text-align: center;" class="section-hdr sticky-top">
-                                {{s_report.school}}
+                            <th scope="row" style="text-align: center;" class="section-hdr sticky-top" onclick="sortTable({{ forloop.counter|add:2 }})">
+                                <div style="display: flex; gap: 5px; align-items: center; justify-content: center; cursor: pointer;"><div>{{s_report.school}}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div>
                             </th>
                         {% endfor %}
                     </tr>
@@ -102,13 +103,13 @@
             <h2>{{ section.0 }}. {{ section.1 }}</h2>
             <div class="outer-container">
                 <div class="table-container">
-                    <table class="table">
+                    <table class="table" id="table-{{section.0}}">
                         <tr>
-                            <th scope="row" class="sticky-top" >Критерий</th>
-                            <th scope="row" class="sticky-top" style="text-align: center; max-width: 90px;">Максимальное значение</th>
-                            <th scope="row" class="sticky-top" style="text-align: center; max-width: 90px;">Среднее значение</th>
+                            <th scope="row" class="sticky-top" style="cursor: pointer;" onclick="sortTable(0, 'table-{{ section.0 }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Критерий</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                            <th scope="row" class="sticky-top" style="text-align: center; max-width: 125px;  cursor: pointer;"onclick="sortTable(1, 'table-{{ section.0 }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Максимальное значение</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                            <th scope="row" class="sticky-top" style="text-align: center; max-width: 95px; cursor: pointer;"onclick="sortTable(2, 'table-{{ section.0 }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Среднее значение</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             {% for s_report in s_reports %}
-                                <th scope="row" class="sticky-top" style="text-align: center; max-width: 200px; min-width: 150px;">{{ s_report.school }}</th>
+                                <th scope="row" class="sticky-top" style="text-align: center; max-width: 200px; min-width: 150px; cursor: pointer;" onclick="sortTable({{ forloop.counter|add:2 }}, 'table-{{ section.0 }}')"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>{{ s_report.school }}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             {% endfor %}
                         </tr>
                         {% for question in section.2|dictsort:"id"  %}

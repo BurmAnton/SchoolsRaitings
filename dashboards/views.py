@@ -61,11 +61,15 @@ def ter_admins_dash(request):
         if len(ed_levels_f) != 0:
             schools = schools.filter(ed_level__in=ed_levels_f)
             filter['ed_levels'] = ed_levels_f
-        
+        if 'download' in request.POST:
+            schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools, status='D')
+            return utils.generate_ter_admins_report_csv(year, schools, schools_reports)
 
     schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools, status='D')
     sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
     stats, overall_stats = utils.calculate_stats(year, schools_reports)
+
+    
 
     return render(request, "dashboards/ter_admins_dash.html", {
         "years": years,
@@ -146,6 +150,12 @@ def closters_report(request, year=2024):
         except:
             year = 2024
         reports = Report.objects.filter(year=year)
+    elif 'download' in request.POST:
+        try:
+            year = years[0]
+        except:
+            year = 2024
+        return utils.generate_closters_report_csv( year, schools, s_reports)
     else:
         year = int(request.POST["year"])
         reports = Report.objects.filter(year=year)  

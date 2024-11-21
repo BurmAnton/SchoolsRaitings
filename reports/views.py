@@ -50,7 +50,7 @@ def start(request):
 @login_required
 def reports(request, school_id):
     school = get_object_or_404(School, id=school_id)
-    reports = Report.objects.filter(closter=school.closter, ed_level=school.ed_level).order_by('year').distinct()
+    reports = Report.objects.filter(closter=school.closter, ed_level=school.ed_level, is_published=True).order_by('year').distinct()
     s_reports = SchoolReport.objects.filter(school=school)
     reports_list = []
     notifications = Notification.objects.filter(user=request.user, is_read=False)
@@ -84,7 +84,7 @@ def report(request, report_id, school_id):
     else: current_section = int(current_section)
 
     s_report, is_new_report = SchoolReport.objects.get_or_create(
-        report=report, school=school
+        report=report, school=school, 
     )
     
     sections = report.sections.all()
@@ -220,7 +220,7 @@ def mo_reports(request):
     schools = School.objects.all()
     ter_admins = TerAdmin.objects.all()
     closters = SchoolCloster.objects.filter(schools__in=schools).distinct()
-    s_reports = SchoolReport.objects.filter(school__in=schools)
+    s_reports = SchoolReport.objects.filter(school__in=schools, report__is_published=True)
     
     filter = None
     if 'filter' in request.POST:
@@ -256,7 +256,7 @@ def ter_admin_reports(request, user_id):
     schools = School.objects.filter(ter_admin=ter_admin)
     all_schools = schools
     closters = SchoolCloster.objects.filter(schools__in=schools).distinct()
-    s_reports = SchoolReport.objects.filter(school__in=schools)
+    s_reports = SchoolReport.objects.filter(school__in=schools, report__is_published=True)
 
     filter = None
     if 'filter' in request.POST:

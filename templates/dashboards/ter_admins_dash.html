@@ -59,8 +59,12 @@
             
         </div>
         <div style="width: 100%; display: flex; justify-content: space-between;flex-direction: row-reverse; margin-top: 10px;">
-            <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
+            <div style="display: flex; gap: 10px;">
+                <button style="width: 250px" name="download" class="btn btn-sm btn-outline-primary" type="submit">Скачать в Excel</button>
+                <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
+            </div>
             {% if filter is not None %}<a style="width: 150px" href="{% url 'ter_admins_dash' %}" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
+            
         </div>
     </form>
     {% if schools_reports %}
@@ -69,20 +73,20 @@
             <h1>Показатели рейтинга общеобразовательных организаций Самарской области</h1>
             <div class="outer-container">
                 <div class="table-container">
-                    <table class="table">
+                    <table class="table" id="table-overall">
                         <tr>
-                            <th scope="row"class="sticky-top" style="vertical-align: middle;">Школа</th>
-                            <th scope="row" class="sticky-top" style="vertical-align: middle;">ТУ/ДО</th>
-                            <th scope="row" class="sticky-top" style="vertical-align: middle;">Уровень образования</th>
-                            <th scope="row" class="sticky-top" style="text-align: center; vertical-align: middle;">Итого</th>
+                            <th scope="row"class="sticky-top" style="vertical-align: middle;  cursor: pointer;"onclick="sortTable(0)"><div style="display: flex; gap: 5px; align-items: center;"><div>Школа</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                            <th scope="row" class="sticky-top" style="vertical-align: middle; cursor: pointer;" onclick="sortTable(1)"><div style="display: flex; gap: 5px; align-items: center;"><div>ТУ/ДО</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                            <th scope="row" class="sticky-top" style="vertical-align: middle; cursor: pointer;" onclick="sortTable(2)"><div style="display: flex; gap: 5px; align-items: center;"><div>Уровень образования</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                            <th scope="row" class="sticky-top" style="text-align: center; vertical-align: middle; cursor: pointer; " onclick="sortTable(3)"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             {% for section in sections  %}
-                                <th scope="row" style="text-align: center; vertical-align: middle;" class="section-hdr sticky-top">
-                                    {{section}}
+                                <th scope="row" style="text-align: center; vertical-align: middle; cursor: pointer;" class="section-hdr sticky-top" onclick="sortTable({{ forloop.counter|add:3 }})">
+                                    <div style="display: flex; gap: 5px; align-items: center; justify-content: center; "><div>{{section}}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div>
                                 </th>
                             {% endfor %}
-                            <th scope="row"class="sticky-top" colspan="2" style="text-align: center; min-width: 200px; color: green; vertical-align: middle;" >Кол-во/доля критериев школы в зелёной зоне</th>
-                            <th scope="row"class="sticky-top" colspan="2" style="text-align: center; min-width: 200px; color: #f8c102; vertical-align: middle;" >Кол-во/доля критериев школы в жёлтой зоне</th>
-                            <th scope="row"class="sticky-top" colspan="2" style="text-align: center; min-width: 200px; color: red; vertical-align: middle;" >Кол-во/доля критериев школы в красной зоне</th>
+                            <th scope="row"class="sticky-top" colspan="2" style="text-align: center; min-width: 200px; color: green; vertical-align: middle; cursor: pointer;"><div style="display: flex; gap: 5px; align-items: center;"><div></div>Кол-во/доля критериев школы в зелёной зоне</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                            <th scope="row"class="sticky-top" colspan="2" style="text-align: center; min-width: 200px; color: #f8c102; vertical-align: middle; cursor: pointer;"><div style="display: flex; gap: 5px; align-items: center;"><div></div>Кол-во/доля критериев школы в жёлтой зоне</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                            <th scope="row"class="sticky-top" colspan="2" style="text-align: center; min-width: 200px; color: red; vertical-align: middle; cursor: pointer;"><div style="display: flex; gap: 5px; align-items: center;"><div></div>Кол-во/доля критериев школы в красной зоне</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                         </tr>   
                         {% for s_report in schools_reports %}
                             <tr>
@@ -155,14 +159,16 @@
                 <h2>{{ section }}</h2>
                 <div class="outer-container">
                     <div class="table-container">
-                        <table class="table">
+                        <table class="table" id="table-{{ section.id }}">
                             <tr>
-                                <th scope="row">Школа</th>
-                                <th scope="row">ТУ/ДО</th>
-                                <th scope="row">Уровень образования</th>
-                                <th scope="row" style="text-align: center;">Итого</th>
+                                <th scope="row" style="cursor: pointer;" onclick="sortTable(0, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Школа</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                                <th scope="row" style="cursor: pointer;" onclick="sortTable(1, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>ТУ/ДО</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                                <th scope="row" style="cursor: pointer;" onclick="sortTable(2, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Уровень образования</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                                <th scope="row" style="text-align: center; cursor: pointer;" onclick="sortTable(3, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                                 {% for field in section.fields.all|dictsort:"id"  %}
-                                    <th  class="section-hdr sticky-top" scope="row" style="text-align: center;">{{ section.number }}.{{ field.number }}. {{ field.name }}</th>
+                                    <th  class="section-hdr sticky-top" scope="row" style="text-align: center; cursor: pointer;" onclick="sortTable({{ forloop.counter|add:3 }}, 'table-{{ section.id }}')">
+                                        <div style="display: flex; gap: 5px; align-items: center;"><div>{{ section.number }}.{{ field.number }}. {{ field.name }}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div>
+                                    </th>
                                 {% endfor %}
                             </tr>
                             {% for s_report in schools_reports %}

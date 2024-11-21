@@ -23,8 +23,8 @@ def select_range_option(options, value):
 
 
 def create_report_notifications(report):
-    closters = SchoolCloster.objects.filter(zones__in=report.zones.all())
-    schools = School.objects.filter(closter__in=closters)
+    closter = report.closter
+    schools = School.objects.filter(closter=closter)
 
     for school in schools:
         if school.principal is not None:
@@ -68,7 +68,7 @@ def count_points(s_report):
 
 
 def count_points_field(s_report, field):
-    from reports.models import Answer, Question
+    from reports.models import Answer
     
     points__sum = Answer.objects.filter(question__in=field.questions.all(), s_report=s_report).aggregate(Sum('points'))['points__sum']
     if s_report.report.is_counting == False:
@@ -104,8 +104,9 @@ def count_answers_points(answers):
     for answer in answers:
         field = answer.question
         if field.answer_type == 'LST':
-            answer.points = answer.option.points
-            answer.zone = answer.option.zone
+            if answer.option is not None:
+                answer.points = answer.option.points
+                answer.zone = answer.option.zone
         elif field.answer_type == 'BL':
             answer.points = field.bool_points if answer.bool_value else 0
             answer.zone = "G" if answer.bool_value else "R"
