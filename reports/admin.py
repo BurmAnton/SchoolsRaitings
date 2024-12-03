@@ -25,7 +25,7 @@ class SectionInline(admin.StackedInline):
 
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
-    list_display = ['id', 'year', 'closter', 'ed_level', 'name']
+    list_display = ['id', 'year', 'closter', 'ed_level', 'name', 'points']
     list_filter = ['year',]
     list_filter = [
         ('year', DropdownFilter),
@@ -35,6 +35,35 @@ class ReportAdmin(admin.ModelAdmin):
     ]
     readonly_fields = ['points',]
     inlines = [SectionInline, ]
+
+    actions = ['duplicate_report']
+
+    def duplicate_report(self, request, queryset):
+        for report in queryset:
+            # Create new report
+            new_report = Report.objects.create(
+                name=f"Copy of {report.name}",
+                year=report.year,
+                closter=report.closter,
+                ed_level=report.ed_level,
+                yellow_zone_min=report.yellow_zone_min,
+                green_zone_min=report.green_zone_min,
+                is_published=False,
+                is_counting=report.is_counting,
+            )
+
+            # Copy sections
+            for section in report.sections.all().order_by('number'):
+                new_section = Section.objects.create(
+                    report=new_report,
+                    name=section.name,
+                    number=section.number,
+                    yellow_zone_min=section.yellow_zone_min,
+                    green_zone_min=section.green_zone_min
+                )
+                new_section.fields.set(section.fields.all())
+
+    duplicate_report.short_description = "Создать копию выбранных отчетов"
 
 
 # @admin.register(ReportFile)

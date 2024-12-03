@@ -57,7 +57,7 @@ class School(models.Model):
     short_name = models.CharField("Сокращенное наименование", max_length=500, blank=False, null=True)
     email = models.EmailField("Официальный email",  blank=False, null=True)
     city = models.CharField("Населённый пункт", max_length=250, blank=False, null=True)
-    number = models.IntegerField("Номер школы", blank=True, null=True)
+    number = models.CharField("Номер школы", max_length=25, blank=True, null=True)
     
     school_type = models.ForeignKey(
         SchoolType, 

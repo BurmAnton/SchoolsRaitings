@@ -22,6 +22,13 @@ class User(AbstractUser):
         verbose_name = "пользователь"
         verbose_name_plural = "пользователи"
 
+    def __str__(self):
+        if self.last_name == "":
+            return self.email
+        if self.middle_name is None or self.middle_name == "":
+            return f"{self.last_name} {self.first_name}"
+        return f"{self.last_name} {self.first_name} {self.middle_name}"
+
 
 class Group(Group):
     

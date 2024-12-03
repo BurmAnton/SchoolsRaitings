@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group as DefaultGroup
 from django.contrib.auth.admin import GroupAdmin, UserAdmin
+from django_admin_listfilter_dropdown.filters import (
+    RelatedDropdownFilter, RelatedOnlyDropdownFilter, DropdownFilter,
+)
 
 from schools.models import School
 
@@ -42,9 +45,26 @@ class UserAdmin(UserAdmin):
     add_form = CustomUserCreationForm
     form = CustomUserChangeForm
 
-    list_display = ('email', 'last_name', 'first_name', 'middle_name')
+    list_display = ('email', 'last_name', 'first_name', 'middle_name', 'ter_admin_list', 'groups_list')
+
+    def ter_admin_list(self, obj):
+        if obj.ter_admin.all().count() == 0:
+            return "-"
+        return ", ".join([ter_admin.name for ter_admin in obj.ter_admin.all()])
+    ter_admin_list.short_description = "ТУ/ДО"
+
+    def groups_list(self, obj):
+        if obj.groups.count() == 0:
+            return "-"
+        return ", ".join([group.name for group in obj.groups.all()])
+    groups_list.short_description = "Группа доступа"    
+
     search_fields = ('email','last_name', 'first_name', 'middle_name')
-    list_filter = [('groups')]
+    list_filter = [
+        ('groups', RelatedDropdownFilter),
+        ('ter_admin', RelatedOnlyDropdownFilter)
+    ]
+    
     ordering = ('email',)
 
     fieldsets = (

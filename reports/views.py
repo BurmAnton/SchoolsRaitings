@@ -106,7 +106,19 @@ def report(request, report_id, school_id):
             id = request.POST.dict()['id']
 
             question = Field.objects.get(id=id)
-            answer = Answer.objects.get(question=question, s_report=s_report)
+            answers = Answer.objects.filter(question=question, s_report=s_report)
+            if answers.count() == 0:
+                answer = Answer.objects.create(
+                    s_report=s_report,
+                    question=question,
+                )
+            elif answers.count() == 1:
+                answer = answers.first()
+            else:
+                for answer in answers:
+                    if answer.file is not None:
+                        answer.delete()
+                answer = answers.first()
 
             file = ReportFile.objects.create(
                 s_report=answer.s_report,
@@ -133,7 +145,19 @@ def report(request, report_id, school_id):
             
            
             question = Field.objects.get(id=data['id'])
-            answer = Answer.objects.get(question=question, s_report=s_report)
+            answers = Answer.objects.filter(question=question, s_report=s_report)
+            if answers.count() == 0:
+                answer = Answer.objects.create(
+                    s_report=s_report,
+                    question=question,
+                )
+            elif answers.count() == 1:
+                answer = answers.first()
+            else:
+                for answer in answers:
+                    if answer.file is not None:
+                        answer.delete()
+                answer = answers.first()
             if 'link' in data:
                 link = data['value']
                 link = ReportLink.objects.create(
@@ -306,7 +330,7 @@ def mo_report(request, s_report_id):
             id = request.POST.dict()['id']
 
             question = Field.objects.get(id=id)
-            answer = Answer.objects.get(question=question, s_report=s_report)
+            answer = Answer.objects.filter(question=question, s_report=s_report).first()
             answer.file = file
             answer.save()
             return JsonResponse({
@@ -317,7 +341,7 @@ def mo_report(request, s_report_id):
         else:
             data = json.loads(request.body.decode("utf-8"))
             question = Field.objects.get(id=data['id'])
-            answer = Answer.objects.get(question=question, s_report=s_report)
+            answer = Answer.objects.filter(question=question, s_report=s_report).first()
             if question.answer_type == "LST":
                 try:
                     option = Option.objects.get(id=data['value'])
@@ -407,7 +431,7 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
             id = request.POST.dict()['id']
 
             question = Field.objects.get(id=id)
-            answer = Answer.objects.get(question=question, s_report=s_report)
+            answer = Answer.objects.filter(question=question, s_report=s_report).first()
             answer.file = file
             answer.save()
             return JsonResponse({
@@ -418,7 +442,7 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
         else:
             data = json.loads(request.body.decode("utf-8"))
             question = Field.objects.get(id=data['id'])
-            answer = Answer.objects.get(question=question, s_report=s_report)
+            answer = Answer.objects.filter(question=question, s_report=s_report).first()
             if question.answer_type == "LST":
                 try:
                     option = Option.objects.get(id=data['value'])
@@ -471,7 +495,6 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
                     "report_points": s_report.points,
                     "answer_z": a_zone,
                     "section_z": count_section_points(s_report, section),
-                
                 }, 
                 status=201
             )

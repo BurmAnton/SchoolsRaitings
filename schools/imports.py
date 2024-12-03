@@ -144,8 +144,6 @@ def load_school(sheet, row, id_list):
     if city == True: missing_fields.append("Населённый пункт")
     number = is_missing(sheet["Номер школы"][row])
     if number == True: number = None
-    elif number.isnumeric(): number = int(number)
-    else: number = None
     ed_level = is_missing(sheet["Уровень образования"][row])
     if ed_level == True or ed_level not in SCHOOL_LEVELS.keys(): 
         #missing_fields.append("Уровень образования")

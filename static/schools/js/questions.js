@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function toggleAnswer(questionId) {
     const answer = document.getElementById(`answer-${questionId}`)
-    answer.style.display = answer.style.display === 'none' ? 'block' : 'none'
+    answer.style.display = answer.style.display === 'none' ? 'table-row' : 'none'
     const plusMinus = document.querySelector(`.plus-minus[data-question-id="${questionId}"]`)
     plusMinus.textContent = plusMinus.textContent === '+' ? '-' : '+'
 }   
