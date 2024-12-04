@@ -142,7 +142,7 @@
                         </td>
                     {% endfor %}
                 </tr>
-                {% for field in section.fields.all|dictsort:"id"  %}
+                {% for field in section.fields.all|dictsort_fields  %}
                     <tr>
                         <td>{{ section.number }}.{{ field.number }}. {{ field.name }}</td>
                         {% for s_report in s_reports %}

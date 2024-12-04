@@ -57,7 +57,7 @@ class School(models.Model):
     short_name = models.CharField("Сокращенное наименование", max_length=500, blank=False, null=True)
     email = models.EmailField("Официальный email",  blank=False, null=True)
     city = models.CharField("Населённый пункт", max_length=250, blank=False, null=True)
-    number = models.CharField("Номер школы", max_length=25, blank=True, null=True)
+    number = models.CharField("Номер/название школы", max_length=50, blank=True, null=True)
     
     school_type = models.ForeignKey(
         SchoolType, 
@@ -112,7 +112,10 @@ class School(models.Model):
             return self.short_name
         elif self.number is None:
             return f"{self.school_type} ({self.city})"
-        return f"{self.school_type} №{self.number} ({self.city})"
+        elif any(char.isdigit() for char in str(self.number)):
+            return f"{self.school_type} №{self.number} ({self.city})"
+        else:
+            return f"{self.school_type} {self.number} ({self.city})"
     
 
 

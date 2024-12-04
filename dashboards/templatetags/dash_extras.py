@@ -12,6 +12,10 @@ register = template.Library()
 def get_item(dictionary, key):
     return dictionary.get(key)
 
+@register.filter
+def dictsort_fields(fields):
+    return sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
+
 
 @register.filter
 def get_color(zone):

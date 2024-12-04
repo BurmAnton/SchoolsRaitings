@@ -13,6 +13,11 @@ def get_item(dictionary, key):
 
 
 @register.filter
+def dictsort_fields(fields):
+    return sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
+
+
+@register.filter
 def get_answer(answers, question):
     try:
         if answers[0].s_report.report.is_counting == False:

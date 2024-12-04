@@ -112,7 +112,7 @@
                                 <th scope="row" class="sticky-top" style="text-align: center; max-width: 200px; min-width: 150px; cursor: pointer;" onclick="sortTable({{ forloop.counter|add:2 }}, 'table-{{ section.0 }}')"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>{{ s_report.school }}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             {% endfor %}
                         </tr>
-                        {% for question in section.2|dictsort:"id"  %}
+                        {% for question in section.2|dictsort_fields  %}
                             <tr>
                                 <td>{{ section.0 }}.{{ question.number }}. {{ question.name }}</td>
                                 <td style="text-align: center;">{{ question|max_value_section:s_reports }}</td>
