@@ -89,10 +89,17 @@ def report(request, report_id, school_id):
     
     sections = report.sections.all()
     for question in Field.objects.filter(sections__in=sections):
-        Answer.objects.get_or_create(
-            s_report=s_report,
-            question=question,
-        )
+        try:
+            Answer.objects.get_or_create(
+                    s_report=s_report,
+                question=question,
+            )
+        except:
+            answers = Answer.objects.filter(question=question, s_report=s_report)
+            if len(answers) > 1:
+                first_answer = answers.first()
+                answers.exclude(id=first_answer.id).delete()
+                    
 
     answers = Answer.objects.filter(s_report=s_report)
     
@@ -115,10 +122,8 @@ def report(request, report_id, school_id):
             elif answers.count() == 1:
                 answer = answers.first()
             else:
-                for answer in answers:
-                    if answer.file is not None:
-                        answer.delete()
                 answer = answers.first()
+                answers.exclude(id=answer.id).delete()
 
             file = ReportFile.objects.create(
                 s_report=answer.s_report,
@@ -154,10 +159,8 @@ def report(request, report_id, school_id):
             elif answers.count() == 1:
                 answer = answers.first()
             else:
-                for answer in answers:
-                    if answer.file is not None:
-                        answer.delete()
                 answer = answers.first()
+                answers.exclude(id=answer.id).delete()
             if 'link' in data:
                 link = data['value']
                 link = ReportLink.objects.create(
