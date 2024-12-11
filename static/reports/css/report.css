@@ -150,6 +150,15 @@ input {
   vertical-align: middle;
 }
 
+#page-content .section .section-table .attachment-section .mb-3 {
+  max-width: 350px;
+}
+
+#page-content .section .section-table .attachment-section .mb-3 a {
+  max-width: 310px;
+  overflow-wrap: break-word;
+}
+
 #page-content .attachment-section .mb-3 {
   display: -webkit-box;
   display: -ms-flexbox;

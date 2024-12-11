@@ -186,7 +186,7 @@ class QuestionCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ['category', 'short_question', 'created_at']
+    list_display = ['category', 'is_resolved', 'short_question', 'created_at']
     list_filter = [
         ('category', RelatedDropdownFilter), 
         'is_resolved',
