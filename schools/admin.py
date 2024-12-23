@@ -1,7 +1,9 @@
 from django.contrib import admin
+from django.urls import reverse
 from django_admin_listfilter_dropdown.filters import (
     RelatedDropdownFilter, ChoiceDropdownFilter, DropdownFilter,
 )
+from django.utils.safestring import mark_safe
 
 from users.models import User
 
@@ -109,6 +111,7 @@ class SchoolAdmin(admin.ModelAdmin):
         'ais_id',
         '__str__', 
         'number',
+        'reports_page_link',
         'ter_admin',
         'closter_field',
         'ed_level', 
@@ -122,6 +125,7 @@ class SchoolAdmin(admin.ModelAdmin):
         'email',
         'city',
         'number',
+        
         'school_type',
         'closter',
         'ed_level',
@@ -130,6 +134,10 @@ class SchoolAdmin(admin.ModelAdmin):
         'principal_phone',
         # 'principal_email',
     ]
+
+    def reports_page_link(self, obj):
+        return mark_safe(f'<a href="{reverse("reports", kwargs={"school_id": obj.id})}">Личный кабинет</a>')
+    reports_page_link.short_description = "Личный кабинет"
 
     def principal_phone(self, obj):
         if obj.principal.phone_number is None:
