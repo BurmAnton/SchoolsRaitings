@@ -140,7 +140,7 @@
                                         {% for file in answers|get_files:field %}
                                             <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
                                                 <a class='attachment{{field.id}}' href="{{ file.file.url }}"  style="width: 100%;" target="_blank">
-                                                    <button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>
+                                                    {% if file.file %}<button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>{% else %}{% endif %}
                                                 </a>
                                             </div>
                                         {% endfor %}
@@ -165,13 +165,13 @@
                                             {% for file in answers|get_files:field %}
                                                 <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
                                                     <a class='attachment{{field.id}}' href="{{ file.file.url }}"  style="width: 100%;" target="_blank">
-                                                        <button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>
+                                                        {% if file.file %}<button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>{% else %}{% endif %}
                                                     </a>
                                                 </div>
                                             {% endfor %}
                                         </div>
                                         {% if report.status == 'B' or request.user.is_superuser  %}
-                                        <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}">
+                                        <input type="file" name="{{field.id}}" class="form-control" id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z" >
                                         <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
                                         {% endif %}
                                     </div>

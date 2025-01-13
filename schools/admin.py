@@ -172,7 +172,7 @@ class SchoolAdmin(admin.ModelAdmin):
         if obj and request.user.groups.filter(name='Представитель ТУ/ДО').exists():
             return self.readonly_fields + [
                 'name', 'short_name', 'email', 'city', 'number',
-                'school_type', 'ter_admin', 'principal'
+                'school_type', 'ter_admin', 'principal', 
             ]
         return self.readonly_fields
     

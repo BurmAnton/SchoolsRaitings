@@ -46,7 +46,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('input[type="file"]').forEach(input => {
         input.addEventListener('change', () => {
-            upload_file(input.files[0], input.name, input)
+            const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png', '.zip', '.rar', '.7z'];
+            const hasValidExtension = allowedExtensions.some(ext => input.value.toLowerCase().endsWith(ext));
+            console.log(input.value)
+            if (!hasValidExtension) {
+                    let alert_id = input.parentElement.parentElement.querySelector('.alert').id;
+                    input.parentElement.parentElement.querySelector('.alert').innerHTML = "Недопустимый формат файла!";
+                    alert_id = `#${alert_id}`;
+                    $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
+                        $(".alert").slideUp(500);
+                });
+                console.log("Недопустимый формат файла!")
+                input.value = ""
+                return;
+            } else {
+                upload_file(input.files[0], input.name, input)
+            }
+            input.value = ""
         })
     })
     document.querySelectorAll('input[type="link"]').forEach(input => {
@@ -180,9 +196,11 @@ function change_question_value(id, value, input){
         //     field.style.background = "white";
         // }
         document.querySelector('#report-points').innerHTML = result['report_points'].replace(",", ".").replace(".0", "")
+        
     })
     .then(result => {
         document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
+        
     }
 
     )
@@ -267,6 +285,8 @@ function upload_file(file, name, input){
     let formData = new FormData()
     formData.append('file', file)
     formData.append('id', name)
+    console.log(name)
+    
     fetch(window.location.href, {
         method: 'POST',
         headers: {
@@ -280,6 +300,7 @@ function upload_file(file, name, input){
 
         file_link = result['file_link'] 
         file_name = result['filename']
+        
         question_id = result['question_id'] 
         let files = document.querySelector(`.files${question_id}`)
         // link.parentElement.querySelectorAll('a').forEach(a => {
