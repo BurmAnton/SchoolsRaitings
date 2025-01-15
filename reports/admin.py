@@ -121,8 +121,6 @@ class SchoolReportAdmin(admin.ModelAdmin):
     search_fields = ['school__name', 'report__name']
     readonly_fields = ['points', 'zone']
 
-    inlines = [ReportFileInline]
-
 
 @admin.register(ReportLink)
 class ReportLinkAdmin(admin.ModelAdmin):
