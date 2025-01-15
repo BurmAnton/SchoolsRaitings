@@ -209,7 +209,7 @@
                                 Документ загружен успешно!
                             </div>
                             <div class="get-attachment">
-                                <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z" {% if report.status != 'A' or not request.user.is_superuser  %}disabled{% endif%}>
+                                <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" {% if report.status != 'A' or not request.user.is_superuser  %}disabled{% endif%}>
                                 <a {% if attachment|get_file_link != None %}href="{{ attachment|get_file_link }}"{% else %}style="display: none;"{% endif %} target="_blank">
                                     <button class="btn btn-outline-success">Скачать прикреплённый файл</button>
                                 </a>

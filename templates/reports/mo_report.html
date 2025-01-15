@@ -180,7 +180,7 @@
                                             {% endfor %}
                                         </div>
                                         {% if report.status == 'B' or request.user.is_superuser  %}
-                                        <input type="file" name="{{field.id}}" class="form-control" id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z" >
+                                        <input type="file" name="{{field.id}}" class="form-control" id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" >
                                         <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
                                         {% endif %}
                                     </div>

@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('input[type="file"]').forEach(input => {
         input.addEventListener('change', () => {
-            const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png', '.zip', '.rar', '.7z'];
+            const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png', '.zip', '.rar', '.7z', '.bmp'];
             const hasValidExtension = allowedExtensions.some(ext => input.value.toLowerCase().endsWith(ext));
             console.log(input.value)
             if (!hasValidExtension) {
