@@ -167,4 +167,7 @@ def get_link(answers, question):
 
 @register.filter
 def filename(value):
-    return os.path.basename(value.file.name)
+    try:
+        return os.path.basename(value.file.name)
+    except:
+        return ""

@@ -7,7 +7,7 @@ from django_admin_listfilter_dropdown.filters import (
 
 from .models import (
     Attachment, RangeOption, 
-    Report, ReportFile, Section, Field, Option, SchoolReport
+    Report, ReportFile, ReportLink, Section, Field, Option, SchoolReport
 )
     
 SectionForm = select2_modelform(Section, attrs={'width': '500px'})
@@ -103,10 +103,25 @@ class FieldAdmin(admin.ModelAdmin):
         js = ["../static/admin/js/question_change.js",]
 
 
+
+class ReportFileInline(admin.TabularInline):
+    model = ReportFile
+    fields = ['file', 'answer']
+
+
+class LinkInline(admin.TabularInline):
+    model = ReportLink
+    fields = ['link', 'answer']
+
+
 @admin.register(SchoolReport)
 class SchoolReportAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['id', 'school', 'report', 'status', 'points', 'zone']
+    list_filter = ['status', 'zone']
+    search_fields = ['school__name', 'report__name']
+    readonly_fields = ['points', 'zone']
 
+    inlines = [ReportFileInline, LinkInline]
 
 
 # @admin.register(Attachment)
