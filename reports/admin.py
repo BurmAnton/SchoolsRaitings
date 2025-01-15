@@ -124,6 +124,13 @@ class SchoolReportAdmin(admin.ModelAdmin):
     inlines = [ReportFileInline, LinkInline]
 
 
+@admin.register(ReportLink)
+class ReportLinkAdmin(admin.ModelAdmin):
+    list_display = ['id', 'link', 'answer']
+    list_filter = ['answer']
+    search_fields = ['school_report__school__name', 'school_report__report__name', 'link']
+
+
 # @admin.register(Attachment)
 # class AttachmentAdmin(admin.ModelAdmin):
 #     list_display = ['name', 'attachment_type',]
