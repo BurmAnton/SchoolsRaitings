@@ -172,9 +172,7 @@
                                                 {% for link in answers|get_links:field %}
                                                     <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
                                                         <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ link.link}}"  style="width: 100%;"target="_blank" rel="noopener noreferrer">{{ link.link}}</a>
-                                                        {% if report.status == 'C' or request.user.is_superuser  %}
-                                                            <button style="width: 50px; height: 100%;" class="btn btn-danger delete-link" data-linkid="{{link.id}}" name="delete-link">—</button>
-                                                        {% endif %}
+
                                                     </div>
                                                 {% endfor %}
                                             </div>
