@@ -132,10 +132,6 @@ def get_point_sum_section(s_reports, section):
 
 @register.filter
 def get_field_points(s_report, field):
-    answer = Answer.objects.filter(s_report=s_report, question=field)
-
-    if answer.count() == 0:
-        return "-"
     points = s_report.answers.filter(question=field).aggregate(points_sum=Sum('points'))['points_sum']
     if points is None:
         return "-"
@@ -183,7 +179,7 @@ def avg_value(questions, s_reports):
 
 @register.filter
 def max_value_section(question, s_reports):
-    max_points = Answer.objects.filter(question=question, s_report__in=s_reports).aggregate(points_sum=Max('points'))['points_sum'] or 0
+    max_points = Answer.objects.filter(question=question, s_report__in=s_reports).values('points').aggregate(Max('points'))['points__max'] or 0
 
     return format_point(max_points)
 
@@ -191,7 +187,7 @@ def max_value_section(question, s_reports):
 
 @register.filter
 def avg_value_section(question, s_reports):
-    avg_points = Answer.objects.filter(question=question, s_report__in=s_reports).aggregate(points_sum=Avg('points'))['points_sum'] or 0
+    avg_points = Answer.objects.filter(question=question, s_report__in=s_reports).values('points').aggregate(avg_points=Avg('points'))['avg_points'] or 0
 
     rounded_avg = round(avg_points, 1)
     return format_point(rounded_avg)

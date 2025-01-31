@@ -2,7 +2,7 @@ import os
 from django import template
 from django.db.models import Max, Sum
 
-from reports.models import ReportFile
+from reports.models import Field, ReportFile, Section
 
 register = template.Library()
 
@@ -13,7 +13,11 @@ def get_item(dictionary, key):
 
 
 @register.filter
-def dictsort_fields(fields):
+def dictsort_fields(section):
+    from reports.models import Field, Section
+    fields = ()
+    sections = Section.objects.filter(name=section.name)
+    fields = Field.objects.filter(sections__in=sections).distinct('number').prefetch_related('answers')
     return sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
 
 

@@ -62,7 +62,8 @@ class UserAdmin(UserAdmin):
     search_fields = ('email','last_name', 'first_name', 'middle_name')
     list_filter = [
         ('groups', RelatedDropdownFilter),
-        ('ter_admin', RelatedOnlyDropdownFilter)
+        ('ter_admin', RelatedOnlyDropdownFilter),
+        'is_superuser', 
     ]
     
     ordering = ('email',)

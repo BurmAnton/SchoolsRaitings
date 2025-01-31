@@ -517,7 +517,12 @@ class SchoolReport(models.Model):
 
     def __str__(self):
         return  f'{self.school} ({self.report})'
-    
+
+@receiver(pre_save, sender=SchoolReport)
+def accept(sender, instance, **kwargs):
+    instance.status = 'D'
+
+
 
 class Answer(models.Model):
     s_report = models.ForeignKey(

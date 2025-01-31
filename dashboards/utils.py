@@ -72,40 +72,48 @@ def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
 
 def calculate_stats(year, s_reports):
     stats = {}
+    # Get all needed data in a single query with prefetch_related
     reports = Report.objects.filter(schools__in=s_reports).distinct()
-    sections = Section.objects.filter(report__year=year, report__in=reports)
-    overall_stats = {}
-    overall_stats["green_zone"] = [0, "0.0%"]
-    overall_stats["yellow_zone"] = [0, "0.0%"]
-    overall_stats["red_zone"] = [0, "0.0%"]
-    s_reports_year = s_reports.filter(report__year=year)
-    for section in sections.order_by('id'):
+    sections = Section.objects.filter(report__year=year, report__in=reports).order_by('id')
+    
+    # Prefetch s_reports for the year to avoid multiple queries
+    s_reports_year = s_reports.filter(report__year=year).select_related('report')
+    s_reports_count = s_reports_year.count()
+
+    # Initialize stats
+    overall_stats = {
+        "green_zone": [0, "0.0%"],
+        "yellow_zone": [0, "0.0%"], 
+        "red_zone": [0, "0.0%"]
+    }
+
+    # Calculate section stats
+    for section in sections:
         stats[section.name] = {
             "green_zone": [0, "0.0%"],
             "yellow_zone": [0, "0.0%"],
-            "red_zone": [0, "0.0%"],
+            "red_zone": [0, "0.0%"]
         }
+        
         for s_report in s_reports_year:
             color = count_section_points(s_report, section)
-            if color == "G":
-                stats[section.name]["green_zone"][0] += 1
-                stats[section.name]["green_zone"][1] = f'{stats[section.name]["green_zone"][0] / s_reports_year.count() * 100:.1f}%'
-            elif color == "Y":
-                stats[section.name]["yellow_zone"][0] += 1
-                stats[section.name]["yellow_zone"][1] = f'{stats[section.name]["yellow_zone"][0] / s_reports_year.count() * 100:.1f}%'
-            elif color == "R":
-                stats[section.name]["red_zone"][0] += 1
-                stats[section.name]["red_zone"][1] = f'{stats[section.name]["red_zone"][0] / s_reports_year.count() * 100:.1f}%'
-    s_reports = s_reports.filter(report__in=reports)
-    overall_stats["green_zone"][0] = sum([1 for s_report in s_reports if s_report.zone == "G"])
-    overall_stats["yellow_zone"][0] = sum([1 for s_report in s_reports if s_report.zone == "Y"])
-    overall_stats["red_zone"][0] = sum([1 for s_report in s_reports if s_report.zone == "R"])
-    try:
-        overall_stats["green_zone"][1] = f'{overall_stats["green_zone"][0] / s_reports_year.count() * 100:.1f}%'
-        overall_stats["yellow_zone"][1] = f'{overall_stats["yellow_zone"][0] / s_reports_year.count() * 100:.1f}%'
-        overall_stats["red_zone"][1] = f'{overall_stats["red_zone"][0] / s_reports_year.count() * 100:.1f}%'
-    except ZeroDivisionError:
-        pass
+            if color in ["G", "Y", "R"]:
+                zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[color]
+                stats[section.name][zone][0] += 1
+                if s_reports_count > 0:
+                    stats[section.name][zone][1] = f'{stats[section.name][zone][0] / s_reports_count * 100:.1f}%'
+
+    # Calculate overall stats in a single pass
+    for s_report in s_reports_year:
+        if s_report.zone in ["G", "Y", "R"]:
+            zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[s_report.zone]
+            overall_stats[zone][0] += 1
+
+    # Calculate overall percentages
+    if s_reports_count > 0:
+        for zone in ["green_zone", "yellow_zone", "red_zone"]:
+            overall_stats[zone][1] = f'{overall_stats[zone][0] / s_reports_count * 100:.1f}%'
+
     return stats, overall_stats
 
 def generate_ter_admins_report_csv(year, schools, s_reports):

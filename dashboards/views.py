@@ -2,7 +2,8 @@ from decimal import Decimal
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
 from dashboards import utils
 from reports.models import Answer, Report, SchoolReport, Section, Field
 from reports.utils import count_section_points
@@ -11,20 +12,31 @@ from schools.models import SchoolCloster, School, TerAdmin
 # Create your views here.
 @login_required
 def ter_admins_reports(request):
-    reports = Report.objects.all()
+    reports = Report.objects.all().prefetch_related('reports', 'schools', 'schools__school', 'sections')
 
     return render(request, "dashboards/ter_admins_reports.html", {
         'reports': reports,
     })
 
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://localhost:6379',
+        'OPTIONS': {
+            'db': '2',
+        }
+    }
+}
+
+@cache_page(None, key_prefix="flow")
 @login_required
 @csrf_exempt
 def ter_admins_dash(request):
     # Check if the user is a TerAdmin representatives
     ter_admins = TerAdmin.objects.filter(representatives=request.user)
     if not ter_admins.first():
-        ter_admins = TerAdmin.objects.all()
+        ter_admins = TerAdmin.objects.all().prefetch_related('schools')
 
     closters = SchoolCloster.objects.all()
     ed_levels = {
@@ -65,11 +77,9 @@ def ter_admins_dash(request):
             schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools, status='D')
             return utils.generate_ter_admins_report_csv(year, schools, schools_reports)
 
-    schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools, status='D')
-    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
+    schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools, status='D').prefetch_related('answers')
+    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number').prefetch_related('fields')
     stats, overall_stats = utils.calculate_stats(year, schools_reports)
-
-    
 
     return render(request, "dashboards/ter_admins_dash.html", {
         "years": years,
@@ -89,9 +99,9 @@ def ter_admins_dash(request):
 @login_required
 @csrf_exempt
 def school_report(request):
-    ter_admins = TerAdmin.objects.filter(representatives=request.user)
+    ter_admins = TerAdmin.objects.filter(representatives=request.user).prefetch_related('schools')
     if not ter_admins.first():
-        ter_admins = TerAdmin.objects.all()
+        ter_admins = TerAdmin.objects.all().prefetch_related('schools')
     years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
     
     school = None
@@ -125,9 +135,12 @@ def school_report(request):
         'section_data': section_data
     })
 
+
+@cache_page(None, key_prefix="closters_report")
 @login_required
 @csrf_exempt
 def closters_report(request, year=2024):
+    
     ter_admins = TerAdmin.objects.filter(representatives=request.user)
     if not ter_admins.first():
         ter_admins = TerAdmin.objects.all()
@@ -144,12 +157,14 @@ def closters_report(request, year=2024):
     schools = School.objects.filter(ter_admin__in=ter_admins)
     s_reports = SchoolReport.objects.filter(report__year=year, status='D')
     filter = {}
+    
     if request.method != 'POST':
         try:
             year = years[0]
         except:
             year = 2024
         reports = Report.objects.filter(year=year)
+        schools = schools.filter(ter_admin=TerAdmin.objects.first())
     elif 'download' in request.POST:
         try:
             year = years[0]
@@ -172,15 +187,15 @@ def closters_report(request, year=2024):
         if len(ed_levels_f) != 0:
             schools = schools.filter(ed_level__in=ed_levels_f)
             filter['ed_levels'] = ed_levels_f
-        s_reports = s_reports.filter(school__in=schools)
-
+    s_reports = s_reports.filter(school__in=schools)
+    
     sections = Section.objects.filter(report__year=year).values('number', 'name').distinct().order_by('number')
     sections_list = []
     for section in sections:
         sections = Section.objects.filter(name=section['name'], report__year=year)
-        sections_list.append([section['number'], section['name'], Field.objects.filter(sections__in=sections).distinct()])
+        sections_list.append([section['number'], section['name'], Field.objects.filter(sections__in=sections).distinct().prefetch_related('answers')])
 
-
+    
     return render(request, "dashboards/closters_report.html", {
         'years': years,
         'ter_admins': ter_admins,

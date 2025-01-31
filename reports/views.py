@@ -105,8 +105,9 @@ def report(request, report_id, school_id):
     
     if request.method == 'POST':
         if 'send-report' in request.POST:
-            s_report.status = 'A'
-            s_report.save()
+            if s_report.status == 'C':
+                s_report.status = 'A'
+                s_report.save()
             message = "SendToTerAdmin"
         elif request.FILES.get("file") is not None:
             file = request.FILES.get("file")
