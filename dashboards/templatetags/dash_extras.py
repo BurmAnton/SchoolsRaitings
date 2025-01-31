@@ -80,7 +80,7 @@ def format_point(points):
 
 @register.filter
 def get_section_points(s_report, section):
-    sections = Section.objects.filter(name=section.name, report=s_report.report)
+    sections = Section.objects.filter(number=section.number, report=s_report.report)
     if sections.count() > 0:
         questions = sections[0].fields.all()
     else:
