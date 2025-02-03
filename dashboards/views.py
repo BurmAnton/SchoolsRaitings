@@ -29,14 +29,14 @@ CACHES = {
     }
 }
 
-@cache_page(None, key_prefix="flow")
+#@cache_page(None, key_prefix="flow")
 @login_required
 @csrf_exempt
 def ter_admins_dash(request):
     # Check if the user is a TerAdmin representatives
     ter_admins = TerAdmin.objects.filter(representatives=request.user)
     if not ter_admins.first():
-        ter_admins = TerAdmin.objects.all().prefetch_related('schools')
+        ter_admins = TerAdmin.objects.all()
 
     closters = SchoolCloster.objects.all()
     ed_levels = {
@@ -77,10 +77,80 @@ def ter_admins_dash(request):
             schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools, status='D')
             return utils.generate_ter_admins_report_csv(year, schools, schools_reports)
 
-    schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools, status='D').prefetch_related('answers')
-    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number').prefetch_related('fields')
-    stats, overall_stats = utils.calculate_stats(year, schools_reports)
+    schools_reports = SchoolReport.objects.filter(
+        report__in=reports,
+        school__in=schools,
+        status='D'
+    ).prefetch_related(
+        'answers',
+        'sections__section__fields',
+        'sections__section',
+    )
 
+    school_reports_data = {}
+    fields_data = {}
+    for s_report in schools_reports:
+        school_reports_data[s_report.id] = {
+            'green_zone_answers': 0,
+            'yellow_zone_answers': 0,
+            'red_zone_answers': 0,
+            'answers': 0
+        }
+        
+        # Create lookup dict for answers
+        answer_lookup = {a.question_id: a for a in s_report.answers.all()}
+        
+        for section in s_report.sections.all():
+            if section.section.number not in fields_data:
+                fields_data[section.section.number] = {
+                    'fields': {}
+                }
+            section_number = section.section.number
+            school_reports_data[s_report.id][section_number] = {
+                'points': section.points,
+                'zone': section.zone,
+                'fields': {}
+            }
+            
+            fields = sorted(
+                section.section.fields.all(), 
+                key=lambda x: [int(n) for n in str(x.number).split('.')]
+            )
+            
+            for field in fields:
+                if field.number not in fields_data[section_number]['fields']:
+                    fields_data[section_number]['fields'][field.number] = {
+                        'points': 0,
+                        'green_zone': 0,
+                        'yellow_zone': 0,
+                        'red_zone': 0
+                    }
+                answer = answer_lookup.get(field.id)
+                if answer:
+                    school_reports_data[s_report.id][section_number]['fields'][field.number] = {
+                        'points': answer.points,
+                        'zone': answer.zone
+                    }
+                    fields_data[section_number]['fields'][field.number]['points'] += answer.points
+                    school_reports_data[s_report.id]['answers'] += 1
+                    if answer.zone == 'G':
+                        school_reports_data[s_report.id]['green_zone_answers'] += 1
+                        fields_data[section_number]['fields'][field.number]['green_zone'] += 1
+                    elif answer.zone == 'Y':
+                        school_reports_data[s_report.id]['yellow_zone_answers'] += 1
+                        fields_data[section_number]['fields'][field.number]['yellow_zone'] += 1
+                    elif answer.zone == 'R':
+                        school_reports_data[s_report.id]['red_zone_answers'] += 1
+                        fields_data[section_number]['fields'][field.number]['red_zone'] += 1
+                else:
+                    school_reports_data[s_report.id][section_number]['fields'][field.number] = {
+                        'points': 0,
+                        'zone': 'W'
+                    }
+
+    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number').prefetch_related('fields')
+    stats, overall_stats = utils.calculate_stats(year, schools_reports, sections)
+    
     return render(request, "dashboards/ter_admins_dash.html", {
         "years": years,
         "selected_year": year,
@@ -92,7 +162,9 @@ def ter_admins_dash(request):
         'schools_reports': schools_reports,
         'sections': sections,
         'stats': stats,
-        'overall_stats': overall_stats
+        'overall_stats': overall_stats,
+        'school_reports_data': school_reports_data,
+        'fields_data': fields_data
     })
 
 
@@ -116,7 +188,8 @@ def school_report(request):
         f_years = request.POST.getlist("years")
         reports = Report.objects.filter(year__in=f_years)
         sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
-        s_reports = SchoolReport.objects.filter(report__in=reports, school=school, status='D').order_by('report__year')
+        s_reports = SchoolReport.objects.filter(report__in=reports, school=school, status='D').order_by('report__year').prefetch_related('answers', 'sections')
+        
         filter = {
             'years': f_years,
             'school': str(school.id),

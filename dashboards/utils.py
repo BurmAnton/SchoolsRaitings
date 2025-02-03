@@ -6,7 +6,7 @@ from textwrap import fill
 from django.utils.html import mark_safe
 from django.db.models import Sum
 
-from reports.models import Answer, Report, SchoolReport, Section
+from reports.models import Answer, Report, SchoolReport, Section, SectionSreport
 from reports.utils import count_points, count_points_field, count_section_points
 
 
@@ -70,16 +70,15 @@ def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
                     stats[year][section.name]["red_zone"] += 1
     return stats, section_data
 
-def calculate_stats(year, s_reports):
+def calculate_stats(year, s_reports, sections):
     stats = {}
-    # Get all needed data in a single query with prefetch_related
-    reports = Report.objects.filter(schools__in=s_reports).distinct()
-    sections = Section.objects.filter(report__year=year, report__in=reports).order_by('id')
-    
-    # Prefetch s_reports for the year to avoid multiple queries
-    s_reports_year = s_reports.filter(report__year=year).select_related('report')
-    s_reports_count = s_reports_year.count()
-
+    for s_report in s_reports.filter(report__is_counting=True):
+        for section in s_report.sections.all():
+            # section_obj = Section.objects.filter(number=section.number, report=s_report.report).first()
+            # section_sreport, created = SectionSreport.objects.get_or_create(s_report=s_report, section=section_obj)
+            # section_sreport.points = Answer.objects.filter(question__in=section_obj.fields.all(), s_report=s_report).aggregate(Sum('points'))['points__sum'] or 0
+            section.zone = count_section_points(s_report, section.section)
+            section.save()
     # Initialize stats
     overall_stats = {
         "green_zone": [0, "0.0%"],
@@ -87,32 +86,43 @@ def calculate_stats(year, s_reports):
         "red_zone": [0, "0.0%"]
     }
 
-    # Calculate section stats
+    # Prefetch related data in a single query
+    s_reports_year = s_reports.select_related('report').prefetch_related(
+        'sections__section'
+    )
+    s_reports_count = s_reports_year.count()
+
+    # Create lookup dict for section stats
     for section in sections:
-        stats[section.name] = {
+        stats[section.number] = {
             "green_zone": [0, "0.0%"],
             "yellow_zone": [0, "0.0%"],
             "red_zone": [0, "0.0%"]
         }
-        
-        for s_report in s_reports_year:
-            color = count_section_points(s_report, section)
-            if color in ["G", "Y", "R"]:
-                zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[color]
-                stats[section.name][zone][0] += 1
-                if s_reports_count > 0:
-                    stats[section.name][zone][1] = f'{stats[section.name][zone][0] / s_reports_count * 100:.1f}%'
 
-    # Calculate overall stats in a single pass
+    # Calculate all stats in a single pass through the data
     for s_report in s_reports_year:
+        # Overall stats
         if s_report.zone in ["G", "Y", "R"]:
             zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[s_report.zone]
             overall_stats[zone][0] += 1
 
-    # Calculate overall percentages
+        # Section stats
+        for section_sreport in s_report.sections.all():
+            if section_sreport.zone in ["G", "Y", "R"]:
+                zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[section_sreport.zone]
+                stats[section_sreport.section.number][zone][0] += 1
+
+    # Calculate all percentages
     if s_reports_count > 0:
+        # Overall percentages
         for zone in ["green_zone", "yellow_zone", "red_zone"]:
             overall_stats[zone][1] = f'{overall_stats[zone][0] / s_reports_count * 100:.1f}%'
+            
+        # Section percentages
+        for section_stats in stats.values():
+            for zone in ["green_zone", "yellow_zone", "red_zone"]:
+                section_stats[zone][1] = f'{section_stats[zone][0] / s_reports_count * 100:.1f}%'
 
     return stats, overall_stats
 

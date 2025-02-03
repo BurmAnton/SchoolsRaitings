@@ -520,9 +520,47 @@ class SchoolReport(models.Model):
 
 @receiver(pre_save, sender=SchoolReport)
 def accept(sender, instance, **kwargs):
-    instance.status = 'D'
+    pass
+    #instance.status = 'D'
 
 
+class SectionSreport(models.Model):
+    s_report = models.ForeignKey(
+        SchoolReport,
+        verbose_name='отчёт',
+        related_name='sections',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    section = models.ForeignKey(
+        Section,
+        verbose_name='раздел',
+        related_name='s_reports',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    points = models.DecimalField(
+        "Колво баллов",
+        max_digits=5,
+        decimal_places=1,
+        default=0
+    )
+    ZONE_TYPES = [
+        ('R', "Красная"),
+        ('Y', "Желтая"),
+        ('G', "Зеленая"),
+    ]
+    zone = models.CharField(
+        "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False, default='R'
+    )
+
+    class Meta:
+        verbose_name = "Раздел отчёта школы"
+        verbose_name_plural = "Разделы отчётов школ"
+
+    def __str__(self):
+        return f'{self.section} ({self.points})'
+    
 
 class Answer(models.Model):
     s_report = models.ForeignKey(

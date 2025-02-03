@@ -1,7 +1,7 @@
 from django import template
 from django.db.models import Sum, Max, Avg
 
-from reports.models import Answer, Field, Section
+from reports.models import Answer, Field, Section, SectionSreport
 from dashboards import utils
 from schools.models import TerAdmin
 
@@ -12,9 +12,31 @@ register = template.Library()
 def get_item(dictionary, key):
     return dictionary.get(key)
 
+
 @register.filter
 def dictsort_fields(fields):
     return sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
+
+
+@register.filter
+def get_gzone_answers_percent(school_reports_data, sreport_id):
+    g_count = school_reports_data[sreport_id]['green_zone_answers']
+    question_count = school_reports_data[sreport_id]['answers']
+    return f'{g_count / question_count * 100:.1f}%'
+
+
+@register.filter
+def get_yzone_answers_percent(school_reports_data, sreport_id):
+    g_count = school_reports_data[sreport_id]['yellow_zone_answers']
+    question_count = school_reports_data[sreport_id]['answers']
+    return f'{g_count / question_count * 100:.1f}%'
+
+
+@register.filter
+def get_rzone_answers_percent(school_reports_data, sreport_id):
+    g_count = school_reports_data[sreport_id]['red_zone_answers']
+    question_count = school_reports_data[sreport_id]['answers']
+    return f'{g_count / question_count * 100:.1f}%'
 
 
 @register.filter
@@ -23,7 +45,9 @@ def get_color(zone):
         return "red"
     if zone == "Y":
         return "#ffc600"
-    return "green"
+    if zone == "G":
+        return "green"
+    return "white"
 
 @register.filter
 def get_section_colord(s_report, section):
@@ -33,7 +57,7 @@ def get_section_colord(s_report, section):
     else:
         return 'white'
 
-    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+    points__sum = SectionSreport.objects.filter(s_report=s_report, section=section).first().points
     if points__sum is None:
         return 'white'
     if s_report.report.is_counting == False:
@@ -80,14 +104,8 @@ def format_point(points):
 
 @register.filter
 def get_section_points(s_report, section):
-    sections = Section.objects.filter(name=section.name, report=s_report.report)
-    if sections.count() > 0:
-        questions = sections[0].fields.all()
-    else:
-        return "-"
-
-    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
-    return format_point(points__sum)
+    points = SectionSreport.objects.get(s_report=s_report, section__number=section.number).points
+    return format_point(points)
 
 
 @register.filter
@@ -122,18 +140,16 @@ def get_color_field_dash(answers, field):
 
 @register.filter
 def get_point_sum_section(s_reports, section):
-    questions = section.fields.all()
-    points = Answer.objects.filter(question__in=questions, s_report__in=s_reports).aggregate(points_sum=Sum('points'))['points_sum']
-
-    if points is None:
-        return "0"
-    return format_point(points)
-
+    section_sreport = SectionSreport.objects.filter(s_report__in=s_reports, section=section).first()
+    if section_sreport:
+        return format_point(section_sreport.points)
+    return "-"
 
 @register.filter
 def get_field_points(s_report, field):
-    points = s_report.answers.filter(question=field).aggregate(points_sum=Sum('points'))['points_sum']
-    if points is None:
+    try:
+        points = s_report.answers.get(question=field).points
+    except:
         return "-"
     return format_point(points)
 

@@ -70,7 +70,7 @@
                     <th class="center th-points" style="width: 350px;">Источники данных</th>
                     {% comment %} <th class="center th-points">Макс.</th> {% endcomment %}
                 </tr>
-            {%for field in section.fields.all|dictsort_fields %}
+            {%for field in section|dictsort_fields %}
                 <tr class="question {% if field.answer_type == 'BL' %}question-bl{% endif %}"> 
                     <td style="width: 10px;"><div class="question-zone question-zone{{field.id}}" data-field="{{field.id}}" style="background-color: {{answers|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div></td>
                     <td scope="row" class="field-cell">
@@ -122,7 +122,6 @@
                                 <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
                                     Ссылка прикреплена успешно!
                                 </div>
-                                <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
                                 {% if report.status == 'B' and request.user.is_superuser  %}
                                     <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
                                 {% endif %}
@@ -160,7 +159,6 @@
                                     </div>
                                     
                                     <div class="get-attachment" style="display: flex;gap: 5px;flex-direction: column">
-                                        <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ answers|get_link:field}}"  {% if answers|get_link:field == "" %}style="display: none;"{% endif %} target="_blank" rel="noopener noreferrer">Перейти по прикреплённой ссылке</a>
                                         <div class="files{{field.id}}" style="display: flex; gap: 5px; flex-direction: column;">
                                             {% for file in answers|get_files:field %}
                                                 {% if file.file %}

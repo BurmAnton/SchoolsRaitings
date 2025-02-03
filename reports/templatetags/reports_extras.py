@@ -151,14 +151,20 @@ def get_file_link(answers, question):
 
 @register.filter
 def get_files(answers, question):
-    answer = answers.get(question=question)
-    return answer.files.all()
+    try:    
+        answer = answers.get(question=question)
+        return answer.files.all()
+    except:
+        return []
 
 
 @register.filter
 def get_links(answers, question):
-    answer = answers.get(question=question)
-    return answer.links.all()
+    try:
+        answer = answers.get(question=question)
+        return answer.links.all()
+    except:
+        return []
 
 
 @register.filter
