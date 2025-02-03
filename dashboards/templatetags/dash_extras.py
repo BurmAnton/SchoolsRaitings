@@ -108,6 +108,7 @@ def get_section_points(s_report, section):
     return format_point(points)
 
 
+
 @register.filter
 def get_section_points_by_name(s_report, number):
     sections = Section.objects.filter(number=number, report=s_report.report)
