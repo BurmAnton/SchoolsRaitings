@@ -14,7 +14,7 @@ def get_item(dictionary, key):
 
 
 @register.filter
-def dictsort_fields(fields):
+def dictsort_fields_dash(fields):
     return sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
 
 
@@ -109,8 +109,8 @@ def get_section_points(s_report, section):
 
 
 @register.filter
-def get_section_points_by_name(s_report, section_name):
-    sections = Section.objects.filter(name=section_name, report=s_report.report)
+def get_section_points_by_name(s_report, number):
+    sections = Section.objects.filter(number=number, report=s_report.report)
     if sections.count() > 0:
         questions = sections[0].fields.all()
     else:
