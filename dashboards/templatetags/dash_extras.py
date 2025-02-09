@@ -10,7 +10,10 @@ register = template.Library()
 
 @register.filter
 def get_item(dictionary, key):
-    return dictionary.get(key)
+    try:    
+        return dictionary.get(key)
+    except:
+        return '-'
 
 
 @register.filter
@@ -22,21 +25,30 @@ def dictsort_fields_dash(fields):
 def get_gzone_answers_percent(school_reports_data, sreport_id):
     g_count = school_reports_data[sreport_id]['green_zone_answers']
     question_count = school_reports_data[sreport_id]['answers']
-    return f'{g_count / question_count * 100:.1f}%'
+    try:
+        return f'{g_count / question_count * 100:.1f}%'
+    except:
+        return '0.0%'
 
 
 @register.filter
 def get_yzone_answers_percent(school_reports_data, sreport_id):
     g_count = school_reports_data[sreport_id]['yellow_zone_answers']
     question_count = school_reports_data[sreport_id]['answers']
-    return f'{g_count / question_count * 100:.1f}%'
+    try:
+        return f'{g_count / question_count * 100:.1f}%'
+    except:
+        return '0.0%'
 
 
 @register.filter
 def get_rzone_answers_percent(school_reports_data, sreport_id):
     g_count = school_reports_data[sreport_id]['red_zone_answers']
     question_count = school_reports_data[sreport_id]['answers']
-    return f'{g_count / question_count * 100:.1f}%'
+    try:
+        return f'{g_count / question_count * 100:.1f}%'
+    except:
+        return '0.0%'
 
 
 @register.filter
@@ -154,13 +166,6 @@ def get_field_points(s_report, field):
         return "-"
     return format_point(points)
 
-@register.filter
-def get_point_sum_field(s_reports, field):
-
-    answers = Answer.objects.filter(s_report__in=s_reports, question=field)
-    points = answers.filter(question=field).aggregate(points_sum=Sum('points'))['points_sum']
-
-    return format_point(points)
 
 @register.filter
 def get_year_points(s_reports, year):

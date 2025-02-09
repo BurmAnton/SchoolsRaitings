@@ -70,15 +70,8 @@ def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
                     stats[year][section.name]["red_zone"] += 1
     return stats, section_data
 
-def calculate_stats(year, s_reports, sections):
+def calculate_stats(year, s_reports_year, sections):
     stats = {}
-    for s_report in s_reports.filter(report__is_counting=True):
-        for section in s_report.sections.all():
-            # section_obj = Section.objects.filter(number=section.number, report=s_report.report).first()
-            # section_sreport, created = SectionSreport.objects.get_or_create(s_report=s_report, section=section_obj)
-            # section_sreport.points = Answer.objects.filter(question__in=section_obj.fields.all(), s_report=s_report).aggregate(Sum('points'))['points__sum'] or 0
-            section.zone = count_section_points(s_report, section.section)
-            section.save()
     # Initialize stats
     overall_stats = {
         "green_zone": [0, "0.0%"],
@@ -87,9 +80,7 @@ def calculate_stats(year, s_reports, sections):
     }
 
     # Prefetch related data in a single query
-    s_reports_year = s_reports.select_related('report').prefetch_related(
-        'sections__section'
-    )
+
     s_reports_count = s_reports_year.count()
 
     # Create lookup dict for section stats
@@ -109,9 +100,12 @@ def calculate_stats(year, s_reports, sections):
 
         # Section stats
         for section_sreport in s_report.sections.all():
-            if section_sreport.zone in ["G", "Y", "R"]:
-                zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[section_sreport.zone]
-                stats[section_sreport.section.number][zone][0] += 1
+            try:
+                if section_sreport.zone in ["G", "Y", "R"]:
+                    zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[section_sreport.zone]
+                    stats[section_sreport.section.number][zone][0] += 1
+            except:
+                breakpoint()
 
     # Calculate all percentages
     if s_reports_count > 0:

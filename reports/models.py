@@ -14,7 +14,6 @@ from users.models import Notification, User
 from schools.models import School, SchoolCloster
 
 
-
 class Report(models.Model):
     year = models.IntegerField('Год', null=False, blank=False)
     name = models.CharField("Название отчёта", max_length=750)
@@ -537,7 +536,7 @@ class SectionSreport(models.Model):
         verbose_name='раздел',
         related_name='s_reports',
         on_delete=CASCADE,
-        null=False, blank=False 
+        null=True, blank=True 
     )
     points = models.DecimalField(
         "Колво баллов",

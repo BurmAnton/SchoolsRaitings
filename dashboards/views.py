@@ -4,8 +4,10 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
+from django.db.models import Sum, Max
+
 from dashboards import utils
-from reports.models import Answer, Report, SchoolReport, Section, Field
+from reports.models import Answer, Report, SchoolReport, Section, Field, SectionSreport
 from reports.utils import count_section_points
 from schools.models import SchoolCloster, School, TerAdmin
 
@@ -81,6 +83,10 @@ def ter_admins_dash(request):
         report__in=reports,
         school__in=schools,
         status='D'
+    ).select_related(
+        'school',
+        'report',
+        'school__ter_admin',
     ).prefetch_related(
         'answers',
         'sections__section__fields',
@@ -89,6 +95,8 @@ def ter_admins_dash(request):
 
     school_reports_data = {}
     fields_data = {}
+    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number').prefetch_related('fields')
+
     for s_report in schools_reports:
         school_reports_data[s_report.id] = {
             'green_zone_answers': 0,
@@ -96,6 +104,16 @@ def ter_admins_dash(request):
             'red_zone_answers': 0,
             'answers': 0
         }
+        # for section in sections:
+        #     try:
+        #         section_obj = Section.objects.filter(number=section.number, report=s_report.report).first()
+        #         if section_obj:
+        #             section_sreport, created = SectionSreport.objects.get_or_create(s_report=s_report, section=section_obj)
+        #             section_sreport.points = Answer.objects.filter(question__in=section_obj.fields.all(), s_report=s_report).aggregate(Sum('points'))['points__sum'] or 0
+        #             section_sreport.zone = count_section_points(s_report, section_sreport.section)
+        #             section_sreport.save()
+        #     except:
+        #         pass
         
         # Create lookup dict for answers
         answer_lookup = {a.question_id: a for a in s_report.answers.all()}
@@ -148,9 +166,9 @@ def ter_admins_dash(request):
                         'zone': 'W'
                     }
 
-    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number').prefetch_related('fields')
     stats, overall_stats = utils.calculate_stats(year, schools_reports, sections)
-    
+    sections_data = {}
+
     return render(request, "dashboards/ter_admins_dash.html", {
         "years": years,
         "selected_year": year,
@@ -164,7 +182,8 @@ def ter_admins_dash(request):
         'stats': stats,
         'overall_stats': overall_stats,
         'school_reports_data': school_reports_data,
-        'fields_data': fields_data
+        'fields_data': fields_data,
+        'sections_data': sections_data
     })
 
 
@@ -197,6 +216,12 @@ def school_report(request):
         }
         stats, section_data = utils.calculate_stats_and_section_data(f_years, reports, sections, s_reports)
 
+    fields_sum_data = {}
+    sections = Section.objects.filter(report__in=reports).distinct()
+    fields = Field.objects.filter(sections__in=sections).distinct('number').prefetch_related('answers')
+    for field in fields:
+        fields_sum_data[field.id] = field.answers.aggregate(Sum('points'))['points__sum'] or 0
+
     return render(request, "dashboards/school_report.html", {
         'years': years,
         'ter_admins': ter_admins,
@@ -205,7 +230,8 @@ def school_report(request):
         'filter': filter,
         'sections': sections,
         'stats': stats,
-        'section_data': section_data
+        'section_data': section_data,
+        'fields_sum_data': fields_sum_data
     })
 
 
