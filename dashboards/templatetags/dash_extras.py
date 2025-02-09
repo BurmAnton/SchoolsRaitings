@@ -17,6 +17,13 @@ def get_item(dictionary, key):
 
 
 @register.filter
+def get_field_value(sreport_fields, field):
+    try:
+        return sreport_fields['fields'][field.number]['points']
+    except (TypeError, KeyError):
+        return "-"
+
+@register.filter
 def dictsort_fields_dash(fields):
     return sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
 

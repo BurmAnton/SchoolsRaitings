@@ -6,8 +6,8 @@ from textwrap import fill
 from django.utils.html import mark_safe
 from django.db.models import Sum
 
-from reports.models import Answer, Report, SchoolReport, Section, SectionSreport
-from reports.utils import count_points, count_points_field, count_section_points
+from reports.models import Answer, Report, SchoolReport, Section, SectionSreport, Field
+from reports.utils import count_points, count_points_field
 
 
 # Function to generate chart for school report
@@ -123,321 +123,226 @@ def calculate_stats(year, s_reports_year, sections):
 def generate_ter_admins_report_csv(year, schools, s_reports):
     import xlsxwriter
     from django.http import HttpResponse
-    from reports.models import Section, Field
+    from django.db.models import Sum
+    from reports.models import Section, Field, Answer
     from io import BytesIO
 
-    # Create an in-memory output file for the Excel workbook
+    # Create workbook
     output = BytesIO()
     workbook = xlsxwriter.Workbook(output)
     worksheet = workbook.add_worksheet()
 
-    # Add formats
-    header_format = workbook.add_format({
-        'bold': True,
-        'align': 'center',
-        'valign': 'vcenter',
-        'text_wrap': True,
-        'border': 1
-    })
-    cell_format = workbook.add_format({
-        'align': 'center',
-        'valign': 'vcenter',
-        'text_wrap': True,
-        'border': 1
-    })
+    # Define formats
+    formats = {
+        'header': workbook.add_format({
+            'bold': True, 'align': 'center', 'valign': 'vcenter',
+            'text_wrap': True, 'border': 1
+        }),
+        'cell': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter',
+            'text_wrap': True, 'border': 1
+        }),
+        'red': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'text_wrap': True,
+            'border': 1, 'bg_color': '#FFC7CE'
+        }),
+        'yellow': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'text_wrap': True,
+            'border': 1, 'bg_color': '#FFEB9C'
+        }),
+        'green': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'text_wrap': True,
+            'border': 1, 'bg_color': '#C6EFCE'
+        })
+    }
 
-    # Write header row
-    header = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Итого баллов', ]
+    # Write headers
+    header = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Итого баллов']
+    sections = Section.objects.filter(report__year=year).distinct('number').order_by('number')
     
-    sections = Section.objects.filter(report__year=year).distinct().order_by('number')
     for section in sections:
         header.append(f"{section.number}. {section.name}")
 
+    # Write header row and set column widths
     for col, value in enumerate(header):
-        worksheet.write(0, col, value, header_format)
-        # Set column width based on text length
-        text_length = len(value)
-        width = min(max(text_length * 1.1, 20), 50)  # Scale by 1.2, min 20, max 50
+        worksheet.write(0, col, value, formats['header'])
+        width = min(max(len(value) * 1.1, 20), 50)
         worksheet.set_column(col, col, width)
-    # Add header for criteria count/percentage
-    worksheet.merge_range(0, len(header), 0, len(header) + 1, 'Кол-во/доля критериев школы в зелёной зоне', header_format)
-    header.extend(['Количество', 'Доля'])
-    worksheet.merge_range(0, len(header), 0, len(header) + 1, 'Кол-во/доля критериев школы в жёлтой зоне', header_format)
-    header.extend(['Количество', 'Доля'])
-    worksheet.merge_range(0, len(header), 0, len(header) + 1, 'Кол-во/доля критериев школы в красной зоне', header_format)
-    header.extend(['Количество', 'Доля'])   
-    # Set row height based on longest text in header
-    max_text_length = max(len(str(cell)) for cell in header)
-    # Estimate ~15 chars per line at column width, add padding
-    num_lines = (max_text_length / 15) + 1  
-    row_height = num_lines * 15 # ~15 points per line
-    worksheet.set_row(0, row_height)
+
+    # Add zone headers
+    zone_headers = [
+        ('Кол-во/доля критериев школы в зелёной зоне', ['Количество', 'Доля']),
+        ('Кол-во/доля критериев школы в жёлтой зоне', ['Количество', 'Доля']), 
+        ('Кол-во/доля критериев школы в красной зоне', ['Количество', 'Доля'])
+    ]
+
+    col = len(header)
+    for title, columns in zone_headers:
+        worksheet.merge_range(0, col, 0, col + 1, title, formats['header'])
+        header.extend(columns)
+        col += 2
+
+    # Set row height
+    max_text_len = max(len(str(cell)) for cell in header)
+    num_lines = (max_text_len / 15) + 1
+    worksheet.set_row(0, num_lines * 15)
 
     # Write data rows
     row_num = 1
-    red_format = workbook.add_format({
-        'align': 'center',
-        'valign': 'vcenter', 
-        'text_wrap': True,
-        'border': 1,
-        'bg_color': '#FFC7CE'  # Light red
-    })
-    yellow_format = workbook.add_format({
-        'align': 'center',
-        'valign': 'vcenter',
-        'text_wrap': True, 
-        'border': 1,
-        'bg_color': '#FFEB9C'  # Light yellow
-    })
-    green_format = workbook.add_format({
-        'align': 'center',
-        'valign': 'vcenter',
-        'text_wrap': True,
-        'border': 1,
-        'bg_color': '#C6EFCE'  # Light green
-    })
     for school in schools:
         school_reports = s_reports.filter(school=school, report__year=year)
         if not school_reports.exists():
             continue
-            
+
         for report in school_reports:
+            # Basic school info
             row = [
-                school.ter_admin.__str__(),
+                str(school.ter_admin),
                 school.get_ed_level_display(),
-                school.name,
+                school.__str__(),
                 report.points
             ]
-            
+
             # Add section points
-            for section in sections:                
-                points = Answer.objects.filter(question__in=section.fields.all(), s_report=report).aggregate(Sum('points'))['points__sum'] or 0
+            section_points = []
+            for section in sections:
+                sections_objs = Section.objects.filter(name=section.name)
+                fields = Field.objects.filter(sections__in=sections_objs).distinct('number').prefetch_related('answers')
+                points = Answer.objects.filter(
+                    question__in=fields, 
+                    s_report=report
+                ).aggregate(Sum('points'))['points__sum'] or 0
+                section_points.append(points)
                 row.append(points)
 
+            # Write row data with appropriate formatting
             for col, value in enumerate(row):
-                if col < 3:  # School info columns
-                    worksheet.write(row_num, col, value, cell_format)
-                elif col == 3:  # Total points column
-                    format_to_use = {
-                        'R': red_format,
-                        'Y': yellow_format,
-                        'G': green_format,
-                        'W': cell_format
-                    }[report.zone]
-                    worksheet.write(row_num, col, value, format_to_use)
-                else:  # Section points columns
+                format_key = 'cell'
+                if col == 3:
+                    format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(report.zone, 'cell')
+                elif col >= 4:
                     section = sections[col-4]
                     zone = count_section_points(report, section)
-                    format_to_use = {
-                        'R': red_format,
-                        'Y': yellow_format,
-                        'G': green_format,
-                        'W': cell_format
-                    }[zone]
-                    worksheet.write(row_num, col, value, format_to_use)
+                    format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(zone, 'cell')
+                
+                worksheet.write(row_num, col, value, formats[format_key])
 
-            # Set row height to fit text
-            # Calculate criteria counts and percentages
-            total_criteria = Answer.objects.filter(s_report=report).count()
-            green_count = Answer.objects.filter(s_report=report, zone='G').count()
-            yellow_count = Answer.objects.filter(s_report=report, zone='Y').count() 
-            red_count = Answer.objects.filter(s_report=report, zone='R').count()
+            # Calculate and write zone statistics
+            answers = Answer.objects.filter(s_report=report)
+            total = answers.count()
+            zone_counts = {
+                'G': answers.filter(zone='G').count(),
+                'Y': answers.filter(zone='Y').count(),
+                'R': answers.filter(zone='R').count()
+            }
 
-            # Calculate percentages
-            green_pct = f"{(green_count/total_criteria)*100:.1f}%" if total_criteria > 0 else "0.0%"
-            yellow_pct = f"{(yellow_count/total_criteria)*100:.1f}%" if total_criteria > 0 else "0.0%"
-            red_pct = f"{(red_count/total_criteria)*100:.1f}%" if total_criteria > 0 else "0.0%"
+            col = len(header) - 6
+            for zone, count in zone_counts.items():
+                pct = f"{(count/total)*100:.1f}%" if total else "0.0%"
+                format_key = {'G': 'green', 'Y': 'yellow', 'R': 'red'}[zone]
+                worksheet.write(row_num, col, count, formats[format_key])
+                worksheet.write(row_num, col + 1, pct, formats[format_key])
+                col += 2
 
-            # Write counts and percentages
-            worksheet.write(row_num, len(header)-6, green_count, green_format)
-            worksheet.write(row_num, len(header)-5, green_pct, green_format)
-            worksheet.write(row_num, len(header)-4, yellow_count, yellow_format)
-            worksheet.write(row_num, len(header)-3, yellow_pct, yellow_format)
-            worksheet.write(row_num, len(header)-2, red_count, red_format)
-            worksheet.write(row_num, len(header)-1, red_pct, red_format)
-            worksheet.set_row(row_num, len(school.name) * 1)  # Auto-fit row height
+            worksheet.set_row(row_num, len(school.__str__()))
             row_num += 1
 
+    # Write summary rows
+    write_summary_rows(worksheet, row_num, s_reports, sections, formats)
 
+    # Write detailed section analysis
+    write_section_details(worksheet, row_num + 2, sections, s_reports, formats)
 
-    total = [
-        'Итого',
-        '',
-        '',
-        0,
-    ]
-    total_sum = 0
-    for section in sections:
-        section_total = Answer.objects.filter(question__in=section.fields.all(), s_report__in=s_reports).aggregate(Sum('points'))['points__sum'] or 0
-        total.append(section_total)
-        total_sum += section_total
-    total[3] = total_sum
-    for col, value in enumerate(total):
-        worksheet.write(row_num, col, value, header_format)
-    row_num += 1
-
-    # Add count of schools in green zone
-    worksheet.merge_range(row_num, 0, row_num, 2, 'Кол-во школ в зелёной зоне', header_format)
-    green_schools_count = len([r for r in s_reports if count_points(r)[0] == 'G'])
-    green_schools = f"{green_schools_count} ({(green_schools_count/len(s_reports))*100:.1f}%)"
-    worksheet.write(row_num, 3, green_schools, green_format)
-    # Add count of schools in green zone for each section
-    for col, section in enumerate(sections, start=4):
-        green_section_count = len([r for r in s_reports if count_section_points(r, section) == 'G'])
-        green_section_schools = f"{green_section_count} ({(green_section_count/len(s_reports))*100:.1f}%)"
-        worksheet.write(row_num, col, green_section_schools, green_format)
-    row_num += 1
-
-    # Add count of schools in yellow zone
-    worksheet.merge_range(row_num, 0, row_num, 2, 'Кол-во школ в жёлтой зоне', header_format)
-    yellow_schools_count = len([r for r in s_reports if count_points(r)[0] == 'Y'])
-    yellow_schools = f"{yellow_schools_count} ({(yellow_schools_count/len(s_reports))*100:.1f}%)"
-    worksheet.write(row_num, 3, yellow_schools, yellow_format)
-    # Add count of schools in yellow zone for each section
-    for col, section in enumerate(sections, start=4):
-        yellow_section_count = len([r for r in s_reports if count_section_points(r, section) == 'Y'])
-        yellow_section_schools = f"{yellow_section_count} ({(yellow_section_count/len(s_reports))*100:.1f}%)"
-        worksheet.write(row_num, col, yellow_section_schools, yellow_format)
-    row_num += 1
-
-    # Add count of schools in red zone
-    worksheet.merge_range(row_num, 0, row_num, 2, 'Кол-во школ в красной зоне', header_format)
-    red_schools_count = len([r for r in s_reports if count_points(r)[0] == 'R'])
-    red_schools = f"{red_schools_count} ({(red_schools_count/len(s_reports))*100:.1f}%)"
-    worksheet.write(row_num, 3, red_schools, red_format)
-    # Add count of schools in red zone for each section
-    for col, section in enumerate(sections, start=4):
-        red_section_count = len([r for r in s_reports if count_section_points(r, section) == 'R'])
-        red_section_schools = f"{red_section_count} ({(red_section_count/len(s_reports))*100:.1f}%)"
-        worksheet.write(row_num, col, red_section_schools, red_format)
-    row_num += 1
-
-    # Add section field details
-    row_num += 1
-    for section in sections:
-        # Write section header
-        worksheet.write(row_num, 0, f'Раздел {section.number}', header_format)
-        row_num += 1
-
-        # Write field headers
-        worksheet.write(row_num, 0, 'ТУ/ДО', header_format) 
-        worksheet.write(row_num, 1, 'Уровень образования', header_format)
-        worksheet.write(row_num, 2, 'Школа', header_format)
-        worksheet.write(row_num, 3, 'Всего баллов', header_format)
-        
-        fields = section.fields.all()
-        for col, field in enumerate(fields, start=4):
-            worksheet.write(row_num, col, field.name, header_format)
-        row_num += 1
-        # Set row height based on longest text in header
-        max_text_length = max(len(str(cell)) for cell in header)
-        # Estimate ~15 chars per line at column width, add padding
-        num_lines = (max_text_length / 15) + 1  
-        row_height = num_lines * 15 # ~15 points per line
-        worksheet.set_row(row_num-1, row_height)
-
-        # Write data for each school
-        for report in s_reports:
-            school = report.school
-            row = [
-                school.ter_admin.__str__(),
-                school.get_ed_level_display(),
-                school.name,
-                0
-            ]
-            
-            section_total = 0
-            for field in fields:
-                answer = Answer.objects.filter(question=field, s_report=report).first()
-                points = answer.points if answer else 0
-                zone = answer.zone if answer else 'W'
-                row.append(points)
-
-                section_total += points
-            if section_total < section.yellow_zone_min:
-                section_zone = red_format
-            elif section_total >= section.green_zone_min:
-                section_zone = green_format
-            elif section_total >= section.yellow_zone_min:
-                section_zone = yellow_format
-            
-            row[3] = section_total
-
-            for col, value in enumerate(row):
-                if col < 3:  # School info and total columns
-                    worksheet.write(row_num, col, value, cell_format)
-                elif col == 3:
-                    worksheet.write(row_num, col, section_total, section_zone)
-                else:  # Field points columns
-                    field = fields[col-4]
-                    answer = Answer.objects.filter(question=field, s_report=report).first()
-                    zone = answer.zone if answer else 'W'
-                    format_to_use = {
-                        'R': red_format,
-                        'Y': yellow_format,
-                        'G': green_format,
-                        'W': cell_format
-                    }[zone]
-
-                    worksheet.write(row_num, col, value, format_to_use)
-
-            worksheet.set_row(row_num, len(school.name) * 1)
-            row_num += 1
-
-        # Write totals for this section
-        total = ['Итого', '', '', 0]
-        total_sum = 0
-        for field in fields:
-            field_total = Answer.objects.filter(question=field, s_report__in=s_reports).aggregate(Sum('points'))['points__sum'] or 0
-            total.append(field_total)
-            total_sum += field_total
-        total[3] = total_sum
-
-        # Add count of schools in green zone
-        worksheet.merge_range(row_num, 0, row_num, 2, 'Кол-во школ в зелёной зоне', header_format)
-        green_schools_count = len([r for r in s_reports if count_points(r)[0] == 'G'])
-        green_schools = f"{green_schools_count} ({(green_schools_count/len(s_reports))*100:.1f}%)"
-        worksheet.write(row_num, 3, green_schools, green_format)
-        # Add count of schools in green zone for each field
-        for col, field in enumerate(fields, start=4):
-            green_field_count = len([r for r in s_reports if Answer.objects.filter(question=field, s_report=r).first() and Answer.objects.filter(question=field, s_report=r).first().zone == 'G'])
-            green_field_schools = f"{green_field_count} ({(green_field_count/len(s_reports))*100:.1f}%)"
-            worksheet.write(row_num, col, green_field_schools, green_format)
-        row_num += 1
-
-        # Add count of schools in yellow zone
-        worksheet.merge_range(row_num, 0, row_num, 2, 'Кол-во школ в жёлтой зоне', header_format)
-        yellow_schools_count = len([r for r in s_reports if count_points(r)[0] == 'Y'])
-        yellow_schools = f"{yellow_schools_count} ({(yellow_schools_count/len(s_reports))*100:.1f}%)"
-        worksheet.write(row_num, 3, yellow_schools, yellow_format)
-        # Add count of schools in yellow zone for each field
-        for col, field in enumerate(fields, start=4):
-            yellow_field_count = len([r for r in s_reports if Answer.objects.filter(question=field, s_report=r).first() and Answer.objects.filter(question=field, s_report=r).first().zone == 'Y'])
-            yellow_field_schools = f"{yellow_field_count} ({(yellow_field_count/len(s_reports))*100:.1f}%)"
-            worksheet.write(row_num, col, yellow_field_schools, yellow_format)
-        row_num += 1
-
-        # Add count of schools in red zone
-        worksheet.merge_range(row_num, 0, row_num, 2, 'Кол-во школ в красной зоне', header_format)
-        red_schools_count = len([r for r in s_reports if count_points(r)[0] == 'R'])
-        red_schools = f"{red_schools_count} ({(red_schools_count/len(s_reports))*100:.1f}%)"
-        worksheet.write(row_num, 3, red_schools, red_format)
-        # Add count of schools in red zone for each field
-        for col, field in enumerate(fields, start=4):
-            red_field_count = len([r for r in s_reports if Answer.objects.filter(question=field, s_report=r).first() and Answer.objects.filter(question=field, s_report=r).first().zone == 'R'])
-            red_field_schools = f"{red_field_count} ({(red_field_count/len(s_reports))*100:.1f}%)"
-            worksheet.write(row_num, col, red_field_schools, red_format)
-        
-        row_num += 2
-
-    # Close workbook and prepare response
+    # Generate response
     workbook.close()
     output.seek(0)
-
+    
     response = HttpResponse(
         output.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename="ter_admins_report_{year}.xlsx"'
-
+    
     return response
+
+def write_section_details(worksheet, row_num, sections, s_reports, formats):
+    for section in sections:
+        # Write section header
+        worksheet.write(row_num, 0, f'Раздел {section.number}. {section.name}', formats['header'])
+        row_num += 1
+
+        # Write field headers
+        headers = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Всего баллов']
+        sections_objs = Section.objects.filter(name=section.name)
+        fields = Field.objects.filter(sections__in=sections_objs).distinct('number').prefetch_related('answers')
+        fields = sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
+        for field in fields:
+            headers.append(f'{field.number}. {field.name}')
+
+        for col, header in enumerate(headers):
+            worksheet.write(row_num, col, header, formats['header'])
+        row_num += 1
+
+        # Write school data for each field
+        for s_report in s_reports:
+            school = s_report.school
+            row = [
+                str(school.ter_admin),
+                school.get_ed_level_display(),
+                school.__str__(),
+                s_report.points
+            ]
+            
+            for field in fields:
+                answer = Answer.objects.filter(question=field, s_report=s_report).first()
+                points = answer.points if answer else "-"
+                zone = answer.zone if answer else 'W'
+                format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(zone, 'cell')
+                row.append(points)
+                worksheet.write(row_num, len(row)-1, points, formats[format_key])
+            
+            for col in range(4):
+                worksheet.write(row_num, col, row[col], formats['cell'])
+            row_num += 1
+        
+        row_num += 1
+
+    return row_num
+
+def write_summary_rows(worksheet, row_num, s_reports, sections, formats):
+    # Write totals row
+    total_row = ['Итого', '', '', 0]
+    total_sum = 0
+    
+    for section in sections:
+        sections_objs = Section.objects.filter(name=section.name)
+        fields = Field.objects.filter(sections__in=sections_objs).distinct('number').prefetch_related('answers')
+        fields = sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
+        section_total = Answer.objects.filter(
+            question__in=fields, 
+            s_report__in=s_reports
+        ).aggregate(Sum('points'))['points__sum'] or 0
+        total_row.append(section_total)
+        total_sum += section_total
+    
+    total_row[3] = total_sum
+    
+    for col, value in enumerate(total_row):
+        worksheet.write(row_num, col, value, formats['header'])
+    
+    return row_num + 1
+
+
+def count_section_points(s_report, section):
+    from reports.models import Answer
+    try:
+        section_obj = Section.objects.filter(number=section.number, report=s_report.report).first()
+        points__sum = Answer.objects.filter(question__in=section_obj.fields.all(), s_report=s_report).aggregate(Sum('points'))['points__sum']
+        if points__sum < section_obj.yellow_zone_min:
+            return "R"
+        elif points__sum >= section_obj.green_zone_min:
+            return "G"
+        return "Y"
+    except:
+        return "R"
+

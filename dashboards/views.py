@@ -104,6 +104,7 @@ def ter_admins_dash(request):
             'red_zone_answers': 0,
             'answers': 0
         }
+        # s_report.sections.all().delete()
         # for section in sections:
         #     try:
         #         section_obj = Section.objects.filter(number=section.number, report=s_report.report).first()
@@ -168,6 +169,15 @@ def ter_admins_dash(request):
 
     stats, overall_stats = utils.calculate_stats(year, schools_reports, sections)
     sections_data = {}
+
+    sections_data = {}
+    for section in sections:
+        sections_objs = Section.objects.filter(name=section.name)
+        fields = Field.objects.filter(sections__in=sections_objs).distinct('number').prefetch_related('answers')
+        sections_data[section.number] = {
+            'name': section.name,
+            'fields': sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
+        }
 
     return render(request, "dashboards/ter_admins_dash.html", {
         "years": years,

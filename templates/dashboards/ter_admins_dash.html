@@ -168,8 +168,8 @@
                                 <th scope="row" class="section-hdr  sticky-top" style="cursor: pointer;" onclick="sortTable(0, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Школа</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                                 <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(1, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>ТУ/ДО</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                                 <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(2, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Уровень образования</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
-                                <th scope="row" class="section-hdr sticky-top" style="text-align: center; cursor: pointer;" onclick="sortTable(3, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
-                                {% for field in section|dictsort_fields %}
+                                <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(3, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center; text-align: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                                {% for field in sections_data|get_item:section.number|get_item:'fields' %}
                                     <th  class="section-hdr sticky-top" scope="row" style="text-align: center; cursor: pointer;" onclick="sortTable({{ forloop.counter|add:3 }}, 'table-{{ section.id }}')">
                                         <div style="display: flex; gap: 5px; align-items: center;"><div>{{ section.number }}.{{ field.number }}. {{ field.name }}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div>
                                     </th>
@@ -181,9 +181,15 @@
                                     <td scope="row">{{ s_report.school.ter_admin }}</td>
                                     <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
                                     <td scope="row" style="text-align: center;">{{ school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'points' }}</td>
-                                    {% for field in school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'fields' %}
+                                    {% for field in sections_data|get_item:section.number|get_item:'fields' %}
                                         <td scope="row" style="text-align: center;">
-                                            <div style="display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;">{% if s_report.report.is_counting %}<div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{ school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'fields'|get_item:field|get_item:'zone'|get_color }}; width: 15px; height: 15px; border-radius: 15px"></div>{% endif %}<div>{{ school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'fields'|get_item:field|get_item:'points' }}</div></div>
+                                            <div style="display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;">
+                                                {% if s_report.report.is_counting %}
+                                                    <div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{ school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'fields'|get_item:field|get_item:'zone'|get_color }}; width: 15px; height: 15px; border-radius: 15px">
+                                                    </div>
+                                                {% endif %}
+                                            <div>{{ school_reports_data|get_item:s_report.id|get_item:section.number|get_field_value:field }}</div>
+                                        </div>
                                         </td>
                                     {% endfor %}
                                 </tr>
@@ -192,10 +198,10 @@
                                 <td scope="row" colspan="1" style="text-align: left;"><b>Итого</b></td>
                                 <td colspan="2"></td>
                                 <td scope="row" style="text-align: center;"><b>{{ schools_reports|get_point_sum_section:section }}</b></td>
-                                {% for field in section|dictsort_fields %}
+                                {% for field in sections_data|get_item:section.number|get_item:'fields' %}
                                     <td scope="row" style="text-align: center;"><b>{{ fields_sum_data|get_item:field.id }}</b></td>
                                 {% endfor %}
-                            </tr>
+                            </tr> 
                             <tr>
                                 <td style="color: green; font-weight: bold"><b>Кол-во школ в зелёной зоне</b></td>
                                 <td colspan></td>
