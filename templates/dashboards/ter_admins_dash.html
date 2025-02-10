@@ -185,7 +185,7 @@
                                         <td scope="row" style="text-align: center;">
                                             <div style="display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;">
                                                 {% if s_report.report.is_counting %}
-                                                    <div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{ school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'fields'|get_item:field|get_item:'zone'|get_color }}; width: 15px; height: 15px; border-radius: 15px">
+                                                    <div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{ school_reports_data|get_item:s_report.id|get_item:section.number|get_field_zone:field }}; width: 15px; height: 15px; border-radius: 15px">
                                                     </div>
                                                 {% endif %}
                                             <div>{{ school_reports_data|get_item:s_report.id|get_item:section.number|get_field_value:field }}</div>

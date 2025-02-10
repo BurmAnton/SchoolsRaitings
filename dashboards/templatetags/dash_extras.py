@@ -22,6 +22,21 @@ def get_field_value(sreport_fields, field):
         return sreport_fields['fields'][field.number]['points']
     except (TypeError, KeyError):
         return "-"
+    
+
+@register.filter
+def get_field_zone(sreport_fields, field):
+    try:
+        zone = sreport_fields['fields'][field.number]['zone']
+        if zone == "R":
+            return "red"
+        if zone == "Y":
+            return "#ffc600"
+        if zone == "G":
+            return "green"
+        return "white"
+    except (TypeError, KeyError):
+        return "-"
 
 @register.filter
 def dictsort_fields_dash(fields):

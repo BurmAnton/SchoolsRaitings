@@ -150,6 +150,7 @@ def ter_admins_dash(request):
                         'points': answer.points,
                         'zone': answer.zone
                     }
+    
                     fields_data[section_number]['fields'][field.number]['points'] += answer.points
                     school_reports_data[s_report.id]['answers'] += 1
                     if answer.zone == 'G':
