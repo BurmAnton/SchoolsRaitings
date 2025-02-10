@@ -179,6 +179,12 @@ def ter_admins_dash(request):
             'name': section.name,
             'fields': sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
         }
+    fields_sum_data = {}
+    sections = Section.objects.filter(report__in=reports).distinct()
+    # fields = Field.objects.filter(sections__in=sections).distinct('number').prefetch_related('answers')
+    for key, section in sections_data.items():
+        for field in section['fields']:
+            fields_sum_data[field.id] = field.answers.filter(s_report__in=schools_reports).aggregate(Sum('points'))['points__sum'] or 0
 
     return render(request, "dashboards/ter_admins_dash.html", {
         "years": years,
@@ -194,7 +200,8 @@ def ter_admins_dash(request):
         'overall_stats': overall_stats,
         'school_reports_data': school_reports_data,
         'fields_data': fields_data,
-        'sections_data': sections_data
+        'sections_data': sections_data,
+        'fields_sum_data': fields_sum_data
     })
 
 

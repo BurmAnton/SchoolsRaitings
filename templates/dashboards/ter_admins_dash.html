@@ -77,7 +77,6 @@
                     <table class="table" id="table-overall">
                         <tr>
                             <th scope="row"class="sticky-top" style="vertical-align: middle;  cursor: pointer;"onclick="sortTable(0)"><div style="display: flex; gap: 5px; align-items: center;" colspan="2"><div>Школа</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
-                            <th></th>
                             <th scope="row" class="sticky-top" style="vertical-align: middle; cursor: pointer;" onclick="sortTable(1)"><div style="display: flex; gap: 5px; align-items: center;"><div>ТУ/ДО</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             <th scope="row" class="sticky-top" style="vertical-align: middle; cursor: pointer;" onclick="sortTable(2)"><div style="display: flex; gap: 5px; align-items: center;"><div>Уровень образования</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             <th scope="row" class="sticky-top" style="text-align: center; vertical-align: middle; cursor: pointer; " onclick="sortTable(3)"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
@@ -121,7 +120,7 @@
                             <td scope="row" colspan="2" style="text-align: left;" class="sticky-row"><b>Итого</b></td>
                             <td colspan="2"></td>
                             <td scope="row" style="text-align: center;"><b>{{ schools_reports|get_point_sum }}</b></td>
-                            {% for section in sections.all|dictsortreversed:"id"  %}
+                            {% for section in sections|dictsort:"number" %}
                                 <td scope="row"style="text-align: center;"><b>{{ schools_reports|get_point_sum_section:section }}</b></td>
                             {% endfor %}
                             <td colspan="6"></td>

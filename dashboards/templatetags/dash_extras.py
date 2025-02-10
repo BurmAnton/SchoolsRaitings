@@ -175,10 +175,8 @@ def get_color_field_dash(answers, field):
 
 @register.filter
 def get_point_sum_section(s_reports, section):
-    section_sreport = SectionSreport.objects.filter(s_report__in=s_reports, section=section).first()
-    if section_sreport:
-        return format_point(section_sreport.points)
-    return "-"
+    points = SectionSreport.objects.filter(s_report__in=s_reports, section__number=section.number).aggregate(Sum('points'))['points__sum'] or 0
+    return format_point(points)
 
 @register.filter
 def get_field_points(s_report, field):
