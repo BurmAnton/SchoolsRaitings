@@ -180,7 +180,6 @@ def ter_admins_dash(request):
             'fields': sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
         }
     fields_sum_data = {}
-    sections = Section.objects.filter(report__in=reports).distinct()
     # fields = Field.objects.filter(sections__in=sections).distinct('number').prefetch_related('answers')
     for key, section in sections_data.items():
         for field in section['fields']:

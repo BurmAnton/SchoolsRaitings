@@ -170,12 +170,15 @@ def get_links(answers, question):
         return []
 
 
-@register.filter
-def get_link(answers, question):
-    answer = answers.get(question=question)
-    if answer.link is not None:
-        return answer.link
-    return ""
+@register.filter 
+def get_link(answers, question): 
+    try: 
+        answer = answers.get(question=question) 
+        if answer.link is not None: 
+            return answer.link 
+        return "" 
+    except: 
+        return ""
 
 
 @register.filter
