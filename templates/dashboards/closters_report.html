@@ -35,11 +35,7 @@
                         <option value="{{ ter_admins.0.id }}" selected>{{ ter_admins.0 }}</option>
                     {% else %}
                         {% for ter_admin in ter_admins %}
-                            {% if forloop.first %}
-                                <option value="{{ ter_admin.id }}" selected>{{ ter_admin }}</option>
-                            {% else %}
                                 <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i" == filter|get_item:"ter_admin" %}selected{% endif %}>{{ ter_admin }}</option>
-                            {% endif %}
                         {% endfor %}
                     {% endif %}
                 </select>
@@ -63,8 +59,12 @@
             
         </div>
         <div style="width: 100%; display: flex; justify-content: space-between;flex-direction: row-reverse; margin-top: 10px;">
-            <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
+            <div style="display: flex; gap: 10px;">
+                <button style="width: 250px" name="download" class="btn btn-sm btn-outline-primary" type="submit">Скачать в Excel</button>
+                <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
+            </div>
             {% if filter is not None %}<a style="width: 150px" href="{% url 'ter_admins_dash' %}" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
+            
         </div>
     </form>
     <div id="ReportSchools">

@@ -86,23 +86,28 @@ def get_color(zone):
 @register.filter
 def get_section_colord(s_report, section):
     sections = Section.objects.filter(name=section.name, report=s_report.report)
-    if sections.count() > 0:
-        questions = sections[0].fields.all()
-    else:
+    if not sections.exists():
         return 'white'
 
-    points__sum = SectionSreport.objects.filter(s_report=s_report, section=section).first().points
-    if points__sum is None:
-        return 'white'
-    if s_report.report.is_counting == False:
-        return 'white'
     try:
-        if points__sum < section.yellow_zone_min:
+        section_report = SectionSreport.objects.filter(
+            s_report=s_report, 
+            section=section
+        ).first()
+        
+        if not section_report or section_report.points is None:
+            return 'white'
+            
+        if not s_report.report.is_counting:
+            return 'white'
+            
+        if section_report.points < section.yellow_zone_min:
             return "red"
-        elif points__sum >= section.green_zone_min:
+        elif section_report.points >= section.green_zone_min:
             return "green"
         return "#ffc600"
-    except: return 'red'
+    except Exception:
+        return 'white'
 
 
 @register.filter        
@@ -233,11 +238,6 @@ def avg_value_section(question, s_reports):
 
     rounded_avg = round(avg_points, 1)
     return format_point(rounded_avg)
-
-
-@register.filter
-def get_school_report_chart(categories, section_data):
-    return utils.generate_school_report_chart(section_data, categories)
 
 
 @register.filter

@@ -4,14 +4,24 @@ from django.db.models.deletion import CASCADE, SET_NULL
 from django.db.models.signals import pre_save, post_save, m2m_changed
 from django.dispatch import receiver
 from django.db.models import Sum, Max
+from django.urls import reverse
+import logging
 
 from tinymce import models as tinymce_models
+
+from users.models import Notification, User
+from schools.models import School, SchoolCloster
+# Import utils separately to avoid circular imports
+from reports import utils
+
+logger = logging.getLogger(__name__)
 
 from reports import utils
 from reports.utils import count_report_points, create_report_notifications
 from reports.utils import count_points as reports_count_points
-from users.models import Notification, User
-from schools.models import School, SchoolCloster
+
+from django.core.cache import cache
+from common.utils import get_cache_key
 
 
 class Report(models.Model):
@@ -701,3 +711,32 @@ def auto_delete_file_on_change(sender, instance, **kwargs):
     if not old_file == new_file and old_file.name is not None and old_file.name != "":
         if os.path.isfile(old_file.path):
             os.remove(old_file.path)
+
+@receiver(post_save, sender='reports.Answer')
+def update_sections_on_answer_save(sender, instance, created, **kwargs):
+    """
+    Signal receiver to update SectionSreport when an Answer is saved
+    """
+    if instance.s_report_id:
+        utils.update_section_sreports(instance.s_report)
+
+@receiver(post_save, sender=SchoolReport)
+def invalidate_dashboard_cache(sender, instance, **kwargs):
+    """Invalidate all dashboard caches for this report"""
+    # Create a key that includes the report id
+    cache_key = get_cache_key('ter_admins_dash', 
+        year=instance.report.year,
+        report=str(instance.report_id)
+    )
+    cache.delete(cache_key)
+
+@receiver(post_save, sender=Answer)
+def invalidate_dashboard_cache_on_answer(sender, instance, **kwargs):
+    """Invalidate dashboard cache when an answer is updated"""
+    if instance.s_report_id:
+        # Create a key that includes the report id
+        cache_key = get_cache_key('ter_admins_dash', 
+            year=instance.s_report.report.year,
+            report=str(instance.s_report.report_id)
+        )
+        cache.delete(cache_key)

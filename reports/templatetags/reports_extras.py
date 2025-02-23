@@ -16,12 +16,20 @@ def get_item(dictionary, key):
 
 
 @register.filter
-def dictsort_fields(section):
-    from reports.models import Field, Section
-    fields = ()
-    sections = Section.objects.filter(name=section.name)
-    fields = Field.objects.filter(sections__in=sections).distinct('number').prefetch_related('answers')
-    return sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
+def dictsort_fields(sections):
+    if not sections:
+        return []
+    
+    # If sections is a queryset, we can use it directly
+    if hasattr(sections, 'model'):
+        return sorted(sections, key=lambda x: [int(n) for n in str(x.number).split('.')])
+    
+    # If sections is a single section object
+    if hasattr(sections, 'name'):
+        related_sections = Section.objects.filter(name=sections.name)
+        return sorted(related_sections, key=lambda x: [int(n) for n in str(x.number).split('.')])
+    
+    return sections  # Return as-is if we can't sort it
 
 
 @register.filter

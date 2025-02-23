@@ -1,46 +1,17 @@
 from decimal import Decimal
-import matplotlib.pyplot as plt
-import io
-import base64
-from textwrap import fill
-from django.utils.html import mark_safe
-from django.db.models import Sum
+from django.db.models import Sum, Avg, Max
+from common.utils import get_cache_key
 
 from reports.models import Answer, Report, SchoolReport, Section, SectionSreport, Field
 from reports.utils import count_points, count_points_field
 
-
-# Function to generate chart for school report
-def generate_school_report_chart(data, categories):
-    plt.figure(figsize=(12, 5))  # Adjust figure size
-    x = range(len(categories))
-    width = 0.5 / len(data)  # Adjust width based on the number of years
-
-    # Plot bars for each year
-    for i, (year, values) in enumerate(data.items()):
-        plt.bar([j + i * width for j in x], values, width=width, label=str(year), align="center", color="#a61849" if i % 2 == 0 else "#ffc600")
-    
-    # Wrap the category labels to prevent overlap
-    wrapped_categories = [fill((f"{label.number }. { label.name }"), width=30) for label in categories]
-    plt.xticks([i + (len(data) / 2 - 0.5) * width for i in x], wrapped_categories, ha="center", fontsize=10, fontweight="300")
-    plt.ylabel("Баллы", fontsize=12, fontweight="300")
-    plt.legend(fontsize=10, loc="upper right", frameon=True, fancybox=True, shadow=True)
-    plt.tight_layout()
-    
-    # Save the plot to a BytesIO object
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png")
-    buf.seek(0)
-    image_png = buf.getvalue()
-    buf.close()
-
-    # Encode the image to base64 to use it in an HTML context
-    image_base64 = base64.b64encode(image_png).decode("utf-8")
-    return mark_safe(f'<img src="data:image/png;base64,{image_base64}"/>')
-
 def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
     stats = {}
     section_data = {}
+    
+    # Get distinct sections by number
+    distinct_sections = sections.distinct('number').order_by('number')
+    
     for year in f_years:
         stats[year] = {
             "green_zone": SchoolReport.objects.filter(zone="G", report__year=year).count(),
@@ -48,17 +19,31 @@ def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
             "red_zone": SchoolReport.objects.filter(zone="R", report__year=year).count(),
         }
         section_data[year] = []
-        for section in sections:
-            section_obj = Section.objects.filter(name=section.name, report__in=reports, report__year=year)
-            
-            section_data[year].append(
-                Answer.objects.filter(question__sections__in=section_obj, s_report__report__year=year).aggregate(points_sum=Sum("points"))["points_sum"] or Decimal(0)
+        
+        for section in distinct_sections:
+            # Get all sections with the same number for this year
+            year_sections = Section.objects.filter(
+                number=section.number,
+                report__in=reports,
+                report__year=year
             )
+            
+            # Calculate points for all fields in these sections
+            points_sum = Answer.objects.filter(
+                question__sections__in=year_sections,
+                s_report__report__year=year
+            ).aggregate(points_sum=Sum("points"))["points_sum"] or Decimal(0)
+            
+            section_data[year].append(points_sum)
+            
+            # Initialize stats for this section
             stats[year][section.name] = {
                 "green_zone": 0,
                 "yellow_zone": 0,
                 "red_zone": 0,
             }
+            
+            # Calculate zone stats
             s_reports_year = s_reports.filter(report__year=year)
             for s_report in s_reports_year:
                 color = count_section_points(s_report, section)
@@ -68,6 +53,7 @@ def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
                     stats[year][section.name]["yellow_zone"] += 1
                 elif color == "R":
                     stats[year][section.name]["red_zone"] += 1
+                    
     return stats, section_data
 
 def calculate_stats(year, s_reports_year, sections):
@@ -78,8 +64,6 @@ def calculate_stats(year, s_reports_year, sections):
         "yellow_zone": [0, "0.0%"], 
         "red_zone": [0, "0.0%"]
     }
-
-    # Prefetch related data in a single query
 
     s_reports_count = s_reports_year.count()
 
@@ -105,7 +89,7 @@ def calculate_stats(year, s_reports_year, sections):
                     zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[section_sreport.zone]
                     stats[section_sreport.section.number][zone][0] += 1
             except:
-                breakpoint()
+                continue
 
     # Calculate all percentages
     if s_reports_count > 0:
@@ -345,4 +329,331 @@ def count_section_points(s_report, section):
         return "Y"
     except:
         return "R"
+
+def generate_school_report_csv(year, school, s_reports, sections):
+    import xlsxwriter
+    from django.http import HttpResponse
+    from io import BytesIO
+
+    # Create workbook
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    
+    # Define formats
+    formats = {
+        'header': workbook.add_format({
+            'bold': True, 'align': 'center', 'valign': 'vcenter',
+            'text_wrap': True, 'border': 1
+        }),
+        'cell': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter',
+            'text_wrap': True, 'border': 1
+        }),
+        'red': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'text_wrap': True,
+            'border': 1, 'bg_color': '#FFC7CE'
+        }),
+        'yellow': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'text_wrap': True,
+            'border': 1, 'bg_color': '#FFEB9C'
+        }),
+        'green': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'text_wrap': True,
+            'border': 1, 'bg_color': '#C6EFCE'
+        }),
+        'section_header': workbook.add_format({
+            'bold': True, 'align': 'left', 'valign': 'vcenter',
+            'text_wrap': True, 'border': 1, 'bg_color': '#E7E6E6'
+        })
+    }
+
+    # Create main worksheet
+    worksheet = workbook.add_worksheet("Сводный отчет")
+
+    # Write headers
+    header = ['Год', 'ТУ/ДО', 'Уровень образования', 'Школа', 'Итого баллов']
+    
+    # Add section headers
+    for section in sections:
+        header.append(f"{section.number}. {section.name}")
+
+    # Write header row and set column widths
+    for col, value in enumerate(header):
+        worksheet.write(0, col, value, formats['header'])
+        width = min(max(len(value) * 1.1, 20), 50)
+        worksheet.set_column(col, col, width)
+
+    # Write summary data rows
+    row_num = 1
+    for s_report in s_reports:
+        # Basic report info
+        row = [
+            s_report.report.year,
+            str(school.ter_admin),
+            school.get_ed_level_display(),
+            school.__str__(),
+            s_report.points
+        ]
+
+        # Add section points
+        for section in sections:
+            section_report = SectionSreport.objects.filter(
+                s_report=s_report,
+                section__number=section.number
+            ).first()
+            points = section_report.points if section_report else 0
+            row.append(points)
+
+        # Write row data with appropriate formatting
+        for col, value in enumerate(row):
+            format_key = 'cell'
+            if col == 4:  # Total points column
+                format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(s_report.zone, 'cell')
+            elif col >= 5:  # Section columns
+                section = sections[col-5]
+                section_report = SectionSreport.objects.filter(
+                    s_report=s_report,
+                    section__number=section.number
+                ).first()
+                if section_report:
+                    format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(section_report.zone, 'cell')
+            
+            worksheet.write(row_num, col, value, formats[format_key])
+
+        row_num += 1
+
+    # Create detailed worksheets for each section
+    for section in sections:
+        worksheet = workbook.add_worksheet(f"Раздел {section.number}")
+        
+        # Write section header
+        worksheet.merge_range(0, 0, 0, 4, f"{section.number}. {section.name}", formats['section_header'])
+        
+        # Write column headers
+        headers = ['Год', 'ТУ/ДО', 'Школа', 'Показатель', 'Баллы']
+        for col, header in enumerate(headers):
+            worksheet.write(1, col, header, formats['header'])
+            worksheet.set_column(col, col, 20)
+        
+        row_num = 2
+        for s_report in s_reports:
+            # Get all fields (questions) for this section
+            fields = Field.objects.filter(sections=section).distinct('number').order_by('number')
+            
+            for field in fields:
+                answer = Answer.objects.filter(
+                    question=field,
+                    s_report=s_report
+                ).first()
+                
+                row = [
+                    s_report.report.year,
+                    str(school.ter_admin),
+                    school.__str__(),
+                    f"{section.number}.{field.number}. {field.name}",
+                    answer.points if answer else 0
+                ]
+                
+                # Write row with appropriate formatting
+                format_key = 'cell'
+                if answer:
+                    format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(answer.zone, 'cell')
+                
+                for col, value in enumerate(row):
+                    worksheet.write(row_num, col, value, formats['cell' if col < 4 else format_key])
+                
+                row_num += 1
+            
+            # Add a blank row between years
+            row_num += 1
+
+    # Close workbook
+    workbook.close()
+    output.seek(0)
+    
+    # Generate response
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="school_report_{school.id}_{year}.xlsx"'
+    
+    return response
+
+def generate_closters_report_csv(year, schools, s_reports):
+    import xlsxwriter
+    from django.http import HttpResponse
+    from io import BytesIO
+
+    # Create workbook
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    
+    # Define formats
+    formats = {
+        'header': workbook.add_format({
+            'bold': True, 'align': 'center', 'valign': 'vcenter',
+            'text_wrap': True, 'border': 1
+        }),
+        'cell': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter',
+            'text_wrap': True, 'border': 1
+        }),
+        'red': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'text_wrap': True,
+            'border': 1, 'bg_color': '#FFC7CE'
+        }),
+        'yellow': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'text_wrap': True,
+            'border': 1, 'bg_color': '#FFEB9C'
+        }),
+        'green': workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'text_wrap': True,
+            'border': 1, 'bg_color': '#C6EFCE'
+        }),
+        'section_header': workbook.add_format({
+            'bold': True, 'align': 'left', 'valign': 'vcenter',
+            'text_wrap': True, 'border': 1, 'bg_color': '#E7E6E6'
+        })
+    }
+
+    # Create summary worksheet
+    worksheet = workbook.add_worksheet("Итоговые баллы")
+
+    # Write school info headers for summary
+    headers = ['Показатель', 'Максимум', 'Среднее']
+    for s_report in s_reports:
+        school = s_report.school
+        headers.append(f"{school.ter_admin} - {school}")
+
+    # Write headers and set column widths
+    for col, header in enumerate(headers):
+        worksheet.write(0, col, header, formats['header'])
+        width = min(max(len(header) * 1.2, 15), 40)
+        worksheet.set_column(col, col, width)
+
+    # Get sections
+    sections = Section.objects.filter(report__year=year).distinct('number').order_by('number')
+    
+    # Write data for each section in summary
+    row_num = 1
+    for section in sections:
+        # Write section name
+        worksheet.write(row_num, 0, f"{section.number}. {section.name}", formats['section_header'])
+        
+        # Calculate max and average for section
+        section_stats = SectionSreport.objects.filter(
+            s_report__in=s_reports,
+            section__number=section.number
+        ).aggregate(
+            max_points=Max('points'),
+            avg_points=Avg('points')
+        )
+        
+        # Write max and average
+        worksheet.write(row_num, 1, section_stats['max_points'] or 0, formats['cell'])
+        worksheet.write(row_num, 2, round(section_stats['avg_points'] or 0, 1), formats['cell'])
+        
+        # Write points for each school
+        for col, s_report in enumerate(s_reports, 3):
+            section_report = SectionSreport.objects.filter(
+                s_report=s_report,
+                section__number=section.number
+            ).first()
+            points = section_report.points if section_report else 0
+            format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(
+                section_report.zone if section_report else '', 'cell'
+            )
+            
+            worksheet.write(row_num, col, points, formats[format_key])
+        
+        row_num += 1
+
+    # Create worksheet for each section
+    for section in sections:
+        worksheet = workbook.add_worksheet(f"Раздел {section.number}")
+        
+        # Write headers for section worksheet
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header, formats['header'])
+            worksheet.set_column(col, col, width)
+
+        row_num = 1
+        
+        # Write section total row
+        worksheet.write(row_num, 0, f"{section.number}. {section.name}", formats['section_header'])
+        
+        # Calculate and write section totals
+        section_stats = SectionSreport.objects.filter(
+            s_report__in=s_reports,
+            section__number=section.number
+        ).aggregate(
+            max_points=Max('points'),
+            avg_points=Avg('points')
+        )
+        
+        worksheet.write(row_num, 1, section_stats['max_points'] or 0, formats['cell'])
+        worksheet.write(row_num, 2, round(section_stats['avg_points'] or 0, 1), formats['cell'])
+        
+        for col, s_report in enumerate(s_reports, 3):
+            section_report = SectionSreport.objects.filter(
+                s_report=s_report,
+                section__number=section.number
+            ).first()
+            
+            points = section_report.points if section_report else 0
+            format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(
+                section_report.zone if section_report else '', 'cell'
+            )
+            
+            worksheet.write(row_num, col, points, formats[format_key])
+        
+        row_num += 2  # Add blank row after section total
+
+        # Write field data
+        fields = Field.objects.filter(sections=section).distinct('number').order_by('number')
+        for field in fields:
+            worksheet.write(row_num, 0, f"{section.number}.{field.number}. {field.name}", formats['cell'])
+            
+            # Calculate max and average for field
+            field_stats = Answer.objects.filter(
+                question=field,
+                s_report__in=s_reports
+            ).aggregate(
+                max_points=Max('points'),
+                avg_points=Avg('points')
+            )
+            
+            # Write max and average
+            worksheet.write(row_num, 1, field_stats['max_points'] or 0, formats['cell'])
+            worksheet.write(row_num, 2, round(field_stats['avg_points'] or 0, 1), formats['cell'])
+            
+            # Write points for each school
+            for col, s_report in enumerate(s_reports, 3):
+                answer = Answer.objects.filter(
+                    question=field,
+                    s_report=s_report
+                ).first()
+                
+                points = answer.points if answer else 0
+                format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(
+                    answer.zone if answer else '', 'cell'
+                )
+                
+                worksheet.write(row_num, col, points, formats[format_key])
+            
+            row_num += 1
+
+    # Close workbook
+    workbook.close()
+    output.seek(0)
+    
+    # Generate response
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="closters_report_{year}.xlsx"'
+    
+    return response
 

@@ -1,8 +1,11 @@
 from django.urls import reverse
 from django.db.models import Sum, Max
+import logging
 
 from schools.models import School, SchoolCloster
 from users.models import Notification
+
+logger = logging.getLogger(__name__)
 
 
 def select_range_option(options, value):
@@ -99,8 +102,9 @@ def count_section_points(s_report, section):
 
 
 def count_answers_points(answers):
+    """Count points for answers"""
     from reports.models import Answer
-
+    
     for answer in answers:
         field = answer.question
         if field.answer_type == 'LST':
@@ -118,6 +122,38 @@ def count_answers_points(answers):
             else: 
                 answer.points = r_option.points
                 answer.zone = r_option.zone
-        answer.save()
+        answer.save()  # This will trigger the signal to update SectionSreport
+
+
+def update_section_sreports(s_report):
+    """
+    Updates or creates SectionSreport objects for a given SchoolReport
+    """
+    from reports.models import Section, SectionSreport, Answer
+    
+    sections = Section.objects.filter(report=s_report.report).distinct('number').order_by('number')
+    
+    for section in sections:
+        try:
+            section_obj = Section.objects.filter(
+                number=section.number, 
+                report=s_report.report
+            ).first()
+            
+            if section_obj:
+                section_sreport, created = SectionSreport.objects.get_or_create(
+                    s_report=s_report, 
+                    section=section_obj
+                )
+                section_sreport.points = (
+                    Answer.objects.filter(
+                        question__in=section_obj.fields.all(), 
+                        s_report=s_report
+                    ).aggregate(Sum('points'))['points__sum'] or 0
+                )
+                section_sreport.zone = count_section_points(s_report, section_sreport.section)
+                section_sreport.save()
+        except Exception as e:
+            logger.error(f"Error updating section report for section {section.number}: {str(e)}")
 
 
