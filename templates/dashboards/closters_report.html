@@ -35,7 +35,11 @@
                         <option value="{{ ter_admins.0.id }}" selected>{{ ter_admins.0 }}</option>
                     {% else %}
                         {% for ter_admin in ter_admins %}
+                            {% if forloop.first %}
+                                <option value="{{ ter_admin.id }}" selected>{{ ter_admin }}</option>
+                            {% else %}
                                 <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i" == filter|get_item:"ter_admin" %}selected{% endif %}>{{ ter_admin }}</option>
+                            {% endif %}
                         {% endfor %}
                     {% endif %}
                 </select>

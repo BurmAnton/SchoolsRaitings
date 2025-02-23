@@ -292,9 +292,23 @@ def school_report(request):
 @login_required
 @csrf_exempt
 def closters_report(request, year=2024):
+    # Generate cache key based on request parameters
+    cache_key = get_cache_key('closters_report_data',
+        year=request.POST.get('year', year),
+        ter_admin=request.POST.get('ter_admin', ''),
+        closters=','.join(sorted(request.POST.getlist('closters', []))),
+        ed_levels=','.join(sorted(request.POST.getlist('ed_levels', [])))
+    )
+    
+    # Try to get cached data
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return render(request, "dashboards/closters_report.html", cached_data)
+
     ter_admins = TerAdmin.objects.filter(representatives=request.user)
     if not ter_admins.first():
         ter_admins = TerAdmin.objects.all()
+    
     years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
     closters = SchoolCloster.objects.all()
     ed_levels = {
@@ -305,7 +319,7 @@ def closters_report(request, year=2024):
         'G': "10 — 11 классы",
     }
     
-    schools = School.objects.filter(ter_admin__in=ter_admins)
+    schools = School.objects.filter(ter_admin__in=ter_admins).select_related('ter_admin')
     filter = {}
     
     # Get initial year
@@ -332,34 +346,59 @@ def closters_report(request, year=2024):
             filter['ed_levels'] = ed_levels_f
     else:
         year = current_year
-
-    reports = Report.objects.filter(year=year)
-    s_reports = SchoolReport.objects.filter(
-        report__year=year,
-        status='D',
-        school__in=schools
-    )
-
+        schools = schools.filter(ter_admin__name="Центральное управление")
     if 'download' in request.POST:
+        reports = Report.objects.filter(year=year)
+        s_reports = SchoolReport.objects.filter(
+            report__year=year,
+            status='D',
+            school__in=schools
+        )
         return utils.generate_closters_report_csv(year, schools, s_reports)
-    
-    sections = Section.objects.filter(report__year=year).values('number', 'name').distinct('number').order_by('number')
+
+    # Optimize sections and fields query
+    sections_data = Section.objects.filter(
+        report__year=year
+    ).values(
+        'number', 
+        'name'
+    ).distinct('number').order_by('number')
+
     sections_list = []
-    for section in sections:
-        sections = Section.objects.filter(name=section['name'], report__year=year)
+    for section in sections_data:
+        section_objs = Section.objects.filter(
+            name=section['name'], 
+            report__year=year
+        )
+        fields = Field.objects.filter(
+            sections__in=section_objs
+        ).distinct().prefetch_related(
+            'answers__s_report'
+        ).select_related()
+        
         sections_list.append([
             section['number'],
             section['name'],
-            Field.objects.filter(sections__in=sections).distinct().prefetch_related('answers')
+            fields
         ])
 
-    return render(request, "dashboards/closters_report.html", {
+    # Prepare data for caching
+    context_data = {
         'years': years,
         'ter_admins': ter_admins,
         'closters': closters,
         'ed_levels': ed_levels,
-        's_reports': s_reports,
+        's_reports': SchoolReport.objects.filter(
+            report__year=year,
+            status='D',
+            school__in=schools
+        ).select_related('school', 'report'),
         'sections': sections_list,
         'schools': schools,
         'filter': filter
-    })
+    }
+
+    # Cache the data for 5 minutes
+    cache.set(cache_key, context_data, timeout=300)
+
+    return render(request, "dashboards/closters_report.html", context_data)
