@@ -53,21 +53,23 @@ def count_report_points(report):
 
 
 def count_points(s_report):
-    from reports.models import Answer
-
-    report = s_report.report
-    points_sum = round(Answer.objects.filter( s_report=s_report).aggregate(Sum('points'))['points__sum'], 1)
-    if report.is_counting == False:
-        return 'W', points_sum
-    
-    if points_sum < report.yellow_zone_min:
-        report_zone = 'R'
-    elif points_sum >= report.green_zone_min:
-        report_zone = 'G'
-    else:
-        report_zone = 'Y'
-
-    return report_zone, points_sum
+    """Count total points and determine zone for a school report"""
+    try:
+        from reports.models import Answer  # Move import inside function
+        points_sum = Answer.objects.filter(s_report=s_report).aggregate(Sum('points'))['points__sum'] or 0
+        points_sum = round(points_sum, 1)
+        
+        if s_report.report.is_counting == False:
+            return 'W', points_sum
+            
+        if points_sum < s_report.report.yellow_zone_min:
+            return 'R', points_sum
+        elif points_sum >= s_report.report.green_zone_min:
+            return 'G', points_sum
+        else:
+            return 'Y', points_sum
+    except:
+        return 'R', 0
 
 
 def count_points_field(s_report, field):
