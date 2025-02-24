@@ -16,6 +16,11 @@ def get_item(dictionary, key):
 
 
 @register.filter
+def get_sorted_fields(section):
+    return sorted(section.fields.all(), key=lambda x: [int(n) for n in str(x.number).split('.')])
+
+
+@register.filter
 def dictsort_fields(sections):
     if not sections:
         return []

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 from reports import utils
 from reports.utils import count_report_points, create_report_notifications
 from reports.utils import count_points as reports_count_points
+from reports.utils import select_range_option
 
 from django.core.cache import cache
 from common.utils import get_cache_key
@@ -334,50 +335,6 @@ class Option(models.Model):
     def __str__(self):
         return self.name
 
-@receiver(post_save, sender=Option, dispatch_uid='option_save_signal')
-def count_points(sender, instance, using, **kwargs):
-    instance = instance.question
-    match instance.answer_type:
-        case 'BL':
-            try: field_points = instance.bool_points
-            except: pass
-        case 'LST':
-            try: field_points = Option.objects.filter(question=instance).aggregate(Max('points'))['points__max']
-            except: pass
-        case 'NMBR':
-            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
-            except: pass
-        case 'PRC':
-            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
-            except: pass
-    if field_points == None:
-        field_points = 0
-    if instance.points != field_points and field_points is not None:
-        instance.points = field_points
-        instance.save()
-    sections = instance.sections.all()
-    for section in sections:
-        report = section.report
-        report.points = count_report_points(report)
-        report.save()
-    utils.count_answers_points(instance.answers.all())
-    school_reports = SchoolReport.objects.filter(report__sections__in=instance.sections.all())
-    for school_report in school_reports:
-        try:
-            points_sum = round(Answer.objects.filter(s_report=school_report).aggregate(Sum('points'))['points__sum'], 1)
-        except:
-            points_sum = 0
-        if points_sum < school_report.report.yellow_zone_min:
-            report_zone = 'R'
-        elif points_sum >= school_report.report.green_zone_min:
-            report_zone = 'G'
-        else:
-            report_zone = 'Y'
-        school_report.points = points_sum
-        school_report.zone = report_zone
-        school_report.save()
-
-
 class RangeOption(models.Model):
     question = models.ForeignKey(
         Field,
@@ -447,35 +404,6 @@ class RangeOption(models.Model):
 
     def __str__(self):
         return f"{self.question} ({self.range_type})"
-
-
-@receiver(post_save, sender=RangeOption, dispatch_uid='option_save_signal')
-def count_points(sender, instance, using, **kwargs):
-    instance = instance.question
-    match instance.answer_type:
-        case 'BL':
-            try: field_points = instance.bool_points
-            except: pass
-        case 'LST':
-            try: field_points = Option.objects.filter(question=instance).aggregate(Max('points'))['points__max']
-            except: pass
-        case 'NMBR':
-            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
-            except: pass
-        case 'PRC':
-            try: field_points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
-            except: pass
-    if field_points == None:
-        field_points = 0
-    if instance.points != field_points and field_points is not None:
-        instance.points = field_points
-        instance.save()
-    sections = instance.sections.all()
-    for section in sections:
-        report = section.report
-        report.points = count_report_points(report)
-        report.save()
-
 
 
 class SchoolReport(models.Model):
@@ -731,12 +659,159 @@ def invalidate_dashboard_cache(sender, instance, **kwargs):
     cache.delete(cache_key)
 
 @receiver(post_save, sender=Answer)
-def invalidate_dashboard_cache_on_answer(sender, instance, **kwargs):
-    """Invalidate dashboard cache when an answer is updated"""
-    if instance.s_report_id:
-        # Create a key that includes the report id
-        cache_key = get_cache_key('ter_admins_dash', 
-            year=instance.s_report.report.year,
-            report=str(instance.s_report.report_id)
+def invalidate_dashboard_caches(sender, instance, **kwargs):
+    """
+    Signal receiver to invalidate dashboard caches when an Answer is saved
+    """
+    try:
+        s_report = instance.s_report
+        school = s_report.school
+        year = s_report.report.year
+        
+        # Clear all ter_admins_dash caches for this ter_admin and year
+        schools = School.objects.filter(ter_admin=school.ter_admin)
+        reports = Report.objects.filter(year=year)
+        
+        # Generate all possible cache key combinations
+        for s in schools:
+            for r in reports:
+                cache_key = get_cache_key('ter_admins_dash',
+                    year=year,
+                    schools=str(s.id),
+                    reports=str(r.id)
+                )
+                cache.delete(cache_key)
+                
+                # Also try the combined format
+                cache_key = get_cache_key('ter_admins_dash',
+                    year=year,
+                    schools=','.join(sorted(str(school.id) for school in schools)),
+                    reports=','.join(sorted(str(report.id) for report in reports))
+                )
+                cache.delete(cache_key)
+        
+        # Clear closters_report cache
+        cache_key = get_cache_key('closters_report_data',
+            year=year,
+            ter_admin=str(school.ter_admin.id),
+            closters=str(school.closter.id) if school.closter else '',
+            ed_levels=school.ed_level
         )
         cache.delete(cache_key)
+        
+        # Clear any other potential cache keys
+        cache.delete(f'ter_admins_dash_{year}')
+        cache.delete(f'closters_report_{year}')
+        
+    except Exception as e:
+        logger.error(f"Error invalidating cache for Answer {instance.id}: {str(e)}")
+
+def calculate_field_points(field):
+    """Calculate maximum points for a field based on its answer type"""
+    match field.answer_type:
+        case 'BL':
+            return field.bool_points
+        case 'LST':
+            return Option.objects.filter(question=field).aggregate(Max('points'))['points__max'] or 0
+        case 'NMBR' | 'PRC':
+            return RangeOption.objects.filter(question=field).aggregate(Max('points'))['points__max'] or 0
+    return 0
+
+def update_school_report_points(school_report):
+    """Update points and zone for a school report"""
+    try:
+        points_sum = round(Answer.objects.filter(
+            s_report=school_report
+        ).aggregate(Sum('points'))['points__sum'] or 0, 1)
+    except:
+        points_sum = 0
+        
+    # Determine zone based on points
+    if points_sum < school_report.report.yellow_zone_min:
+        report_zone = 'R'
+    elif points_sum >= school_report.report.green_zone_min:
+        report_zone = 'G'
+    else:
+        report_zone = 'Y'
+        
+    SchoolReport.objects.filter(pk=school_report.pk).update(
+        points=points_sum,
+        zone=report_zone
+    )
+
+def invalidate_caches_for_report(year, school):
+    """Centralized cache invalidation for reports"""
+    # Clear main dashboard caches
+    cache.delete_many([
+        get_cache_key('ter_admins_dash',
+            year=year,
+            schools=str(school.id),
+            reports=str(school.reports.filter(report__year=year).first().report_id)
+        ),
+        get_cache_key('closters_report_data',
+            year=year,
+            ter_admin=str(school.ter_admin.id),
+            closters=str(school.closter.id) if school.closter else '',
+            ed_levels=school.ed_level
+        ),
+        f'ter_admins_dash_{year}',
+        f'closters_report_{year}'
+    ])
+
+def update_field_and_reports(question):
+    """Update field points and related reports"""
+    # Update field points
+    field_points = calculate_field_points(question)
+    Field.objects.filter(pk=question.pk).update(points=field_points)
+    
+    # Get affected reports and schools
+    affected_reports = Report.objects.filter(sections__fields=question)
+    affected_schools = School.objects.filter(reports__report__in=affected_reports).distinct()
+    
+    # Bulk update school reports
+    for school in affected_schools:
+        school_reports = SchoolReport.objects.filter(
+            school=school,
+            report__in=affected_reports
+        )
+        for sr in school_reports:
+            update_school_report_points(sr)
+        invalidate_caches_for_report(affected_reports.first().year, school)
+
+@receiver(post_save, sender=Option)
+def handle_option_save(sender, instance, **kwargs):
+    """Handle Option model save"""
+    question = instance.question
+    
+    # Bulk update affected answers
+    Answer.objects.filter(
+        question=question,
+        option=instance
+    ).update(points=instance.points, zone=instance.zone)
+    
+    # Update field and reports
+    update_field_and_reports(question)
+
+@receiver(post_save, sender=RangeOption)
+def handle_range_option_save(sender, instance, **kwargs):
+    """Handle RangeOption model save"""
+    question = instance.question
+    
+    # Update affected numeric answers
+    answers = Answer.objects.filter(question=question).select_related('s_report')
+    for answer in answers:
+        if answer.number_value is not None:
+            r_option = select_range_option(question.range_options.all(), answer.number_value)
+            if r_option:
+                Answer.objects.filter(id=answer.id).update(
+                    points=r_option.points,
+                    zone=r_option.zone
+                )
+            else:
+                Answer.objects.filter(id=answer.id).update(
+                    points=0,
+                    zone='R'
+                )
+    
+    # Update field and reports
+    update_field_and_reports(question)

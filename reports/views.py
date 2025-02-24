@@ -4,11 +4,14 @@ from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.cache import cache
+from django.db.models import Sum, Max
 
 from reports.models import Answer, Attachment, Field, Option, Report, ReportFile, ReportLink, SchoolReport, Section
 from reports.utils import count_points, select_range_option, count_section_points, count_points_field
 from users.models import Group, Notification, MainPageArticle
 from schools.models import School, SchoolCloster, TerAdmin
+from common.utils import get_cache_key
 
 
 @login_required
@@ -201,6 +204,23 @@ def report(request, report_id, school_id):
                     answer.points = r_option.points
                     answer.zone = r_option.zone
             answer.save()
+
+            # Clear dashboard caches when answer is updated
+            cache_key = get_cache_key('ter_admins_dash',
+                year=s_report.report.year,
+                schools=','.join(sorted(str(s.id) for s in School.objects.filter(ter_admin=school.ter_admin))),
+                reports=','.join(sorted(str(r.id) for r in Report.objects.filter(year=s_report.report.year)))
+            )
+            cache.delete(cache_key)
+            
+            # Clear closters_report cache
+            cache_key = get_cache_key('closters_report_data',
+                year=s_report.report.year,
+                ter_admin=str(school.ter_admin.id),
+                closters=str(school.closter.id) if school.closter else '',
+                ed_levels=school.ed_level
+            )
+            cache.delete(cache_key)
 
             list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
             if len(list_answers) == 0:
@@ -511,3 +531,48 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
         'answers': answers,
         'current_section': current_section
     })
+
+def update_answer(request, answer_id):
+    answer = get_object_or_404(Answer, id=answer_id)
+    old_points = answer.points
+    
+    if request.method == 'POST':
+        form = AnswerForm(request.POST, instance=answer)
+        if form.is_valid():
+            answer = form.save()
+            
+            # Clear related caches when answer is updated
+            school_report = answer.s_report
+            school = school_report.school
+            year = school_report.report.year
+            
+            # Clear ter_admins_dash cache
+            cache_key = get_cache_key('ter_admins_dash',
+                year=year,
+                schools=str(school.id),
+                reports=str(school_report.report.id)
+            )
+            cache.delete(cache_key)
+            
+            # Clear closters_report cache
+            cache_key = get_cache_key('closters_report_data',
+                year=year,
+                ter_admin=str(school.ter_admin.id),
+                closters=str(school.closter.id) if school.closter else '',
+                ed_levels=school.ed_level
+            )
+            cache.delete(cache_key)
+            
+            # Recalculate section points if needed
+            if old_points != answer.points:
+                section = answer.question.sections.first()
+                if section:
+                    section_sreport = SectionSreport.objects.get(
+                        s_report=school_report,
+                        section=section
+                    )
+                    section_sreport.points = count_section_points(section_sreport)
+                    section_sreport.save()
+            
+            return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error'})
