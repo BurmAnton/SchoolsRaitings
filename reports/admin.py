@@ -11,8 +11,8 @@ from django.db import transaction
 import logging
 
 from .models import (
-    Attachment, RangeOption, 
-    Report, ReportFile, ReportLink, Section, Field, Option, SchoolReport, update_school_report_points
+    Attachment, RangeOption, OptionCombination,
+    Report, ReportFile, ReportLink, Section, Field, Option, SchoolReport, update_school_report_points, Answer
 )
     
 SectionForm = select2_modelform(Section, attrs={'width': '500px'})
@@ -78,7 +78,7 @@ class ReportAdmin(admin.ModelAdmin):
 
 class OptionInline(admin.TabularInline):
     model = Option
-    fields = ['name', 'points', 'zone',]
+    fields = ['number', 'name', 'points', 'zone',]
     def get_extra(self, request, obj=None, **kwargs):
         if obj:
             return 3
@@ -94,6 +94,15 @@ class RangeOptionInline(admin.TabularInline):
         return 1
 
 
+class CombinationInline(admin.TabularInline):
+    model = OptionCombination
+    fields = ['option_numbers', 'points']
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj:
+            return 3
+        return 1
+
+
 @admin.register(Field)
 class FieldAdmin(admin.ModelAdmin):
     list_display = ['id', 'number', 'name']
@@ -102,7 +111,7 @@ class FieldAdmin(admin.ModelAdmin):
 
     content = HTMLField()
 
-    inlines = [OptionInline, RangeOptionInline]
+    inlines = [OptionInline, RangeOptionInline, CombinationInline]
 
     class Media:
         js = ["../static/admin/js/question_change.js",]
@@ -159,6 +168,39 @@ class SchoolReportAdmin(admin.ModelAdmin):
                         else:
                             answer.points = 0
                             answer.zone = 'R'
+                    elif answer.question.answer_type == 'MULT':
+                        # Получаем все выбранные опции
+                        selected_options = answer.selected_options.all()
+                        if selected_options:
+                            # Если есть выбранные опции, проверяем комбинации
+                            option_numbers = sorted([str(opt.number) for opt in selected_options])
+                            option_numbers_str = ','.join(option_numbers)
+                            
+                            # Проверяем, есть ли точное совпадение с комбинацией
+                            try:
+                                combination = OptionCombination.objects.get(
+                                    field=answer.question, 
+                                    option_numbers=option_numbers_str
+                                )
+                                answer.points = combination.points
+                            except OptionCombination.DoesNotExist:
+                                # Если нет точного совпадения, суммируем баллы выбранных опций
+                                total_points = sum(opt.points for opt in selected_options)
+                                
+                                # Проверяем, не превышает ли сумма максимальное значение (если оно задано)
+                                if answer.question.max_points is not None and total_points > answer.question.max_points:
+                                    total_points = answer.question.max_points
+                                    
+                                answer.points = total_points
+                            
+                            # Определяем зону на основе баллов
+                            if answer.points > 0:
+                                answer.zone = 'G'
+                            else:
+                                answer.zone = 'R'
+                        else:
+                            answer.points = 0
+                            answer.zone = 'R'
                     else:
                         answer.points = 0
                         answer.zone = 'R'
@@ -173,7 +215,7 @@ class SchoolReportAdmin(admin.ModelAdmin):
                     old_points = section_sreport.points
                     old_zone = section_sreport.zone
                     
-                    section_points = count_section_points(section_sreport) or 0
+                    section_points = Answer.objects.filter(question__in=section_sreport.section.fields.all(), s_report=school_report).aggregate(Sum('points'))['points__sum'] or 0
                     section_sreport.points = section_points
                     if section_points < section_sreport.section.yellow_zone_min:
                         section_sreport.zone = 'R'

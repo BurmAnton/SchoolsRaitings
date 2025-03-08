@@ -238,4 +238,22 @@ input {
           justify-content: space-between;
   margin-bottom: 25px;
 }
+
+/* Стили для полей множественного выбора */
+.field-multiple {
+  margin-bottom: 15px !important;
+}
+
+.mult-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-left: 10px;
+}
+
+.mult-option {
+  display: flex;
+  align-items: start;
+}
 /*# sourceMappingURL=report.css.map */

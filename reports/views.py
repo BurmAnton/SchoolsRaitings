@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.db.models import Sum, Max
 
-from reports.models import Answer, Attachment, Field, Option, Report, ReportFile, ReportLink, SchoolReport, Section
+from reports.models import Answer, Attachment, Field, Option, Report, ReportFile, ReportLink, SchoolReport, Section, SectionSreport, OptionCombination
 from reports.utils import count_points, select_range_option, count_section_points, count_points_field
 from users.models import Group, Notification, MainPageArticle
 from schools.models import School, SchoolCloster, TerAdmin
@@ -203,6 +203,50 @@ def report(request, report_id, school_id):
                 else: 
                     answer.points = r_option.points
                     answer.zone = r_option.zone
+            elif question.answer_type == 'MULT':
+                # Обработка множественного выбора
+                if 'multiple_values' in data:
+                    # Очищаем предыдущие выбранные опции
+                    answer.selected_options.clear()
+                    selected_options_ids = data['multiple_values']
+                    
+                    if selected_options_ids:
+                        # Получаем объекты Option по их ID
+                        selected_options = list(Option.objects.filter(id__in=selected_options_ids))
+                        
+                        # Добавляем выбранные опции
+                        answer.selected_options.add(*selected_options)
+                        
+                        # Сортируем номера опций для проверки комбинаций
+                        option_numbers = sorted([str(opt.number) for opt in selected_options])
+                        option_numbers_str = ','.join(option_numbers)
+                        
+                        # Проверяем, есть ли точное совпадение с комбинацией
+                        try:
+                            combination = OptionCombination.objects.get(
+                                field=question, 
+                                option_numbers=option_numbers_str
+                            )
+                            answer.points = combination.points
+                        except OptionCombination.DoesNotExist:
+                            # Если нет точного совпадения, суммируем баллы выбранных опций
+                            total_points = sum(opt.points for opt in selected_options)
+                            
+                            # Проверяем, не превышает ли сумма максимальное значение (если оно задано)
+                            if question.max_points is not None and total_points > question.max_points:
+                                total_points = question.max_points
+                                
+                            answer.points = total_points
+                        
+                        # Определяем зону на основе баллов
+                        if answer.points > 0:
+                            answer.zone = 'G'
+                        else:
+                            answer.zone = 'R'
+                    else:
+                        # Если ничего не выбрано, обнуляем баллы
+                        answer.points = 0
+                        answer.zone = 'R'
             answer.save()
 
             # Clear dashboard caches when answer is updated
@@ -389,6 +433,50 @@ def mo_report(request, s_report_id):
                 else: 
                     answer.points = r_option.points
                     answer.zone = r_option.zone
+            elif question.answer_type == 'MULT':
+                # Обработка множественного выбора
+                if 'multiple_values' in data:
+                    # Очищаем предыдущие выбранные опции
+                    answer.selected_options.clear()
+                    selected_options_ids = data['multiple_values']
+                    
+                    if selected_options_ids:
+                        # Получаем объекты Option по их ID
+                        selected_options = list(Option.objects.filter(id__in=selected_options_ids))
+                        
+                        # Добавляем выбранные опции
+                        answer.selected_options.add(*selected_options)
+                        
+                        # Сортируем номера опций для проверки комбинаций
+                        option_numbers = sorted([str(opt.number) for opt in selected_options])
+                        option_numbers_str = ','.join(option_numbers)
+                        
+                        # Проверяем, есть ли точное совпадение с комбинацией
+                        try:
+                            combination = OptionCombination.objects.get(
+                                field=question, 
+                                option_numbers=option_numbers_str
+                            )
+                            answer.points = combination.points
+                        except OptionCombination.DoesNotExist:
+                            # Если нет точного совпадения, суммируем баллы выбранных опций
+                            total_points = sum(opt.points for opt in selected_options)
+                            
+                            # Проверяем, не превышает ли сумма максимальное значение (если оно задано)
+                            if question.max_points is not None and total_points > question.max_points:
+                                total_points = question.max_points
+                                
+                            answer.points = total_points
+                        
+                        # Определяем зону на основе баллов
+                        if answer.points > 0:
+                            answer.zone = 'G'
+                        else:
+                            answer.zone = 'R'
+                    else:
+                        # Если ничего не выбрано, обнуляем баллы
+                        answer.points = 0
+                        answer.zone = 'R'
             answer.is_mod_by_mo = True #####
             answer.save()
 
@@ -490,6 +578,50 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
                 else: 
                     answer.points = r_option.points
                     answer.zone = r_option.zone
+            elif question.answer_type == 'MULT':
+                # Обработка множественного выбора
+                if 'multiple_values' in data:
+                    # Очищаем предыдущие выбранные опции
+                    answer.selected_options.clear()
+                    selected_options_ids = data['multiple_values']
+                    
+                    if selected_options_ids:
+                        # Получаем объекты Option по их ID
+                        selected_options = list(Option.objects.filter(id__in=selected_options_ids))
+                        
+                        # Добавляем выбранные опции
+                        answer.selected_options.add(*selected_options)
+                        
+                        # Сортируем номера опций для проверки комбинаций
+                        option_numbers = sorted([str(opt.number) for opt in selected_options])
+                        option_numbers_str = ','.join(option_numbers)
+                        
+                        # Проверяем, есть ли точное совпадение с комбинацией
+                        try:
+                            combination = OptionCombination.objects.get(
+                                field=question, 
+                                option_numbers=option_numbers_str
+                            )
+                            answer.points = combination.points
+                        except OptionCombination.DoesNotExist:
+                            # Если нет точного совпадения, суммируем баллы выбранных опций
+                            total_points = sum(opt.points for opt in selected_options)
+                            
+                            # Проверяем, не превышает ли сумма максимальное значение (если оно задано)
+                            if question.max_points is not None and total_points > question.max_points:
+                                total_points = question.max_points
+                                
+                            answer.points = total_points
+                        
+                        # Определяем зону на основе баллов
+                        if answer.points > 0:
+                            answer.zone = 'G'
+                        else:
+                            answer.zone = 'R'
+                    else:
+                        # Если ничего не выбрано, обнуляем баллы
+                        answer.points = 0
+                        answer.zone = 'R'
             answer.is_mod_by_ter = True #####
             answer.save()
 

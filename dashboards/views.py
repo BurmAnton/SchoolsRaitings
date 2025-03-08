@@ -9,8 +9,7 @@ from django.conf import settings
 import hashlib
 
 from dashboards import utils
-from reports.models import Answer, Report, SchoolReport, Section, Field, SectionSreport
-from reports.utils import count_section_points
+from reports.models import Answer, Report, SchoolReport, Section, Field
 from schools.models import SchoolCloster, School, TerAdmin
 from common.utils import get_cache_key
 

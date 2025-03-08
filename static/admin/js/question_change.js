@@ -6,7 +6,9 @@ jQuery(document).ready(function ($) {
             var answer_type = $('#id_answer_type'),
                 options = $('#options-group'),
                 range_options = $('#range_options-group'),
-                bool_points = $('.field-bool_points');
+                combinations = $('#optioncombination_set-group'),
+                bool_points = $('.field-bool_points'),
+                max_points = $('.field-max_points');
 
             function toggleVerified(value) {
                 console.log(value)
@@ -14,22 +16,38 @@ jQuery(document).ready(function ($) {
                     bool_points.show();
                     options.hide();
                     range_options.hide();
+                    combinations.hide();
+                    max_points.hide();
                 } else if (value === 'LST') {
                     bool_points.hide();
                     options.show();
                     range_options.hide();
+                    combinations.hide();
+                    max_points.hide();
                 } else if (value === 'PRC') {
                     bool_points.hide();
                     options.hide();
                     range_options.show();
+                    combinations.hide();
+                    max_points.hide();
                 } else if (value === 'NMBR') {
                     bool_points.hide();
                     options.hide();
                     range_options.show();
+                    combinations.hide();
+                    max_points.hide();
+                } else if (value === 'MULT') {
+                    bool_points.hide();
+                    options.show();
+                    range_options.hide();
+                    combinations.show();
+                    max_points.show();
                 } else {
                     bool_points.hide();
                     options.hide();
                     range_options.hide();
+                    combinations.hide();
+                    max_points.hide();
                 }
             }
 

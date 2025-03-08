@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
         })
     })
-    document.querySelectorAll('.form-check-input').forEach(input => {
+    document.querySelectorAll('.form-check-input:not(.mult-checkbox)').forEach(input => {
         input.addEventListener('change', () => {
             let points = "0"
             if(input.checked){
@@ -41,6 +41,19 @@ document.addEventListener('DOMContentLoaded', function() {
             
         })
     })
+    document.querySelectorAll('.mult-checkbox').forEach(input => {
+        input.addEventListener('change', () => {
+            const fieldId = input.dataset.field;
+            const checkedOptions = [];
+            
+            document.querySelectorAll(`.mult-checkbox[data-field="${fieldId}"]:checked`).forEach(checkbox => {
+                checkedOptions.push(checkbox.value);
+            });
+            
+            change_multiple_question_value(fieldId, checkedOptions);
+            document.querySelectorAll('.section-points').forEach(th => {set_points(th)});
+        });
+    });
     document.querySelectorAll('.section-points-max').forEach(th => {set_max_points(th)})
     document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
 
@@ -184,17 +197,6 @@ function change_question_value(id, value, input){
             section.querySelector(`.question-zone${id}`).style.background = "white";
             
         }
-        // field_id = section.querySelector(`.question-zone${id}`).dataset.field
-        // field = document.querySelector('#zone-field'+field_id)
-        // if (result['field_z']=== 'Y'){
-        //     field.style.background = "#ffc600";
-        // } else if (result['field_z'] === 'R'){
-        //     field.style.background = "red";
-        // } else if (result['field_z'] === 'G'){
-        //     field.style.background = "green";
-        // } else {
-        //     field.style.background = "white";
-        // }
         document.querySelector('#report-points').innerHTML = result['report_points'].replace(",", ".").replace(".0", "")
         
     })
@@ -227,9 +229,6 @@ function upload_link(value, name, input){
         alink = result['link'] 
         question_id = result['question_id'] 
         let files = document.querySelector(`.files${question_id}`)
-        // link.parentElement.querySelectorAll('a').forEach(a => {
-        //     a.style.display = 'none'
-        // })
         const div = document.createElement("div")
         div.style = "display: flex; align-items: stretch; gap: 5px; justify-content: space-between;"
         const link = document.createElement("a")
@@ -303,9 +302,6 @@ function upload_file(file, name, input){
         
         question_id = result['question_id'] 
         let files = document.querySelector(`.files${question_id}`)
-        // link.parentElement.querySelectorAll('a').forEach(a => {
-        //     a.style.display = 'none'
-        // })
         const div = document.createElement("div")
         div.style = "display: flex; align-items: stretch; gap: 5px; justify-content: space-between;"
         const link = document.createElement("a")
@@ -386,4 +382,69 @@ function getCookie(name) {
         }
     }
     return cookieValue;
+}
+
+function change_multiple_question_value(fieldId, selectedOptions) {
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Accept": "application/json",
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            'id': fieldId,
+            'multiple_values': selectedOptions,
+        }),
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.querySelector(`#points_${fieldId}`).innerHTML = result['points'].replace(",", ".").replace(".0", "");
+        
+        if (result['ready'] === true){
+            document.querySelector('#send-button').classList.remove('disabled');
+            document.querySelector('#send-button').classList.remove('btn-secondary');
+            document.querySelector('#send-button').classList.add('btn-success');
+        } else {
+            document.querySelector('#send-button').classList.add('disabled');
+            document.querySelector('#send-button').classList.add('btn-secondary');
+            document.querySelector('#send-button').classList.remove('btn-success');
+        }
+        
+        if (result['zone'] === 'Y'){
+            document.querySelector('#report-zone').style.background = "#ffc600";
+        } else if (result['zone'] === 'R'){
+            document.querySelector('#report-zone').style.background = "red";
+        } else if (result['zone'] === 'G'){
+            document.querySelector('#report-zone').style.background = "green";
+        } else {
+            document.querySelector('#report-zone').style.background = "white";
+        }
+        
+        let section = document.querySelector('.current-section');
+        if (result['section_z'] === 'Y'){
+            section.querySelector('.section-zone').style.background = "#ffc600";
+        } else if (result['section_z'] === 'R'){
+            section.querySelector('.section-zone').style.background = "red";
+        } else if (result['section_z'] === 'G') {
+            section.querySelector('.section-zone').style.background = "green";
+        } else {
+            section.querySelector('.section-zone').style.background = "white";
+        }
+        
+        if (result['answer_z'] === 'Y'){
+            section.querySelector(`.question-zone${fieldId}`).style.background = "#ffc600";
+        } else if (result['answer_z'] === 'R'){
+            section.querySelector(`.question-zone${fieldId}`).style.background = "red";
+        } else if (result['answer_z'] === 'G') {
+            section.querySelector(`.question-zone${fieldId}`).style.background = "green";
+        } else {
+            section.querySelector(`.question-zone${fieldId}`).style.background = "white";
+        }
+        
+        document.querySelector('#report-points').innerHTML = result['report_points'].replace(",", ".").replace(".0", "");
+    })
+    .then(result => {
+        document.querySelectorAll('.section-points').forEach(th => {set_points(th)});
+    });
 }

@@ -60,6 +60,12 @@ def find_answer(answers, question):
             return answers.get(question=question).bool_value
         elif question.answer_type in ['NMBR', 'PRC']:
             return format_point(answers.get(question=question).number_value)
+        elif question.answer_type == 'MULT':
+            # Для множественного выбора возвращаем список ID выбранных опций
+            try: 
+                return list(answers.get(question=question).selected_options.all().values_list('id', flat=True))
+            except: 
+                return []
     except: return 0
 
 
@@ -139,6 +145,9 @@ def get_points(answers, question):
             return 0
         elif question.answer_type in ['NMBR', 'PRC']:
             return format_point(answer.points)
+        elif question.answer_type == 'MULT':
+            # Для множественного выбора возвращаем сумму баллов
+            return format_point(answer.points)
     except: return 0
 
 
@@ -153,6 +162,13 @@ def get_max_points(question):
         elif question.answer_type in ['NMBR', 'PRC']:
             points = question.range_options.aggregate(Max('points'))['points__max']
             return format_point(points)
+        elif question.answer_type == 'MULT':
+            # Для множественного выбора проверяем наличие максимального значения
+            if question.max_points is not None:
+                return format_point(question.max_points)
+            else:
+                # Если максимальные баллы не указаны, возвращаем сумму всех опций
+                return format_point(question.options.aggregate(Sum('points'))['points__sum'] or 0)
     except: return 0
 
 
@@ -200,3 +216,12 @@ def filename(value):
         return os.path.basename(value.file.name)
     except:
         return ""
+
+@register.filter
+def find_answer_options(answers, question):
+    """Возвращает выбранные опции для множественного выбора"""
+    try:
+        if question.answer_type == 'MULT':
+            return answers.get(question=question).selected_options.all()
+    except: 
+        return []

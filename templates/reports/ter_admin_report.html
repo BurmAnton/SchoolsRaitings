@@ -105,6 +105,29 @@
                                     <label class="form-check-label" for="{{ field.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
                                 </div>
                                 {% if answers|is_answer_changed_by_mo:field %}<br><span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
+                            {% elif field.answer_type == 'MULT' %}
+                                <div class="mb-3 field field-multiple">
+                                    <label>{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
+                                    <div class="mult-options">
+                                        {% for option in field.options.all %}
+                                            <div class="form-check mult-option">
+                                                <input class="form-check-input mult-checkbox" 
+                                                       type="checkbox" 
+                                                       data-points="{{ option.points }}" 
+                                                       data-field="{{ field.id }}" 
+                                                       name="mult_{{ field.id }}_{{ option.id }}" 
+                                                       id="mult_{{ field.id }}_{{ option.id }}" 
+                                                       value="{{ option.id }}"
+                                                       {% if option.id in answers|find_answer:field %}checked{% endif %} 
+                                                       {% if report.status != 'A' and not request.user.is_superuser %}disabled{% endif %}>
+                                                <label class="form-check-label" for="mult_{{ field.id }}_{{ option.id }}">
+                                                    {{ option.name }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% if answers|is_answer_changed_by_mo:field %}<br><span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
                             {% endif %}
                             {% if field.note is not None and field.note != "" %}
                                 <div class="alert alert-primary note  d-flex align-items-center" role="alert">

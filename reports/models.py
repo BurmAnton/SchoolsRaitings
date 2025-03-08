@@ -224,6 +224,7 @@ class Field(models.Model):
         ('LST', "Выбор из списка"),
         ('NMBR', "Числовое значение"),
         ('PRC', "Процент"),
+        ('MULT', "Множественный выбор"),
     ]
     answer_type = models.CharField(
         "Тип ответа", choices=ANSWER_TYPES, max_length=5, blank=False, null=False
@@ -233,6 +234,13 @@ class Field(models.Model):
         max_digits=5,
         decimal_places=1,
         default=0,
+    )
+    max_points = models.DecimalField(
+        "Макс. баллов (для множественного выбора)",
+        max_digits=5,
+        decimal_places=1,
+        null=True, blank=True,
+        default=None
     )
 
     attachment_name = models.CharField("Название вложения", max_length=750, default="", null=True, blank=True)
@@ -278,6 +286,14 @@ def count_points(sender, instance, using, **kwargs):
         case 'PRC':
             try: field.points = RangeOption.objects.filter(question=instance).aggregate(Max('points'))['points__max']
             except: pass
+        case 'MULT':
+            if instance.max_points:
+                try: field.points = instance.max_points
+                except: pass
+            else:
+                # Если максимальные баллы не указаны, используем сумму баллов всех опций
+                try: field.points = Option.objects.filter(question=instance).aggregate(Sum('points'))['points__sum']
+                except: pass
     if field.points == None:
         field.points = 0
     Field.objects.filter(pk=field.pk).update(points=field.points)
@@ -296,6 +312,7 @@ def count_points(sender, instance, using, **kwargs):
 
 
 class Option(models.Model):
+    number = models.IntegerField("Номер", default=0)
     name = models.CharField("Название", max_length=500, blank=False, null=False)
     question = models.ForeignKey(
         Field,
@@ -331,6 +348,7 @@ class Option(models.Model):
     class Meta:
         verbose_name = "Вариант ответа"
         verbose_name_plural = "Варианты ответа"
+        ordering = ['number']
 
     def __str__(self):
         return self.name
@@ -519,7 +537,7 @@ class Answer(models.Model):
         verbose_name='опция',
         related_name='answers',
         on_delete=CASCADE,
-        null=True, blank=False 
+        null=True, blank=True
     )
     points = models.DecimalField(
         "Колво баллов",
@@ -535,6 +553,12 @@ class Answer(models.Model):
     )
     bool_value = models.BooleanField(
         "Бинарный выбор", default=False, null=True
+    )
+    selected_options = models.ManyToManyField(
+        Option,
+        verbose_name='выбранные опции',
+        related_name='multiple_answers',
+        blank=True
     )
     ZONE_TYPES = [
         ('R', "Красная"),
@@ -715,6 +739,11 @@ def calculate_field_points(field):
             return Option.objects.filter(question=field).aggregate(Max('points'))['points__max'] or 0
         case 'NMBR' | 'PRC':
             return RangeOption.objects.filter(question=field).aggregate(Max('points'))['points__max'] or 0
+        case 'MULT':
+            if field.max_points is not None:
+                return field.max_points
+            else:
+                return Option.objects.filter(question=field).aggregate(Sum('points'))['points__sum'] or 0
     return 0
 
 def update_school_report_points(school_report):
@@ -815,3 +844,26 @@ def handle_range_option_save(sender, instance, **kwargs):
     
     # Update field and reports
     update_field_and_reports(question)
+
+class OptionCombination(models.Model):
+    field = models.ForeignKey(
+        Field,
+        verbose_name='показатель',
+        related_name='combinations',
+        on_delete=CASCADE,
+        null=False, blank=False 
+    )
+    option_numbers = models.CharField("Номера полей (через запятую)", max_length=255, blank=False, null=False)
+    points = models.DecimalField(
+        "Количество баллов",
+        max_digits=5,
+        decimal_places=1,
+        default=0
+    )
+    
+    class Meta:
+        verbose_name = "Комбинация вариантов"
+        verbose_name_plural = "Комбинации вариантов"
+        
+    def __str__(self):
+        return f"{self.field} - {self.option_numbers} ({self.points})"
