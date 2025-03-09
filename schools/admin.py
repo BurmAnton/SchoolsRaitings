@@ -7,6 +7,7 @@ from django.utils.safestring import mark_safe
 from django.contrib.admin import SimpleListFilter
 
 from users.models import User
+from reports.admin_utils import ColumnWidthMixin, add_custom_admin_css
 
 from .models import TerAdmin, SchoolType, School, SchoolCloster, QuestionCategory, Question
 
@@ -80,9 +81,27 @@ class SchoolTypeAdmin(admin.ModelAdmin):
 
 
 @admin.register(School)
-class SchoolAdmin(admin.ModelAdmin):
+@add_custom_admin_css
+class SchoolAdmin(ColumnWidthMixin, admin.ModelAdmin):
     list_per_page = 50
     actions = ['export_schools', 'toggle_archive_status']
+    
+    # Настройки ширины столбцов
+    column_width_settings = {
+        'ais_id': 'column-width-sm column-align-center',
+        '__str__': 'column-width-xl column-truncate',
+        'number': 'column-width-sm column-align-center',
+        'reports_page_link': 'column-width-sm column-align-center',
+        'ter_admin': 'column-width-md column-truncate',
+        'closter_field': 'column-width-md column-truncate',
+        'ed_level': 'column-width-sm column-align-center',
+        'email': 'column-width-md column-truncate',
+        'principal': 'column-width-md column-truncate',
+        'is_archived': 'column-width-sm column-align-center',
+    }
+    
+    class Media:
+        js = ('admin/js/column_width.js',)
 
     def toggle_archive_status(self, request, queryset):
         """Переключить статус архивации для выбранных школ"""

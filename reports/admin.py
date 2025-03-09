@@ -16,7 +16,9 @@ from .models import (
     Attachment, RangeOption, OptionCombination,
     Report, ReportFile, ReportLink, Section, Field, Option, SchoolReport, update_school_report_points, Answer
 )
-    
+
+from .admin_utils import ColumnWidthMixin, add_custom_admin_css
+
 SectionForm = select2_modelform(Section, attrs={'width': '500px'})
 
 class SectionInline(admin.StackedInline):
@@ -31,9 +33,9 @@ class SectionInline(admin.StackedInline):
 
 
 @admin.register(Report)
-class ReportAdmin(admin.ModelAdmin):
-    list_display = ['id', 'year', 'closter', 'ed_level', 'name', 'points']
-    list_filter = ['year',]
+@add_custom_admin_css
+class ReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
+    list_display = ['id', 'year', 'closter', 'ed_level', 'name', 'points', 'is_published']
     list_filter = [
         ('year', DropdownFilter),
         ('closter', RelatedDropdownFilter),
@@ -42,6 +44,20 @@ class ReportAdmin(admin.ModelAdmin):
     ]
     readonly_fields = ['points',]
     inlines = [SectionInline, ]
+
+    # Настройки ширины столбцов
+    column_width_settings = {
+        'id': 'column-width-xs column-align-center',
+        'year': 'column-width-xs column-align-center',
+        'closter': 'column-width-md',
+        'ed_level': 'column-width-sm column-align-center',
+        'name': 'column-width-lg column-truncate',
+        'points': 'column-width-xs column-align-center',
+        'is_published': 'column-width-sm column-align-center',
+    }
+
+    class Media:
+        js = ('admin/js/column_width.js',)
 
     actions = ['duplicate_report']
 
@@ -106,17 +122,27 @@ class CombinationInline(admin.TabularInline):
 
 
 @admin.register(Field)
-class FieldAdmin(admin.ModelAdmin):
-    list_display = ['id', 'number', 'name']
+@add_custom_admin_css
+class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
+    list_display = ['id', 'number', 'name', 'answer_type', 'points']
     search_fields = ['number', 'name', 'id']
     readonly_fields = ['points',]
+    
+    # Настройки ширины столбцов
+    column_width_settings = {
+        'id': 'column-width-xs column-align-center',
+        'number': 'column-width-sm column-align-center',
+        'name': 'column-width-xl column-truncate',
+        'answer_type': 'column-width-md column-align-center',
+        'points': 'column-width-xs column-align-center',
+    }
 
     content = HTMLField()
 
     inlines = [OptionInline, RangeOptionInline, CombinationInline]
 
     class Media:
-        js = ["../static/admin/js/question_change.js",]
+        js = ["../static/admin/js/question_change.js", 'admin/js/column_width.js']
 
 
 
@@ -133,17 +159,57 @@ class LinkInline(admin.TabularInline):
 logger = logging.getLogger(__name__)
 
 @admin.register(SchoolReport)
-class SchoolReportAdmin(admin.ModelAdmin):
-    list_display = ['id', 'school', 'report', 'status', 'points', 'zone', 'is_marked_for_deletion', 'deletion_date']
-    list_filter = ['status', 'zone', 'is_marked_for_deletion']
+@add_custom_admin_css
+class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
+    list_display = ['id', 'school', 'report', 'report_closter', 'report_ed_level', 'status', 'points', 'zone', 'is_marked_for_deletion', 'deletion_date']
+    list_filter = [
+        'status', 
+        'zone', 
+        'is_marked_for_deletion',
+        ('school__closter', RelatedDropdownFilter),
+        ('school__ed_level', ChoiceDropdownFilter),
+    ]
     search_fields = ['school__name', 'report__name']
     readonly_fields = ['points', 'zone']
 
     actions = ['recalculate_points_and_zones', 'mark_for_deletion_30_days', 'mark_for_deletion_7_days', 'mark_for_deletion_5_minutes', 'unmark_deletion']
     
+    # Настройки ширины столбцов
+    column_width_settings = {
+        'id': 'column-width-xs column-align-center',
+        'school': 'column-width-lg column-truncate',
+        'report': 'column-width-lg column-truncate',
+        'report_closter': 'column-width-md column-truncate',
+        'report_ed_level': 'column-width-sm column-align-center',
+        'status': 'column-width-sm column-align-center',
+        'points': 'column-width-xs column-align-center',
+        'zone': 'column-width-xs column-align-center',
+        'is_marked_for_deletion': 'column-width-sm column-align-center',
+        'deletion_date': 'column-width-md column-align-center',
+    }
+    
+    class Media:
+        js = ('admin/js/column_width.js',)
+    
     def get_queryset(self, request):
         """Переопределяем метод, чтобы использовать all_objects вместо objects"""
         return SchoolReport.all_objects.all()
+
+    def report_closter(self, obj):
+        """Получает кластер школы для отчета"""
+        if obj.school and obj.school.closter:
+            return obj.school.closter
+        return "—"
+    report_closter.short_description = "Кластер"
+    
+    def report_ed_level(self, obj):
+        """Получает уровень образования школы для отчета"""
+        if obj.school and obj.school.ed_level:
+            # Преобразуем код уровня образования в читаемый текст
+            choices_dict = dict(obj.school.SCHOOL_LEVELS)
+            return choices_dict.get(obj.school.ed_level, obj.school.ed_level)
+        return "—"
+    report_ed_level.short_description = "Уровень образования"
 
     def recalculate_points_and_zones(self, request, queryset):
         """Recalculate all answers, sections, and report points/zones"""
@@ -295,11 +361,11 @@ class SchoolReportAdmin(admin.ModelAdmin):
     unmark_deletion.short_description = "Снять пометку на удаление"
 
 
-@admin.register(ReportLink)
-class ReportLinkAdmin(admin.ModelAdmin):
-    list_display = ['id', 'link', 'answer']
-    list_filter = ['answer']
-    search_fields = ['school_report__school__name', 'school_report__report__name', 'link']
+# @admin.register(ReportLink)
+# class ReportLinkAdmin(admin.ModelAdmin):
+#     list_display = ['id', 'link', 'answer']
+#     list_filter = ['answer']
+#     search_fields = ['school_report__school__name', 'school_report__report__name', 'link']
 
 
 # @admin.register(Attachment)

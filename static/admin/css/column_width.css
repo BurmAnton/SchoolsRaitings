@@ -1,0 +1,113 @@
+/**
+ * Стили для регулирования ширины столбцов в административной панели Django
+ */
+
+/* Классы для фиксированной ширины столбцов */
+.column-width-xs {
+    width: 60px !important;
+    max-width: 60px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.column-width-sm {
+    width: 100px !important;
+    max-width: 100px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.column-width-md {
+    width: 150px !important;
+    max-width: 150px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.column-width-lg {
+    width: 200px !important;
+    max-width: 200px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.column-width-xl {
+    width: 300px !important;
+    max-width: 300px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Классы для процентного соотношения ширины столбцов */
+.column-width-10p {
+    width: 10% !important;
+}
+
+.column-width-15p {
+    width: 15% !important;
+}
+
+.column-width-20p {
+    width: 20% !important;
+}
+
+.column-width-25p {
+    width: 25% !important;
+}
+
+.column-width-30p {
+    width: 30% !important;
+}
+
+.column-width-40p {
+    width: 40% !important;
+}
+
+.column-width-50p {
+    width: 50% !important;
+}
+
+/* Дополнительные классы для обработки текста */
+.column-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.column-wrap {
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-word;
+}
+
+/* Классы для выравнивания контента в столбцах */
+.column-align-center {
+    text-align: center;
+}
+
+.column-align-right {
+    text-align: right;
+}
+
+/* При наведении на ячейку с обрезанным текстом показываем полный текст в тултипе */
+.column-width-xs:hover,
+.column-width-sm:hover,
+.column-width-md:hover,
+.column-width-lg:hover,
+.column-width-xl:hover,
+.column-truncate:hover {
+    overflow: visible;
+    white-space: normal;
+    z-index: 999;
+    position: relative;
+    background-color: #f5f5f5;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+    padding: 5px;
+    transition: all 0.3s ease;
+} 

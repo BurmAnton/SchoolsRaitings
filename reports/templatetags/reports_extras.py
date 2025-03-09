@@ -1,4 +1,5 @@
 import os
+import json
 from django import template
 from django.db.models import Max, Sum
 
@@ -225,3 +226,20 @@ def find_answer_options(answers, question):
             return answers.get(question=question).selected_options.all()
     except: 
         return []
+
+@register.filter
+def index(sequence, position):
+    """
+    Получает элемент по индексу из списка или другого итерируемого объекта
+    """
+    try:
+        return sequence[position]
+    except (IndexError, TypeError):
+        return ""
+
+@register.filter
+def to_json(value):
+    """
+    Конвертирует словарь или другой объект в JSON строку
+    """
+    return json.dumps(value)
