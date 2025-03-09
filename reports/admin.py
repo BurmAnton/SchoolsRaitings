@@ -9,6 +9,8 @@ from reports.utils import select_range_option, count_points, count_section_point
 from reports.models import SectionSreport
 from django.db import transaction
 import logging
+from datetime import timedelta
+from django.utils import timezone
 
 from .models import (
     Attachment, RangeOption, OptionCombination,
@@ -132,12 +134,16 @@ logger = logging.getLogger(__name__)
 
 @admin.register(SchoolReport)
 class SchoolReportAdmin(admin.ModelAdmin):
-    list_display = ['id', 'school', 'report', 'status', 'points', 'zone']
-    list_filter = ['status', 'zone']
+    list_display = ['id', 'school', 'report', 'status', 'points', 'zone', 'is_marked_for_deletion', 'deletion_date']
+    list_filter = ['status', 'zone', 'is_marked_for_deletion']
     search_fields = ['school__name', 'report__name']
     readonly_fields = ['points', 'zone']
 
-    actions = ['recalculate_points_and_zones']
+    actions = ['recalculate_points_and_zones', 'mark_for_deletion_30_days', 'mark_for_deletion_7_days', 'mark_for_deletion_5_minutes', 'unmark_deletion']
+    
+    def get_queryset(self, request):
+        """Переопределяем метод, чтобы использовать all_objects вместо objects"""
+        return SchoolReport.all_objects.all()
 
     def recalculate_points_and_zones(self, request, queryset):
         """Recalculate all answers, sections, and report points/zones"""
@@ -250,6 +256,43 @@ class SchoolReportAdmin(admin.ModelAdmin):
         logger.info(message)
 
     recalculate_points_and_zones.short_description = "Пересчитать баллы и зоны"
+
+    def mark_for_deletion_30_days(self, request, queryset):
+        """Пометить выбранные отчёты на удаление через 30 дней"""
+        for school_report in queryset:
+            school_report.mark_for_deletion(days=30)
+        
+        self.message_user(request, f"{queryset.count()} отчетов помечено на удаление через 30 дней.")
+    mark_for_deletion_30_days.short_description = "Пометить на удаление через 30 дней"
+    
+    def mark_for_deletion_7_days(self, request, queryset):
+        """Пометить выбранные отчёты на удаление через 7 дней"""
+        for school_report in queryset:
+            school_report.mark_for_deletion(days=7)
+        
+        self.message_user(request, f"{queryset.count()} отчетов помечено на удаление через 7 дней.")
+    mark_for_deletion_7_days.short_description = "Пометить на удаление через 7 дней"
+    
+    def mark_for_deletion_5_minutes(self, request, queryset):
+        """Пометить выбранные отчёты на удаление через 5 минут (для тестирования)"""
+        for school_report in queryset:
+            school_report.is_marked_for_deletion = True
+            school_report.deletion_date = timezone.now() + timedelta(minutes=5)
+            school_report.save(update_fields=['is_marked_for_deletion', 'deletion_date'])
+        
+        self.message_user(request, f"{queryset.count()} отчетов помечено на удаление через 5 минут.")
+    mark_for_deletion_5_minutes.short_description = "Пометить на удаление через 5 минут (ТЕСТ)"
+    
+    def unmark_deletion(self, request, queryset):
+        """Снять пометку на удаление для выбранных отчётов"""
+        count = 0
+        for school_report in queryset:
+            if school_report.is_marked_for_deletion:
+                school_report.unmark_deletion()
+                count += 1
+        
+        self.message_user(request, f"Пометка на удаление снята для {count} отчетов.")
+    unmark_deletion.short_description = "Снять пометку на удаление"
 
 
 @admin.register(ReportLink)

@@ -6,6 +6,8 @@ from django.dispatch import receiver
 from django.db.models import Sum, Max
 from django.urls import reverse
 import logging
+from datetime import datetime, timedelta
+from django.utils import timezone
 
 from tinymce import models as tinymce_models
 
@@ -424,6 +426,21 @@ class RangeOption(models.Model):
         return f"{self.question} ({self.range_type})"
 
 
+# Кастомный менеджер для SchoolReport, который исключает отчеты, помеченные на удаление
+class ActiveSchoolReportManager(models.Manager):
+    """Менеджер, который исключает отчеты, помеченные на удаление"""
+    
+    def get_queryset(self):
+        # Возвращает только активные отчеты (не помеченные на удаление)
+        return super().get_queryset().filter(is_marked_for_deletion=False)
+
+# Кастомный менеджер для SchoolReport, который возвращает все отчеты, включая помеченные на удаление
+class AllSchoolReportManager(models.Manager):
+    """Менеджер, который возвращает все отчеты, включая помеченные на удаление"""
+    
+    def get_queryset(self):
+        return super().get_queryset()
+
 class SchoolReport(models.Model):
     report = models.ForeignKey(
         Report,
@@ -465,6 +482,24 @@ class SchoolReport(models.Model):
     zone = models.CharField(
         "Зона", choices=ZONE_TYPES, max_length=5, blank=False, null=False, default='R'
     )
+    
+    # Поля для отложенного удаления
+    is_marked_for_deletion = models.BooleanField(
+        "Отмечен на удаление", default=False,
+        help_text="Если отмечено, отчёт будет удален после истечения срока"
+    )
+    deletion_date = models.DateTimeField(
+        "Дата удаления", blank=True, null=True,
+        help_text="Дата, когда отчёт будет фактически удален"
+    )
+
+    # Менеджеры модели
+    # objects будет возвращать только активные отчеты - это менеджер по умолчанию
+    objects = ActiveSchoolReportManager()
+    # admin_objects будет возвращать все отчеты, включая помеченные на удаление
+    admin_objects = AllSchoolReportManager()
+    # all_objects - явный псевдоним для admin_objects, но более семантически понятный
+    all_objects = AllSchoolReportManager()
 
     class Meta:
         verbose_name = "Отчёт"
@@ -472,6 +507,18 @@ class SchoolReport(models.Model):
 
     def __str__(self):
         return  f'{self.school} ({self.report})'
+        
+    def mark_for_deletion(self, days=30):
+        """Пометить отчёт на удаление через заданное количество дней"""
+        self.is_marked_for_deletion = True
+        self.deletion_date = timezone.now() + timedelta(days=days)
+        self.save(update_fields=['is_marked_for_deletion', 'deletion_date'])
+        
+    def unmark_deletion(self):
+        """Снять пометку на удаление"""
+        self.is_marked_for_deletion = False
+        self.deletion_date = None
+        self.save(update_fields=['is_marked_for_deletion', 'deletion_date'])
 
 @receiver(pre_save, sender=SchoolReport)
 def accept(sender, instance, **kwargs):
