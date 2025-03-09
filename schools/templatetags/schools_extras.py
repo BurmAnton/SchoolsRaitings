@@ -13,7 +13,7 @@ def get_item(dictionary, key):
 
 @register.filter
 def is_school_exist(user):
-    school = School.objects.filter(principal=user)
+    school = School.objects.filter(principal=user, is_archived=False)
     return school.count() != 0
 
 

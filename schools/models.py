@@ -1,10 +1,16 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models.deletion import CASCADE, SET_NULL
 from django.utils.translation import gettext_lazy as _
+from django.db.models.signals import post_save, pre_save
+from django.dispatch import receiver
+import logging
 
 from users.models import User
 
 from tinymce import models as tinymce_models
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
 
 
 # Create your models here.
@@ -58,6 +64,7 @@ class School(models.Model):
     email = models.EmailField("Официальный email",  blank=False, null=True)
     city = models.CharField("Населённый пункт", max_length=250, blank=False, null=True)
     number = models.CharField("Номер/название школы", max_length=50, blank=True, null=True)
+    is_archived = models.BooleanField("Архивная школа", default=False, help_text="При активации этого статуса школа и её отчеты скрываются из пользовательского интерфейса, а аккаунт школы деактивируется.")
     
     school_type = models.ForeignKey(
         SchoolType, 
@@ -167,3 +174,37 @@ class Question(models.Model):
 
     def __str__(self):
         return self.short_question
+
+# Ведение лога изменений статуса архивации
+@receiver(pre_save, sender=School)
+def log_archive_status_changes(sender, instance, **kwargs):
+    """Логирует изменения статуса архивации школы"""
+    if instance.pk:  # Если это существующая школа (не новая)
+        try:
+            # Получаем текущее состояние школы из базы данных
+            old_instance = School.objects.get(pk=instance.pk)
+            
+            # Если статус архивации изменился
+            if old_instance.is_archived != instance.is_archived:
+                action = "архивирована" if instance.is_archived else "разархивирована"
+                logger.info(f"Школа {instance.name} (ID: {instance.pk}) {action}")
+        except School.DoesNotExist:
+            pass  # Школа новая, ничего не делаем
+
+# Обработчик изменения статуса архивации школы
+@receiver(post_save, sender=School)
+def handle_school_archive_status(sender, instance, **kwargs):
+    # Если школа архивирована и у неё есть директор
+    if instance.is_archived and instance.principal:
+        # Деактивируем аккаунт директора
+        if instance.principal.is_active:
+            logger.info(f"Деактивация аккаунта директора школы {instance.name} (ID: {instance.id}) в связи с архивацией")
+            instance.principal.is_active = False
+            instance.principal.save()
+    # Если школа разархивирована и у неё есть директор
+    elif not instance.is_archived and instance.principal:
+        # Активируем аккаунт директора, если он был деактивирован
+        if not instance.principal.is_active:
+            logger.info(f"Активация аккаунта директора школы {instance.name} (ID: {instance.id}) в связи с разархивацией")
+            instance.principal.is_active = True
+            instance.principal.save()

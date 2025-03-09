@@ -27,7 +27,7 @@ def select_range_option(options, value):
 
 def create_report_notifications(report):
     closter = report.closter
-    schools = School.objects.filter(closter=closter)
+    schools = School.objects.filter(closter=closter, is_archived=False)
 
     for school in schools:
         if school.principal is not None:

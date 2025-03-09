@@ -693,7 +693,7 @@ def invalidate_dashboard_caches(sender, instance, **kwargs):
         year = s_report.report.year
         
         # Clear all ter_admins_dash caches for this ter_admin and year
-        schools = School.objects.filter(ter_admin=school.ter_admin)
+        schools = School.objects.filter(ter_admin=school.ter_admin, is_archived=False)
         reports = Report.objects.filter(year=year)
         
         # Generate all possible cache key combinations
@@ -795,7 +795,7 @@ def update_field_and_reports(question):
     
     # Get affected reports and schools
     affected_reports = Report.objects.filter(sections__fields=question)
-    affected_schools = School.objects.filter(reports__report__in=affected_reports).distinct()
+    affected_schools = School.objects.filter(reports__report__in=affected_reports, is_archived=False).distinct()
     
     # Bulk update school reports
     for school in affected_schools:

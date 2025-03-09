@@ -252,7 +252,7 @@ def report(request, report_id, school_id):
             # Clear dashboard caches when answer is updated
             cache_key = get_cache_key('ter_admins_dash',
                 year=s_report.report.year,
-                schools=','.join(sorted(str(s.id) for s in School.objects.filter(ter_admin=school.ter_admin))),
+                schools=','.join(sorted(str(s.id) for s in School.objects.filter(ter_admin=school.ter_admin, is_archived=False))),
                 reports=','.join(sorted(str(r.id) for r in Report.objects.filter(year=s_report.report.year)))
             )
             cache.delete(cache_key)
@@ -309,7 +309,7 @@ def report(request, report_id, school_id):
 @login_required
 @csrf_exempt
 def mo_reports(request):
-    schools = School.objects.all()
+    schools = School.objects.filter(is_archived=False)
     ter_admins = TerAdmin.objects.all()
     closters = SchoolCloster.objects.filter(schools__in=schools).distinct()
     s_reports = SchoolReport.objects.filter(school__in=schools, report__is_published=True)
@@ -345,7 +345,7 @@ def mo_reports(request):
 @csrf_exempt
 def ter_admin_reports(request, user_id):
     ter_admin = get_object_or_404(TerAdmin, representatives=user_id)
-    schools = School.objects.filter(ter_admin=ter_admin)
+    schools = School.objects.filter(ter_admin=ter_admin, is_archived=False)
     all_schools = schools
     closters = SchoolCloster.objects.filter(schools__in=schools).distinct()
     s_reports = SchoolReport.objects.filter(school__in=schools, report__is_published=True)

@@ -90,6 +90,6 @@ class UserAdmin(UserAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.groups.filter(name='Представитель ТУ/ДО').exists():
-            schools = School.objects.filter(ter_admin__in=request.user.ter_admin.all())
+            schools = School.objects.filter(ter_admin__in=request.user.ter_admin.all(), is_archived=False)
             return qs.filter(school__in=schools)
         return qs

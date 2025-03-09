@@ -53,7 +53,7 @@ def ter_admins_dash(request):
     years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
     
     filter = {}
-    schools = School.objects.filter(ter_admin__in=ter_admins)
+    schools = School.objects.filter(ter_admin__in=ter_admins, is_archived=False)
 
     if request.method != 'POST':
         try:
@@ -318,7 +318,7 @@ def closters_report(request, year=2024):
         'G': "10 — 11 классы",
     }
     
-    schools = School.objects.filter(ter_admin__in=ter_admins).select_related('ter_admin')
+    schools = School.objects.filter(ter_admin__in=ter_admins, is_archived=False).select_related('ter_admin')
     filter = {}
     
     # Get initial year
