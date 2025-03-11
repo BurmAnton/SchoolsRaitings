@@ -27,8 +27,63 @@ from django.core.cache import cache
 from common.utils import get_cache_key
 
 
+class Year(models.Model):
+    """
+    Модель для управления годами отчетности
+    """
+    YEAR_STATUS_CHOICES = [
+        ('forming', 'Формирование отчётов'),
+        ('updating', 'Обновление школ ТУ/ДО'),
+        ('filling', 'Заполнение и проверка отчётов'),
+        ('completed', 'Завершено'),
+    ]
+    
+    year = models.IntegerField("Год", unique=True)
+    status = models.CharField(
+        "Статус", 
+        max_length=20, 
+        choices=YEAR_STATUS_CHOICES, 
+        default='forming',
+        help_text="""
+        'Формирование отчётов' - отчёты этого года школ не формируются;
+        'Обновление школ ТУ/ДО' - даёт возможность редактировать школы пользователям с ролью «ТУ/ДО»;
+        'Заполнение и проверка отчётов' - активная фаза работы с отчетами;
+        'Завершено' - закрыт доступ к редактированию шаблонов и отчётов школ этого года
+        """
+    )
+    is_current = models.BooleanField(
+        "Текущий год?", 
+        default=False,
+        help_text="Отметьте, если это текущий рабочий год"
+    )
+    
+    class Meta:
+        verbose_name = "Год"
+        verbose_name_plural = "Годы"
+        ordering = ['-year']
+    
+    def __str__(self):
+        return f"{self.year}"
+    
+    def save(self, *args, **kwargs):
+        """
+        Переопределение метода save для обеспечения того, чтобы только один год был текущим
+        """
+        if self.is_current:
+            # Если этот год установлен как текущий, отменить текущий статус всех других годов
+            Year.objects.filter(is_current=True).exclude(pk=self.pk).update(is_current=False)
+        
+        super().save(*args, **kwargs)
+
+
 class Report(models.Model):
-    year = models.IntegerField('Год', null=False, blank=False)
+    year = models.ForeignKey(
+        Year,
+        verbose_name='Год',
+        related_name='reports',
+        on_delete=models.CASCADE,
+        null=False, blank=False
+    )
     name = models.CharField("Название отчёта", max_length=750)
     closter = models.ForeignKey(
         SchoolCloster,

@@ -14,7 +14,8 @@ from django.utils import timezone
 
 from .models import (
     Attachment, RangeOption, OptionCombination,
-    Report, ReportFile, ReportLink, Section, Field, Option, SchoolReport, update_school_report_points, Answer
+    Report, ReportFile, ReportLink, Section, Field, Option, SchoolReport, update_school_report_points, Answer,
+    Year
 )
 
 from .admin_utils import ColumnWidthMixin, add_custom_admin_css
@@ -375,5 +376,26 @@ class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
 #         ('attachment_type', ChoiceDropdownFilter),
 #     ]
 #     search_fields = ["name", 'attachment_type']
+
+
+@admin.register(Year)
+class YearAdmin(ColumnWidthMixin, admin.ModelAdmin):
+    list_display = ['year', 'status', 'is_current']
+    list_editable = ['status', 'is_current']
+    search_fields = ['year']
+    list_filter = ['status', 'is_current']
+    ordering = ['-year']
+    
+    column_width_settings = {
+        'year': 'column-width-sm',
+        'status': 'column-width-md',
+        'is_current': 'column-width-xs column-align-center',
+    }
+    
+    # Добавляем CSS для админки
+    class Media:
+        css = {
+            'all': ('admin/css/admin.css',)
+        }
 
 
