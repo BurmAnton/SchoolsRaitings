@@ -7,11 +7,17 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth.tokens import default_token_generator as account_activation_token
+from django.utils.http import urlsafe_base64_encode
+from django.template.loader import render_to_string
+from django.utils.encoding import force_bytes
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 
 from schools.models import School
+from schools_ratings import settings
 from .tokens import account_activation_token
 from .models import Documentation, User, Group
 
@@ -142,3 +148,47 @@ def documentation(request):
 def undefined_user(request):
     logout(request)
     return render(request, "users/undefined_user.html")
+
+
+@csrf_exempt
+def password_reset_request(request):
+    error_message = None
+    
+    if request.method == "POST":
+        email = request.POST.get('email')
+        if not email:
+            error_message = "Пожалуйста, укажите email"
+        else:
+            associated_users = User.objects.filter(email=email)
+            if associated_users.exists():
+                try:
+                    for user in associated_users:
+                        subject = "Восстановление пароля"
+                        email_template_name = "users/password_reset_email.txt"
+                        context = {
+                            "email": user.email,
+                            'domain': request.META['HTTP_HOST'],
+                            'site_name': 'АИС «Рейтингование ОО»',
+                            "uid": urlsafe_base64_encode(force_bytes(user.pk)),
+                            "user": user,
+                            'token': account_activation_token.make_token(user),
+                            'protocol': 'https' if request.is_secure() else 'http',
+                        }
+                        email_body = render_to_string(email_template_name, context)
+                        send_mail(
+                            subject=subject, 
+                            message=email_body, 
+                            from_email=settings.EMAIL_HOST_USER, 
+                            recipient_list=[user.email], 
+                            fail_silently=False
+                        )
+                    return HttpResponseRedirect(reverse("password_reset_done"))
+                except Exception as e:
+                    error_message = f"Произошла ошибка при отправке письма: {str(e)}"
+            else:
+                # Не сообщаем, что пользователь не существует (безопасность)
+                return HttpResponseRedirect(reverse("password_reset_done"))
+                
+    return render(request, "users/password_reset.html", {
+        "error_message": error_message
+    })

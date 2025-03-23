@@ -27,7 +27,7 @@
                         <div class="input-group">
                             <input type="password" id="password" class="form-control" placeholder="пароль" name="password" required>
                         </div>
-                        {% comment %} <div class="form-text"><a href="#">Забыли пароль?</a></div> {% endcomment %}
+                        <div class="form-text"><a href="{% url 'password_reset_request' %}">Забыли пароль?</a></div>
                     </div>
                     <button style="width: 100%;" class="btn btn-primary" type="submit">Войти</button>
                 </form>
