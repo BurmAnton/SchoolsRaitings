@@ -544,17 +544,45 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
 
             question = Field.objects.get(id=id)
             answer = Answer.objects.filter(question=question, s_report=s_report).first()
-            answer.file = file
-            answer.save()
+            file = ReportFile.objects.create(
+                s_report=answer.s_report,
+                answer=answer,
+                file=file
+            )
             return JsonResponse({
                 "message": "File updated/saved successfully.",
                 "question_id": question.id,
-                "file_link": answer.file.url
+                "file_link": file.file.url,
+                "filename": file.file.name,
+                "file_id": file.id
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
+            if 'file_id' in data:
+                file_id = data['file_id']
+                ReportFile.objects.get(id=file_id).delete()
+                return JsonResponse({"message": "File deleted successfully.",}, status=201)
+            elif 'link_id' in data:
+                link_id = data['link_id']
+                ReportLink.objects.get(id=link_id).delete()
+                return JsonResponse({"message": "Link deleted successfully.",}, status=201)
+            
             question = Field.objects.get(id=data['id'])
             answer = Answer.objects.filter(question=question, s_report=s_report).first()
+            if 'link' in data:
+                link = data['value']
+                link = ReportLink.objects.create(
+                    s_report=answer.s_report,
+                    answer=answer,
+                    link=link,
+                )
+                link.save()
+                return JsonResponse({
+                    "message": "Link updated/saved successfully.",
+                    "question_id": question.id,
+                    "link": link.link,
+                    "link_id": link.id
+                }, status=201)
             if question.answer_type == "LST":
                 try:
                     option = Option.objects.get(id=data['value'])
