@@ -21,13 +21,14 @@
                     
                     {% for year in years %}
                         {% if forloop.first  and selected_year is None %}
-                            <option value="{{ year }}" selected>{{ year }}</option>
+                            <option value="{{ year }}" selected>{{ year.year }}</option>
                         {% else %}
-                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year.year }}</option>
                         {% endif %}
                     {% endfor %}
                 </select>
             </div>
+            
             <div class="form mb-3">
                 <label for="TerAdminFilter">Территориальные управления/Департаменты образования</label>
                 <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admin" id="TerAdminFilter" data-width="100%" data-container="body" data-live-search="true">
@@ -56,7 +57,12 @@
                     {% endfor %}
                 </select>
             </div>
-            
+            <div class="form-check mb-3" style="display: flex;flex-direction: row;gap: 5px;">
+                <input class="form-check-input" type="checkbox" name="show_ter_status" id="showTerStatus" {% if show_ter_status %}checked{% endif %}>
+                <label class="form-check-label" for="showTerStatus" style="padding-top: 4px;">
+                    Показывать школы на согласовании ТУ/ДО
+                </label>
+            </div>
         </div>
         <div style="width: 100%; display: flex; justify-content: space-between;flex-direction: row-reverse; margin-top: 10px;">
             <div style="display: flex; gap: 10px;">
@@ -93,12 +99,21 @@
                         </tr>  
                         {% for s_report in schools_reports %}
                             <tr>
-                                <td scope="row" class="sticky-row">{{ s_report.school }}</td>
+                                <td scope="row" class="sticky-row">
+                                    {% if show_ter_status and s_report.status == 'A' %}
+                                        <span style="margin-bottom: 3px;" class="badge bg-warning" title="На согласовании в ТУ/ДО">!</span>
+                                    {% endif %}
+                                    {{ s_report.school }}
+                                    
+                               </td>
                                 <td scope="row" class="sticky-row" style="min-width: 0;">{% if s_report.report.is_counting  %}<div style="display: flex;gap: 5px; align-items: center;"><div id="report-zone" style="background-color: {{s_report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div></div> {% endif %}</td>
                                 <td scope="row">{{ s_report.school.ter_admin }}</td>
                                 <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
                                 <td scope="row" style="text-align: center; vertical-align: middle;">
+                                    <div style="display: flex; gap: 5px; align-items: center; justify-content: center;">
                                         <div>{{ s_report.points|format_point }}</div>
+                                        
+                                    </div>
                                 </td>
                                 {% for section in s_report.sections.all|dictsort:"section.number" %}
                                     <td scope="row" tyle="text-align: center; vertical-align: middle;">
@@ -176,7 +191,15 @@
                             </tr>
                             {% for s_report in schools_reports %}
                                 <tr>
-                                    <td scope="row" class="sticky-row">{% if s_report.report.is_counting %}<div style="display: flex;gap: 5px; align-items: center;"><div class="section-zone" style="background-color: {{school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'zone'|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>{% endif %}<div>{{ s_report.school }}</div></div></td>
+                                    <td scope="row" class="sticky-row">{% if s_report.report.is_counting %}<div style="display: flex;gap: 5px; align-items: center;"><div class="section-zone" style="background-color: {{school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'zone'|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>{% endif %}
+                                            <div>
+                                                {% if show_ter_status and s_report.status == 'A' %}
+                                                    <span style="margin-bottom: 3px;" class="badge bg-warning" title="На согласовании в ТУ/ДО">!</span>
+                                                {% endif %}
+                                                {{ s_report.school }}
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td scope="row">{{ s_report.school.ter_admin }}</td>
                                     <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
                                     <td scope="row" style="text-align: center;">{{ school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'points' }}</td>

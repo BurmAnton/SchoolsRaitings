@@ -9,7 +9,7 @@ from django.conf import settings
 import hashlib
 
 from dashboards import utils
-from reports.models import Answer, Report, SchoolReport, Section, Field
+from reports.models import Answer, Report, SchoolReport, Section, Field, Year
 from schools.models import SchoolCloster, School, TerAdmin
 from common.utils import get_cache_key
 
@@ -39,6 +39,7 @@ CACHES = {
 def ter_admins_dash(request):
     # Check if the user is a TerAdmin representatives
     ter_admins = TerAdmin.objects.filter(representatives=request.user)
+
     if not ter_admins.first():
         ter_admins = TerAdmin.objects.all()
 
@@ -50,46 +51,88 @@ def ter_admins_dash(request):
         'MG': "5 — 11 классы",
         'G': "10 — 11 классы",
     }
-    years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
+    years = Year.objects.all().order_by('-year')
     
+    year = Year.objects.get(is_current=True)
+    schools_reports = None
+    sections = None
+    school_reports_data = {}
+    stats = {}
+    overall_stats = {}
+    sections_data = {}
+    fields_sum_data = {}
+    show_ter_status = False
     filter = {}
     schools = School.objects.filter(ter_admin__in=ter_admins, is_archived=False)
-
-    if request.method != 'POST':
-        try:
-            year = years[0]
-        except:
-            year = 2024
+    reports = Report.objects.filter(year=year)
+  
+    if request.method == 'POST':
+        year = request.POST["year"]
+        year = Year.objects.get(year=year)
+        show_ter_status = 'show_ter_status' in request.POST
         reports = Report.objects.filter(year=year)
-    else:
-        year = int(request.POST["year"])
-        reports = Report.objects.filter(year=year)  
-        ter_admins_f = request.POST["ter_admin"]
-        if ter_admins_f != '':
+        sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
+        
+        # Фильтруем отчеты в зависимости от статуса согласования
+
+        if show_ter_status:
+            schools_reports = SchoolReport.objects.filter(
+                report__in=reports,
+                status__in=['A', 'D']  # Показываем и принятые, и на согласовании
+            ).order_by('school__name').prefetch_related('answers', 'sections')
+        else:
+            schools_reports = SchoolReport.objects.filter(
+                report__in=reports,
+                status='D'  # Только принятые
+            ).order_by('school__name').prefetch_related('answers', 'sections')
+        
+        stats, overall_stats = utils.calculate_stats(year, schools_reports, sections)
+        
+        # Фильтруем школы по выбранным параметрам
+        ter_admins_f = request.POST.get("ter_admin", '')
+        if ter_admins_f:
             schools = schools.filter(ter_admin=ter_admins_f)
-        filter['ter_admin'] = ter_admins_f
+            filter['ter_admin'] = ter_admins_f
+            
         closters_f = request.POST.getlist("closters")
-        if len(closters_f) != 0:
+        if closters_f:
             schools = schools.filter(closter__in=closters_f)
             filter['closters'] = closters_f
+            
         ed_levels_f = request.POST.getlist("ed_levels")
-        if len(ed_levels_f) != 0:
+        if ed_levels_f:
             schools = schools.filter(ed_level__in=ed_levels_f)
             filter['ed_levels'] = ed_levels_f
+            
+        # Фильтруем отчеты по отфильтрованным школам
+        schools_reports = schools_reports.filter(school__in=schools)
         if 'download' in request.POST:
-            schools_reports = SchoolReport.objects.filter(report__in=reports, school__in=schools, status='D')
             return utils.generate_ter_admins_report_csv(year, schools, schools_reports)
 
     # Generate cache key based on filters
     cache_key = get_cache_key('ter_admins_dash', 
         year=year,
+        show_ter_status=show_ter_status,
         schools=','.join(sorted(str(s.id) for s in schools)),
-        reports=','.join(sorted(str(r.id) for r in reports))
+        reports=','.join(sorted(str(r.id) for r in reports)) if reports else '',
+        ter_admin=filter.get('ter_admin', ''),
+        closters=','.join(sorted(filter.get('closters', []))),
+        ed_levels=','.join(sorted(filter.get('ed_levels', [])))
     )
     
     # Try to get cached data
     cached_data = cache.get(cache_key)
-    if cached_data:
+    if cached_data and reports:  # Проверяем наличие reports
+        # Фильтруем отчеты по статусу согласования, если это необходимо
+        if show_ter_status:
+            cached_data['schools_reports'] = cached_data['schools_reports'].filter(
+                status__in=['A', 'D']
+            )
+        else:
+            cached_data['schools_reports'] = cached_data['schools_reports'].filter(
+                status='D'
+            )
+            
         return render(request, "dashboards/ter_admins_dash.html", {
             **cached_data,
             "years": years,
@@ -98,26 +141,30 @@ def ter_admins_dash(request):
             'ter_admins': ter_admins,
             'closters': closters,
             'ed_levels': ed_levels,
+            'show_ter_status': show_ter_status
         })
 
     # If no cached data, perform the expensive calculations
-    schools_reports = SchoolReport.objects.filter(
-        report__in=reports,
-        school__in=schools,
-        status='D'
-    ).select_related(
-        'school',
-        'report',
-        'school__ter_admin',
-    ).prefetch_related(
-        'answers',
-        'sections__section__fields',
-        'sections__section',
-    )
+    if reports:
+        schools_reports = SchoolReport.objects.filter(
+            report__in=reports,
+            school__in=schools,
+            status__in=['A', 'D'] if show_ter_status else ['D']
+        ).select_related(
+            'school',
+            'report',
+            'school__ter_admin',
+        ).prefetch_related(
+            'answers',
+            'sections__section__fields',
+            'sections__section',
+        )
+    else:
+        schools_reports = SchoolReport.objects.none()
 
     school_reports_data = {}
     fields_data = {}
-    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number').prefetch_related('fields')
+    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number').prefetch_related('fields') if reports else []
 
     for s_report in schools_reports:
         school_reports_data[s_report.id] = {
@@ -220,6 +267,7 @@ def ter_admins_dash(request):
         'ter_admins': ter_admins,
         'closters': closters,
         'ed_levels': ed_levels,
+        'show_ter_status': show_ter_status
     })
 
 
