@@ -91,72 +91,130 @@ form .btn-outline-primary {
   margin-bottom: 15px;
 }
 
-.section .outer-container, #ReportSchools .outer-container {
+.section .outer-container,
+#ReportSchools .outer-container {
   position: relative;
   width: 100%;
   overflow-x: auto;
   overflow-y: auto;
 }
 
-.section .outer-container .table-container, #ReportSchools .outer-container .table-container {
+.section .outer-container .table-container,
+#ReportSchools .outer-container .table-container {
   height: -webkit-min-content;
   height: -moz-min-content;
   height: min-content;
   max-height: 700px;
 }
 
-.section .outer-container .table, #ReportSchools .outer-container .table {
+.section .outer-container .table,
+#ReportSchools .outer-container .table {
   width: 100%;
   min-width: 600px;
-  /* Sticky First Column */
 }
 
-.section .outer-container .table th, #ReportSchools .outer-container .table th {
+.section .outer-container .table th,
+#ReportSchools .outer-container .table th {
   font-weight: 400 !important;
   font-size: 16px;
   line-height: 20px;
   border-top: 0;
-  border-bottom: 2px solid black;
+  border-bottom: 1px solid black;
   background-color: white;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
-.section .outer-container .table td, #ReportSchools .outer-container .table td {
+.section .outer-container .table th::after,
+#ReportSchools .outer-container .table th::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  border-bottom: 1px solid black;
+}
+
+.section .outer-container .table td,
+#ReportSchools .outer-container .table td {
   font-weight: 300 !important;
   max-width: 250px;
   vertical-align: middle;
   word-wrap: break-word;
 }
 
-.section .outer-container .table .th-center, .section .outer-container .table .td-center, #ReportSchools .outer-container .table .th-center, #ReportSchools .outer-container .table .td-center {
+.section .outer-container .table .th-center,
+.section .outer-container .table .td-center,
+#ReportSchools .outer-container .table .th-center,
+#ReportSchools .outer-container .table .td-center {
   text-align: center;
 }
 
-.section .outer-container .table .th-rigth, .section .outer-container .table .td-rigth, #ReportSchools .outer-container .table .th-rigth, #ReportSchools .outer-container .table .td-rigth {
+.section .outer-container .table .th-rigth,
+.section .outer-container .table .td-rigth,
+#ReportSchools .outer-container .table .th-rigth,
+#ReportSchools .outer-container .table .td-rigth {
   text-align: right;
 }
 
-.section .outer-container .table .section-hdr, #ReportSchools .outer-container .table .section-hdr {
+.section .outer-container .table .section-hdr,
+#ReportSchools .outer-container .table .section-hdr {
   min-width: 350px !important;
 }
 
-.section .outer-container .table td:first-child, .section .outer-container .table th:first-child, #ReportSchools .outer-container .table td:first-child, #ReportSchools .outer-container .table th:first-child {
+.section .outer-container .table td:first-child,
+.section .outer-container .table th:first-child,
+#ReportSchools .outer-container .table td:first-child,
+#ReportSchools .outer-container .table th:first-child {
   min-width: 250px;
   background-color: white;
-  position: -webkit-sticky;
   position: sticky;
   left: 0;
-  z-index: 5;
+  z-index: 3;
 }
 
-.section .outer-container .table th:first-child, #ReportSchools .outer-container .table th:first-child {
-  z-index: 1060;
+.section .outer-container .table th:first-child,
+#ReportSchools .outer-container .table th:first-child {
+  z-index: 4;
 }
 
-.section .asc-icon, .section .desc-icon, #ReportSchools .asc-icon, #ReportSchools .desc-icon {
+.section .outer-container .table th:first-child::after,
+#ReportSchools .outer-container .table th:first-child::after {
+  z-index: 4;
+}
+
+.section .asc-icon,
+.section .desc-icon,
+#ReportSchools .asc-icon,
+#ReportSchools .desc-icon {
   display: none;
 }
 
-.section .asc-icon img, .section .desc-icon img, #ReportSchools .asc-icon img, #ReportSchools .desc-icon img {
+.section .asc-icon img,
+.section .desc-icon img,
+#ReportSchools .asc-icon img,
+#ReportSchools .desc-icon img {
   width: 30px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25em 0.6em;
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25rem;
+}
+
+.badge.bg-warning {
+  background-color: #ffc107;
+  color: #000;
 }
 /*# sourceMappingURL=ter_admins_dash.css.map */

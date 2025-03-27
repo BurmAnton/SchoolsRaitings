@@ -109,4 +109,32 @@ form .btn-outline-primary {
 #reports .table .selected-row {
   background-color: #0000000a;
 }
+
+.progress {
+    background-color: #e9ecef;
+    border-radius: 0.25rem;
+    margin: 0;
+}
+
+.progress-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    transition: width .6s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.progress-bar.bg-warning {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.progress-bar.bg-success {
+    background-color: #28a745;
+}
 /*# sourceMappingURL=reports.css.map */

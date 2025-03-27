@@ -36,8 +36,8 @@ DEBUG = os.environ.get("DEBUG").lower() in ('true', '1', 't')
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(' ')
 CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS').split(' ')
-# Application definition
 
+# Application definition
 INSTALLED_APPS = [
     'dashboards',
     'reports',
@@ -104,6 +104,18 @@ DATABASES = {
         'CHARSET': 'utf8mb4',
     }
 }
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://localhost:6379',
+        'OPTIONS': {
+            'db': '2',
+            'parser_class': 'redis.connection.PythonParser',
+            'pool_class': 'redis.connection.BlockingConnectionPool',
+        }
+    }
+} 
 
 # Auth 
 AUTH_USER_MODEL = 'users.User'

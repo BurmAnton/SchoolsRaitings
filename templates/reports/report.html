@@ -5,6 +5,64 @@
 
 {% block style %}
     <link href="{% static 'reports/css/report.css' %}" rel="stylesheet">
+    <style>
+        .pagination-container {
+            text-align: center;
+            padding: 15px;
+            background-color: white;
+            border-top: 1px solid #dee2e6;
+            width: 100%;
+        }
+        
+        .pagination {
+            margin-bottom: 0.5rem;
+            justify-content: center;
+        }
+        
+        .pagination .page-item .page-link {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 0 5px;
+            padding: 0;
+            color: #0d6efd;
+            border-color: #dee2e6;
+        }
+        
+        .pagination .page-item .page-link:hover {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #0a58ca;
+        }
+        
+        .pagination .page-item.active .page-link {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        .section-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            position: absolute;
+            top: 5px;
+            right: 5px;
+        }
+        
+        .sections-panel {
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+            background-color: white;
+            width: 100%;
+        }
+    </style>
 {% endblock %}
 {% block script %}
     <script src="{% static 'reports/js/report.js' %}" rel="stylesheet"></script>
@@ -246,9 +304,9 @@
                     </tr>
                 {% endfor %}
                     <tr class="tr-section">
-                        <th colspan="2">Всего</th>
-                        <th class="center section-points"></th>
-                        <th></th>
+                        <th colspan="2" style="border-bottom: 0;">Всего</th>
+                        <th class="center section-points" style="border-bottom: 0;"></th>
+                        <th style="border-bottom: 0;"></th>
                         {% comment %} <th class="center section-points-max"></th> {% endcomment %}
                     </tr>
                 </table>
@@ -284,7 +342,32 @@
         </div>
     {% endif %} {% endcomment %}
     <div class="sections-panel">
-        <button style="width: 150px" id="btn-back" class="btn btn-outline-primary" type="submit">Назад</button>
-        <button style="width: 150px" id="btn-forward" class="btn btn-primary" type="submit">Вперёд</button>
+        <div class="pagination-container">
+            <nav aria-label="Навигация по разделам">
+                <ul class="pagination justify-content-center">
+                    {% for section in report.report.sections.all|dictsort:"id" %}
+                        <li class="page-item {% if current_section == section.id %}active{% endif %}">
+                            <a class="page-link" href="?current_section={{ section.id }}">
+                                <div class="section-dot" style="background-color: {{report|get_section_color:section}};"></div>
+                                {{ section.number }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            <div class="text-center">
+                <small>
+                    {% with current_idx=0 %}
+                        {% for section in report.report.sections.all|dictsort:"id" %}
+                            {% if current_section == section.id %}
+                                {% with current_idx=forloop.counter sections_count=report.report.sections.all.count %}
+                                    Раздел {{ current_idx }} из {{ sections_count }}
+                                {% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endwith %}
+                </small>
+            </div>
+        </div>
     </div>
 {% endblock %}

@@ -299,6 +299,14 @@ class Field(models.Model):
         null=True, blank=True,
         default=None
     )
+    yellow_zone_min = models.DecimalField(
+        "Жёлтая зона (минимум)", max_digits=5,
+        decimal_places=1, null=True, blank=True, default=None
+    )
+    green_zone_min = models.DecimalField(
+        "Зеленая зона (минимум)", max_digits=5,
+        decimal_places=1, null=True, blank=True, default=None
+    )
 
     attachment_name = models.CharField("Название вложения", max_length=750, default="", null=True, blank=True)
     ATTACHMENT_TYPES = [
@@ -873,21 +881,31 @@ def update_school_report_points(school_report):
 def invalidate_caches_for_report(year, school):
     """Centralized cache invalidation for reports"""
     # Clear main dashboard caches
-    cache.delete_many([
-        get_cache_key('ter_admins_dash',
-            year=year,
-            schools=str(school.id),
-            reports=str(school.reports.filter(report__year=year).first().report_id)
-        ),
-        get_cache_key('closters_report_data',
-            year=year,
-            ter_admin=str(school.ter_admin.id),
-            closters=str(school.closter.id) if school.closter else '',
-            ed_levels=school.ed_level
-        ),
+    cache_keys = [
         f'ter_admins_dash_{year}',
         f'closters_report_{year}'
-    ])
+    ]
+    
+    # Get the first report for this school and year
+    first_report = school.reports.filter(report__year=year).first()
+    
+    # Add additional cache keys only if a report exists
+    if first_report:
+        cache_keys.extend([
+            get_cache_key('ter_admins_dash',
+                year=year,
+                schools=str(school.id),
+                reports=str(first_report.report_id)
+            ),
+            get_cache_key('closters_report_data',
+                year=year,
+                ter_admin=str(school.ter_admin.id),
+                closters=str(school.closter.id) if school.closter else '',
+                ed_levels=school.ed_level
+            )
+        ])
+    
+    cache.delete_many(cache_keys)
 
 def update_field_and_reports(question):
     """Update field points and related reports"""
@@ -946,6 +964,50 @@ def handle_range_option_save(sender, instance, **kwargs):
     
     # Update field and reports
     update_field_and_reports(question)
+
+@receiver(post_save, sender=Field)
+def handle_field_save(sender, instance, **kwargs):
+    """Handle Field model save - recalculate points and zones for all reports with this field"""
+    logger.info(f"Field {instance.id} saved - recalculating points for affected reports")
+    
+    # Since we're already in the Field model, we can just use instance directly
+    update_field_and_reports(instance)
+    
+    # For MULT type fields, we need to update zones for all answers based on yellow_zone_min and green_zone_min
+    if instance.answer_type == 'MULT':
+        answers = Answer.objects.filter(question=instance).select_related('s_report')
+        for answer in answers:
+            # Skip answers without points (empty selections)
+            if answer.points is None or answer.points == 0:
+                continue
+                
+            # Determine zone based on field settings
+            old_zone = answer.zone
+            if instance.yellow_zone_min is not None and instance.green_zone_min is not None:
+                if answer.points < instance.yellow_zone_min:
+                    new_zone = 'R'
+                elif answer.points >= instance.green_zone_min:
+                    new_zone = 'G'
+                else:
+                    new_zone = 'Y'
+            else:
+                # If no zone settings in field, try section
+                section = instance.sections.first()
+                if section and section.yellow_zone_min is not None and section.green_zone_min is not None:
+                    if answer.points < section.yellow_zone_min:
+                        new_zone = 'R'
+                    elif answer.points >= section.green_zone_min:
+                        new_zone = 'G'
+                    else:
+                        new_zone = 'Y'
+                else:
+                    # Fallback to simple logic
+                    new_zone = 'G' if answer.points > 0 else 'R'
+            
+            # Update zone if changed
+            if old_zone != new_zone:
+                logger.info(f"Updating zone for answer {answer.id} from {old_zone} to {new_zone}")
+                Answer.objects.filter(id=answer.id).update(zone=new_zone)
 
 class OptionCombination(models.Model):
     field = models.ForeignKey(

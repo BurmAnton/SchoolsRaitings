@@ -97,11 +97,18 @@ class ReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
 
 class OptionInline(admin.TabularInline):
     model = Option
-    fields = ['number', 'name', 'points', 'zone',]
+    fields = ['number', 'name', 'points', 'zone']
+    
     def get_extra(self, request, obj=None, **kwargs):
         if obj:
             return 3
         return 1
+    
+    def get_fields(self, request, obj=None):
+        # Если показатель имеет тип MULT (множественный выбор), скрываем поле zone
+        if obj and obj.answer_type == 'MULT':
+            return ['number', 'name', 'points']
+        return ['number', 'name', 'points', 'zone']
 
 
 class RangeOptionInline(admin.TabularInline):
@@ -116,18 +123,45 @@ class RangeOptionInline(admin.TabularInline):
 class CombinationInline(admin.TabularInline):
     model = OptionCombination
     fields = ['option_numbers', 'points']
+    
     def get_extra(self, request, obj=None, **kwargs):
         if obj:
             return 3
         return 1
+    
+    def get_queryset(self, request):
+        # Возвращаем пустой QuerySet по умолчанию
+        qs = super().get_queryset(request)
+        # Получаем текущий объект Field
+        obj_id = request.resolver_match.kwargs.get('object_id')
+        if obj_id:
+            try:
+                field = Field.objects.get(id=obj_id)
+                # Если тип ответа не множественный выбор, возвращаем пустой QuerySet
+                if field.answer_type != 'MULT':
+                    return qs.none()
+            except Field.DoesNotExist:
+                pass
+        return qs
 
 
 @admin.register(Field)
 @add_custom_admin_css
 class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
-    list_display = ['id', 'number', 'name', 'answer_type', 'points']
+    list_display = ['id', 'number', 'name', 'answer_type', 'points', 'yellow_zone_min', 'green_zone_min']
     search_fields = ['number', 'name', 'id']
     readonly_fields = ['points',]
+    fieldsets = [
+        (None, {
+            'fields': ['number', 'name', 'answer_type']
+        }),
+        ('Баллы и зоны', {
+            'fields': ['points', 'bool_points', 'max_points', 'yellow_zone_min', 'green_zone_min'],
+        }),
+        ('Дополнительно', {
+            'fields': ['attachment_name', 'attachment_type', 'note'],
+        }),
+    ]
     
     # Настройки ширины столбцов
     column_width_settings = {
@@ -136,11 +170,123 @@ class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
         'name': 'column-width-xl column-truncate',
         'answer_type': 'column-width-md column-align-center',
         'points': 'column-width-xs column-align-center',
+        'yellow_zone_min': 'column-width-md column-align-center',
+        'green_zone_min': 'column-width-md column-align-center',
     }
 
     content = HTMLField()
 
     inlines = [OptionInline, RangeOptionInline, CombinationInline]
+    
+    actions = ['recalculate_reports']
+    
+    def recalculate_reports(self, request, queryset):
+        """Пересчитать баллы и зоны для всех отчетов, содержащих выбранные показатели"""
+        recalculated_fields = 0
+        recalculated_answers = 0
+        recalculated_reports = 0
+        
+        with transaction.atomic():
+            for field in queryset:
+                logger.info(f"Processing field {field.id} '{field.name}'")
+                recalculated_fields += 1
+                
+                # Получаем все затронутые отчеты и школы
+                affected_reports = Report.objects.filter(sections__fields=field)
+                affected_schools = School.objects.filter(reports__report__in=affected_reports, is_archived=False).distinct()
+                
+                # Обновляем максимальное количество баллов показателя
+                field_points = calculate_field_points(field)
+                Field.objects.filter(pk=field.pk).update(points=field_points)
+                
+                # Перебираем все отчеты школ с этим показателем
+                for school in affected_schools:
+                    school_reports = SchoolReport.objects.filter(
+                        school=school,
+                        report__in=affected_reports
+                    )
+                    
+                    for sr in school_reports:
+                        recalculated_reports += 1
+                        
+                        # Получаем все ответы с этим показателем
+                        answers = Answer.objects.filter(question=field, s_report=sr)
+                        for answer in answers:
+                            old_points = answer.points
+                            old_zone = answer.zone
+                            
+                            # Для MULT обрабатываем особым образом
+                            if field.answer_type == 'MULT':
+                                selected_options = answer.selected_options.all()
+                                if selected_options:
+                                    option_numbers = sorted([str(opt.number) for opt in selected_options])
+                                    option_numbers_str = ','.join(option_numbers)
+                                    
+                                    # Проверяем комбинации
+                                    try:
+                                        combination = OptionCombination.objects.get(
+                                            field=field, 
+                                            option_numbers=option_numbers_str
+                                        )
+                                        answer.points = combination.points
+                                    except OptionCombination.DoesNotExist:
+                                        # Суммируем баллы опций
+                                        total_points = sum(opt.points for opt in selected_options)
+                                        if field.max_points is not None and total_points > field.max_points:
+                                            total_points = field.max_points
+                                        answer.points = total_points
+                                    
+                                    # Определяем зону
+                                    if field.yellow_zone_min is not None and field.green_zone_min is not None:
+                                        if answer.points < field.yellow_zone_min:
+                                            answer.zone = 'R'
+                                        elif answer.points >= field.green_zone_min:
+                                            answer.zone = 'G'
+                                        else:
+                                            answer.zone = 'Y'
+                                    else:
+                                        # Проверяем раздел
+                                        section = field.sections.first()
+                                        if section and section.yellow_zone_min is not None and section.green_zone_min is not None:
+                                            if answer.points < section.yellow_zone_min:
+                                                answer.zone = 'R'
+                                            elif answer.points >= section.green_zone_min:
+                                                answer.zone = 'G'
+                                            else:
+                                                answer.zone = 'Y'
+                                        else:
+                                            # Простая логика по умолчанию
+                                            answer.zone = 'G' if answer.points > 0 else 'R'
+                            
+                            if old_points != answer.points or old_zone != answer.zone:
+                                answer.save()
+                                recalculated_answers += 1
+                        
+                        # Пересчитываем баллы и зону отчета
+                        update_school_report_points(sr)
+                    
+                    # Инвалидируем кэш
+                    invalidate_caches_for_report(affected_reports.first().year, school)
+        
+        message = f"Пересчитано {recalculated_fields} показателей:\n"
+        message += f"- Обновлено {recalculated_answers} ответов\n"
+        message += f"- Затронуто {recalculated_reports} отчетов"
+        self.message_user(request, message)
+        logger.info(message)
+    
+    recalculate_reports.short_description = "Пересчитать баллы и зоны для всех отчетов"
+    
+    def get_inline_instances(self, request, obj=None):
+        inline_instances = super().get_inline_instances(request, obj)
+        
+        # Если объект существует и его тип ответа не MULT, фильтруем инлайны
+        if obj and obj.answer_type != 'MULT':
+            inline_instances = [
+                inline for inline in inline_instances 
+                if not isinstance(inline, CombinationInline)
+            ]
+        
+        return inline_instances
 
     class Media:
         js = ["../static/admin/js/question_change.js", 'admin/js/column_width.js']
@@ -266,10 +412,17 @@ class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
                                     
                                 answer.points = total_points
                             
-                            # Определяем зону на основе баллов
-                            if answer.points > 0:
-                                answer.zone = 'G'
+                            # Определяем зону исходя из полученных баллов и настроек показателя
+                            field = answer.question
+                            if field.yellow_zone_min is not None and field.green_zone_min is not None:
+                                if answer.points < field.yellow_zone_min:
+                                    answer.zone = 'R'
+                                elif answer.points >= field.green_zone_min:
+                                    answer.zone = 'G'
+                                else:
+                                    answer.zone = 'Y'
                             else:
+                                # Если зоны не определены, используем красную зону по умолчанию
                                 answer.zone = 'R'
                         else:
                             answer.points = 0

@@ -75,16 +75,33 @@ def count_points(s_report):
 def count_points_field(s_report, field):
     from reports.models import Answer
     
-    points__sum = Answer.objects.filter(question__in=field.questions.all(), s_report=s_report).aggregate(Sum('points'))['points__sum']
+    points__sum = Answer.objects.filter(question=field, s_report=s_report).aggregate(Sum('points'))['points__sum'] or 0
     if s_report.report.is_counting == False:
         return 'W'
-    try:
+    
+    # Проверяем, заданы ли минимальные значения для жёлтой и зелёной зон в показателе
+    if field.yellow_zone_min is not None and field.green_zone_min is not None:
         if points__sum < field.yellow_zone_min:
             return "R"
         elif points__sum >= field.green_zone_min:
             return "G"
         return "Y"
-    except: return 'R'
+    # Если в показателе нет значений, используем значения из родительского раздела
+    else:
+        try:
+            # Получаем раздел, к которому относится поле
+            section = field.sections.first()
+            if section and section.yellow_zone_min is not None and section.green_zone_min is not None:
+                if points__sum < section.yellow_zone_min:
+                    return "R"
+                elif points__sum >= section.green_zone_min:
+                    return "G"
+                return "Y"
+        except: 
+            pass
+    
+    # Если ни в показателе, ни в разделе не заданы значения, возвращаем красную зону
+    return 'R'
 
 
 def count_section_points(s_report, section):

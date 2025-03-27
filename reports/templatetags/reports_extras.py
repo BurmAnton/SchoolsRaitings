@@ -86,9 +86,15 @@ def is_answer_changed_by_mo(answers, question):
 
 @register.filter
 def format_point(points):
-    if points % 1 == 0:
-        return int(points)
-    return str(points).replace(',', '.')
+    if points is None:
+        return "0"
+    try:
+        points = float(str(points).replace(',', '.'))
+        if points % 1 == 0:
+            return int(points)
+        return str(points)
+    except (ValueError, TypeError):
+        return "0"
 
 
 @register.filter
@@ -243,3 +249,50 @@ def to_json(value):
     Конвертирует словарь или другой объект в JSON строку
     """
     return json.dumps(value)
+
+@register.filter
+def safe_json(value):
+    """
+    Конвертирует словарь или другой объект в JSON строку, безопасную для использования в JavaScript
+    Предотвращает XSS-атаки
+    """
+    # Заменяем потенциально опасные символы
+    json_str = json.dumps(value, ensure_ascii=False)
+    return json_str.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
+
+@register.filter
+def get_completion_percent(report):
+    """
+    Вычисляет процент заполнения отчета.
+    """
+    from reports.models import Answer, Field
+    from django.db.models import Count, Q
+
+    # Получаем все уникальные поля отчета
+    total_fields = Field.objects.filter(sections__report=report.report).distinct().count()
+    
+    if total_fields == 0:
+        return [0, 0, 0]
+
+    # Подсчитываем заполненные поля одним запросом
+    filled_count = Answer.objects.filter(
+        s_report=report,
+        question__sections__report=report.report
+    ).filter(
+        Q(question__answer_type__in=['NMBR', 'PRC'], number_value__isnull=False) |
+        Q(question__answer_type='LST', option__isnull=False) |
+        Q(question__answer_type='BL', bool_value__isnull=False) |
+        Q(question__answer_type='MULT', selected_options__isnull=False)
+    ).distinct().count()
+
+    # Вычисляем процент
+    percent = (filled_count / total_fields) * 100
+    return [min(int(percent), 100), filled_count, total_fields]
+
+@register.filter
+def get_completion_percent_str(report):
+    """
+    Вычисляет процент заполнения отчета и возвращает строку с процентом и соотношением.
+    """
+    result = get_completion_percent(report)
+    return f"{result[0]}% ({result[1]}/{result[2]})"

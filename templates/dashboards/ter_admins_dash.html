@@ -85,9 +85,10 @@
                             <th scope="row"class="sticky-top" colspan="2" style="vertical-align: middle;  cursor: pointer;"onclick="sortTable(0)"><div style="display: flex; gap: 5px; align-items: center;" colspan="2"><div>Школа</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             <th scope="row" class="sticky-top" style="vertical-align: middle; cursor: pointer;" onclick="sortTable(1)"><div style="display: flex; gap: 5px; align-items: center;"><div>ТУ/ДО</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             <th scope="row" class="sticky-top" style="vertical-align: middle; cursor: pointer;" onclick="sortTable(2)"><div style="display: flex; gap: 5px; align-items: center;"><div>Уровень образования</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
-                            <th scope="row" class="sticky-top" style="text-align: center; vertical-align: middle; cursor: pointer; " onclick="sortTable(3)"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                            <th scope="row" class="sticky-top" style="vertical-align: middle; cursor: pointer;" onclick="sortTable(3)"><div style="display: flex; gap: 5px; align-items: center;"><div>Кластер</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                            <th scope="row" class="sticky-top" style="text-align: center; vertical-align: middle; cursor: pointer; " onclick="sortTable(4)"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             {% for section in sections %}
-                                <th scope="row" style="text-align: center; vertical-align: middle; cursor: pointer;" class="section-hdr sticky-top" onclick="sortTable({{ forloop.counter|add:3 }})">
+                                <th scope="row" style="text-align: center; vertical-align: middle; cursor: pointer;" class="section-hdr sticky-top" onclick="sortTable({{ forloop.counter|add:4 }})">
                                     <div style="display: flex; gap: 5px; align-items: center; justify-content: center; "><div>{{section}}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div>
                                         <div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div>
                                     </div>
@@ -99,20 +100,17 @@
                         </tr>  
                         {% for s_report in schools_reports %}
                             <tr>
-                                <td scope="row" class="sticky-row">
-                                    {% if show_ter_status and s_report.status == 'A' %}
-                                        <span style="margin-bottom: 3px;" class="badge bg-warning" title="На согласовании в ТУ/ДО">!</span>
-                                    {% endif %}
-                                    {{ s_report.school }}
-                                    
-                               </td>
+                                <td scope="row" class="sticky-row">{{ s_report.school }}</td>
                                 <td scope="row" class="sticky-row" style="min-width: 0;">{% if s_report.report.is_counting  %}<div style="display: flex;gap: 5px; align-items: center;"><div id="report-zone" style="background-color: {{s_report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div></div> {% endif %}</td>
                                 <td scope="row">{{ s_report.school.ter_admin }}</td>
                                 <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
+                                <td scope="row">{{ s_report.school.closter }}</td>
                                 <td scope="row" style="text-align: center; vertical-align: middle;">
                                     <div style="display: flex; gap: 5px; align-items: center; justify-content: center;">
                                         <div>{{ s_report.points|format_point }}</div>
-                                        
+                                        {% if show_ter_status and s_report.status == 'A' %}
+                                            <span class="badge bg-warning" title="На согласовании в ТУ/ДО">!</span>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 {% for section in s_report.sections.all|dictsort:"section.number" %}
@@ -134,11 +132,16 @@
                         <tr>
                             <td scope="row" colspan="2" style="text-align: left;" class="sticky-row"><b>Итого</b></td>
                             <td colspan="2"></td>
-                            <td scope="row" style="text-align: center;"><b>{{ schools_reports|get_point_sum }}</b></td>
-                            {% for section in sections|dictsort:"number" %}
-                                <td scope="row"style="text-align: center;"><b>{{ schools_reports|get_point_sum_section:section }}</b></td>
+                            <td scope="row" style="text-align: center;">{{ total_points|format_point }}</td>
+                            {% for section in sections %}
+                                <td scope="row" style="text-align: center;">{{ sections_data|get_item:section.number|get_item:'points'|format_point }}</td>
                             {% endfor %}
-                            <td colspan="6"></td>
+                            <td scope="row" style="text-align: center;">{{ total_green_zone_answers }}</td>
+                            <td scope="row" style="text-align: center;">{{ total_green_zone_answers_percent }}</td>
+                            <td scope="row" style="text-align: center;">{{ total_yellow_zone_answers }}</td>
+                            <td scope="row" style="text-align: center;">{{ total_yellow_zone_answers_percent }}</td>
+                            <td scope="row" style="text-align: center;">{{ total_red_zone_answers }}</td>
+                            <td scope="row" style="text-align: center;">{{ total_red_zone_answers_percent }}</td>
                         </tr>
                         <tr>
                             <td colspan="2" style="color: green; font-weight: bold"><b>Кол-во школ в зелёной зоне</b></td>
@@ -182,9 +185,10 @@
                                 <th scope="row" class="section-hdr  sticky-top" style="cursor: pointer;" onclick="sortTable(0, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Школа</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                                 <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(1, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>ТУ/ДО</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                                 <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(2, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Уровень образования</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
-                                <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(3, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center; text-align: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                                <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(3, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Кластер</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                                <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(4, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center; text-align: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                                 {% for field in sections_data|get_item:section.number|get_item:'fields' %}
-                                    <th  class="section-hdr sticky-top" scope="row" style="text-align: center; cursor: pointer;" onclick="sortTable({{ forloop.counter|add:3 }}, 'table-{{ section.id }}')">
+                                    <th class="section-hdr sticky-top" scope="row" style="text-align: center; cursor: pointer;" onclick="sortTable({{ forloop.counter|add:4 }}, 'table-{{ section.id }}')">
                                         <div style="display: flex; gap: 5px; align-items: center;"><div>{{ section.number }}.{{ field.number }}. {{ field.name }}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div>
                                     </th>
                                 {% endfor %}
@@ -202,6 +206,7 @@
                                     </td>
                                     <td scope="row">{{ s_report.school.ter_admin }}</td>
                                     <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
+                                    <td scope="row">{{ s_report.school.closter }}</td>
                                     <td scope="row" style="text-align: center;">{{ school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'points' }}</td>
                                     {% for field in sections_data|get_item:section.number|get_item:'fields' %}
                                         <td scope="row" style="text-align: center;">
@@ -217,11 +222,11 @@
                                 </tr>
                             {% endfor %}
                             <tr>   
-                                <td scope="row" colspan="1" style="text-align: left;"><b>Итого</b></td>
+                                <td scope="row" colspan="2" style="text-align: left;" class="sticky-row"><b>Итого</b></td>
                                 <td colspan="2"></td>
-                                <td scope="row" style="text-align: center;"><b>{{ schools_reports|get_point_sum_section:section }}</b></td>
+                                <td scope="row" style="text-align: center;"><b>{{ sections_data|get_item:section.number|get_item:'points'|format_point }}</b></td>
                                 {% for field in sections_data|get_item:section.number|get_item:'fields' %}
-                                    <td scope="row" style="text-align: center;"><b>{{ fields_sum_data|get_item:field.id }}</b></td>
+                                    <td scope="row" style="text-align: center;"><b>{{ sections_data|get_item:section.number|get_item:'fields'|get_item:field.number|get_item:'points'|format_point }}</b></td>
                                 {% endfor %}
                             </tr> 
                             <tr>

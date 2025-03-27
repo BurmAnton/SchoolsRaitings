@@ -1,5 +1,5 @@
 from decimal import Decimal
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
@@ -7,9 +7,11 @@ from django.views.decorators.cache import cache_page
 from django.db.models import Sum, Max
 from django.conf import settings
 import hashlib
+import json
+from django.http import JsonResponse, Http404, HttpResponse
 
 from dashboards import utils
-from reports.models import Answer, Report, SchoolReport, Section, Field, Year
+from reports.models import Answer, Report, SchoolReport, Section, Field, Year, Option
 from schools.models import SchoolCloster, School, TerAdmin
 from common.utils import get_cache_key
 
@@ -277,7 +279,7 @@ def school_report(request):
     ter_admins = TerAdmin.objects.filter(representatives=request.user).prefetch_related('schools')
     if not ter_admins.first():
         ter_admins = TerAdmin.objects.all().prefetch_related('schools')
-    years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
+    years = Year.objects.all().order_by('-year')
     
     school = None
     s_reports = None
@@ -291,6 +293,7 @@ def school_report(request):
     if request.method == 'POST':
         school = School.objects.get(id=request.POST["school"])
         f_years = request.POST.getlist("years")
+        f_years = [Year.objects.get(year=year) for year in f_years]
         reports = Report.objects.filter(year__in=f_years)
         sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
         s_reports = SchoolReport.objects.filter(
@@ -344,7 +347,8 @@ def closters_report(request, year=2024):
         year=request.POST.get('year', year),
         ter_admin=request.POST.get('ter_admin', ''),
         closters=','.join(sorted(request.POST.getlist('closters', []))),
-        ed_levels=','.join(sorted(request.POST.getlist('ed_levels', [])))
+        ed_levels=','.join(sorted(request.POST.getlist('ed_levels', []))),
+        show_ter_status=request.POST.get('show_ter_status', False)
     )
     
     # Try to get cached data
@@ -356,7 +360,7 @@ def closters_report(request, year=2024):
     if not ter_admins.first():
         ter_admins = TerAdmin.objects.all()
     
-    years = Report.objects.values_list('year', flat=True).distinct().order_by('-year')
+    years = Year.objects.all().order_by('-year')
     closters = SchoolCloster.objects.all()
     ed_levels = {
         'A': "1 — 11 классы",
@@ -368,15 +372,18 @@ def closters_report(request, year=2024):
     
     schools = School.objects.filter(ter_admin__in=ter_admins, is_archived=False).select_related('ter_admin')
     filter = {}
+    show_ter_status = False
     
     # Get initial year
     try:
         current_year = years[0]
     except:
-        current_year = 2024
+        current_year = Year.objects.get(is_current=True)
         
     if request.method == 'POST':
         year = int(request.POST.get("year", current_year))
+        year = Year.objects.get(year=year)
+        show_ter_status = 'show_ter_status' in request.POST
         ter_admin_f = request.POST.get("ter_admin", '')
         if ter_admin_f:
             schools = schools.filter(ter_admin=ter_admin_f)
@@ -395,10 +402,9 @@ def closters_report(request, year=2024):
         year = current_year
         schools = schools.filter(ter_admin__name="Центральное управление")
     if 'download' in request.POST:
-        reports = Report.objects.filter(year=year)
         s_reports = SchoolReport.objects.filter(
             report__year=year,
-            status='D',
+            status__in=['A', 'D'] if show_ter_status else ['D'],
             school__in=schools
         )
         return utils.generate_closters_report_csv(year, schools, s_reports)
@@ -437,15 +443,173 @@ def closters_report(request, year=2024):
         'ed_levels': ed_levels,
         's_reports': SchoolReport.objects.filter(
             report__year=year,
-            status='D',
+            status__in=['A', 'D'] if show_ter_status else ['D'],
             school__in=schools
         ).select_related('school', 'report'),
         'sections': sections_list,
         'schools': schools,
-        'filter': filter
+        'filter': filter,
+        'show_ter_status': show_ter_status
     }
 
     # Cache the data for 5 minutes
     cache.set(cache_key, context_data, timeout=300)
 
     return render(request, "dashboards/closters_report.html", context_data)
+
+@csrf_exempt
+@login_required
+def answers_distribution_report(request):
+    """
+    Страница отчета по распределению вариантов ответов
+    """
+    # Настройки фильтра
+    filter_context = {
+        'years': get_years(request.user),
+        'ter_admins': get_ter_admins(request.user),
+        'closters': get_closters(),
+        'school_levels': dict(School.SCHOOL_LEVELS),
+        'year': '',
+        'ter_admin': '',
+        'closter': '',
+        'ed_level': ''
+    }
+
+    # Обрабатываем запрос с фильтрами
+    if request.method == 'POST':
+        year = request.POST.get('year')
+        ter_admin_id = request.POST.get('ter_admin')
+        closter_id = request.POST.get('closter')
+        ed_level = request.POST.get('ed_level')
+        
+        # Обновляем контекст фильтра
+        filter_context.update({
+            'year': year,
+            'ter_admin': ter_admin_id,
+            'closter': closter_id,
+            'ed_level': ed_level
+        })
+        
+        # Получаем объекты для фильтрации
+        ter_admin = TerAdmin.objects.get(id=ter_admin_id) if ter_admin_id else None
+        closter = SchoolCloster.objects.get(id=closter_id) if closter_id else None
+        
+        # Получаем данные отчетов школ с учетом фильтров
+        schools = get_schools(request.user, ter_admin=ter_admin, closter=closter, ed_level=ed_level)
+        
+        # Получаем объект года
+        year_obj = Year.objects.get(year=year)
+        
+        # Получаем отчеты и секции
+        reports = Report.objects.filter(year=year_obj, is_published=True)
+        schools_reports = SchoolReport.objects.filter(
+            report__in=reports,
+            school__in=schools,
+            status='D'  # Только принятые отчеты
+        ).select_related(
+            'school', 
+            'report'
+        ).prefetch_related(
+            'answers', 
+            'sections'
+        )
+        
+        sections = Section.objects.filter(report__year=year_obj).order_by('number')
+        
+        # Для скачивания Excel
+        if 'download' in request.POST:
+            # Рассчитываем статистику с учетом фильтров
+            stats = utils.calculate_answers_distribution(
+                year_obj, 
+                schools_reports, 
+                sections, 
+                ter_admin=ter_admin, 
+                closter=closter, 
+                ed_level=ed_level
+            )
+            
+            # Генерируем Excel-файл
+            return utils.generate_answers_distribution_excel(year_obj, schools_reports, sections, stats)
+        
+        # Для отображения на странице
+        stats = utils.calculate_answers_distribution(year_obj, schools_reports, sections, ter_admin=ter_admin, closter=closter, ed_level=ed_level)
+    else:
+        # По умолчанию показываем текущий год без фильтров
+        current_year = get_years(request.user)[0] if get_years(request.user) else None
+        filter_context['year'] = current_year
+        
+        if current_year:
+            year_obj = Year.objects.get(year=current_year)
+            
+            # Получаем отчеты и секции без фильтров
+            schools = get_schools(request.user)
+            reports = Report.objects.filter(year=year_obj, is_published=True)
+            schools_reports = SchoolReport.objects.filter(
+                report__in=reports,
+                school__in=schools,
+                status='D'  # Только принятые отчеты
+            ).select_related(
+                'school', 
+                'report'
+            ).prefetch_related(
+                'answers', 
+                'sections'
+            )
+            
+            sections = Section.objects.filter(report__year=year_obj).order_by('number')
+            stats = utils.calculate_answers_distribution(year_obj, schools_reports, sections)
+        else:
+            schools_reports = {}
+            sections = []
+            stats = {'overall_stats': {}, 'ter_admin_stats': {}, 'closter_stats': {}, 'ed_level_stats': {}, 'field_school_counts': {}, 'last_monitoring_date': ''}
+
+    # Собираем контекст для шаблона
+    context = {
+        'filter': filter_context,
+        'sections': sections,
+        'stats': stats,
+    }
+    
+    return render(request, 'dashboards/answers_distribution_report.html', context)
+
+def get_years(user):
+    """Получить список доступных годов для пользователя"""
+    years = Year.objects.all().order_by('-year')
+    return [year.year for year in years]
+
+def get_ter_admins(user):
+    """Получить список доступных территориальных управлений для пользователя"""
+    is_ter_admin = TerAdmin.objects.filter(representatives=user).exists()
+    
+    if is_ter_admin:
+        return TerAdmin.objects.filter(representatives=user)
+    return TerAdmin.objects.all()
+
+def get_closters():
+    """Получить список кластеров"""
+    return SchoolCloster.objects.all()
+
+def get_schools(user, ter_admin=None, closter=None, ed_level=None):
+    """Получить список школ с учетом фильтров"""
+    # Определяем доступные территориальные управления для пользователя
+    is_ter_admin = TerAdmin.objects.filter(representatives=user).exists()
+    
+    if is_ter_admin:
+        ter_admins = TerAdmin.objects.filter(representatives=user)
+    else:
+        ter_admins = TerAdmin.objects.all()
+    
+    # Получаем школы из доступных территориальных управлений
+    schools = School.objects.filter(ter_admin__in=ter_admins, is_archived=False)
+    
+    # Применяем фильтры, если они есть
+    if ter_admin:
+        schools = schools.filter(ter_admin=ter_admin)
+    
+    if closter:
+        schools = schools.filter(closter=closter)
+    
+    if ed_level:
+        schools = schools.filter(ed_level=ed_level)
+    
+    return schools

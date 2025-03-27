@@ -265,3 +265,14 @@ def red_zone_count(s_reports, field):
 def is_ter_admin_exist(user):
     ter_admin = TerAdmin.objects.filter(representatives=user)
     return ter_admin.count() != 0
+
+@register.filter
+def safe_json(value):
+    """
+    Конвертирует словарь или другой объект в JSON строку, безопасную для использования в JavaScript
+    Предотвращает XSS-атаки
+    """
+    # Заменяем потенциально опасные символы
+    import json
+    json_str = json.dumps(value, ensure_ascii=False)
+    return json_str.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')

@@ -60,6 +60,61 @@ jQuery(document).ready(function ($) {
                 console.log($(this))
                 toggleVerified($(this).val());
             });
+
+            // Функция для управления отображением inlines на основе типа ответа
+            function toggleInlines() {
+                var answerType = document.getElementById('id_answer_type');
+                if (!answerType) return;
+
+                var selectedValue = answerType.value;
+                
+                // Получаем контейнеры инлайн-форм
+                var optionInline = document.querySelector('.option-inline-related');
+                var rangeOptionInline = document.querySelector('.rangeoption-inline-related');
+                var combinationInline = document.querySelector('.optioncombination-inline-related');
+                
+                // Скрываем все по умолчанию
+                if (rangeOptionInline) rangeOptionInline.style.display = 'none';
+                if (combinationInline) combinationInline.style.display = 'none';
+                
+                // Показываем нужные инлайны в зависимости от типа ответа
+                if (selectedValue === 'LST' || selectedValue === 'MULT') {
+                    if (optionInline) optionInline.style.display = 'block';
+                    
+                    // Только для множественного выбора показываем комбинации
+                    if (combinationInline) {
+                        combinationInline.style.display = selectedValue === 'MULT' ? 'block' : 'none';
+                    }
+                    
+                    // Скрываем колонку "Зона" для множественного выбора
+                    if (selectedValue === 'MULT') {
+                        const zoneHeaders = document.querySelectorAll('.option-inline-related th:nth-child(4)');
+                        const zoneCells = document.querySelectorAll('.option-inline-related td:nth-child(4)');
+                        
+                        zoneHeaders.forEach(header => {
+                            header.style.display = 'none';
+                        });
+                        
+                        zoneCells.forEach(cell => {
+                            cell.style.display = 'none';
+                        });
+                    }
+                } else if (selectedValue === 'NMBR' || selectedValue === 'PRC') {
+                    if (rangeOptionInline) rangeOptionInline.style.display = 'block';
+                    if (optionInline) optionInline.style.display = 'none';
+                } else if (selectedValue === 'BL') {
+                    if (optionInline) optionInline.style.display = 'none';
+                }
+            }
+            
+            // Вызываем функцию при загрузке страницы
+            toggleInlines();
+            
+            // Добавляем обработчик события при изменении типа ответа
+            var answerType = document.getElementById('id_answer_type');
+            if (answerType) {
+                answerType.addEventListener('change', toggleInlines);
+            }
         });
     })(django.jQuery);
 });

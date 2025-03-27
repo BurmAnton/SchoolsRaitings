@@ -29,6 +29,8 @@ function sortTable(n, table_id='table-overall', minus=5) {
             let x = rows[i].getElementsByTagName("TD")[n];
             let y = rows[i + 1].getElementsByTagName("TD")[n];
 
+            if (!x || !y) continue;
+
             // Get numeric values if they exist, otherwise use text content
             let xValue = parseFloat(x.textContent) || x.textContent.toLowerCase();
             let yValue = parseFloat(y.textContent) || y.textContent.toLowerCase();
@@ -44,7 +46,6 @@ function sortTable(n, table_id='table-overall', minus=5) {
                     break;
                 }
             }
-            console.log(direction)
         }
 
         if (shouldSwitch) {
@@ -55,7 +56,6 @@ function sortTable(n, table_id='table-overall', minus=5) {
             if (switchcount === 0 && direction === "asc") {
                 direction = "desc";
                 switching = true;
-                
             } 
         }
     }

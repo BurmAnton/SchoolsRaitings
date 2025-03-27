@@ -6,6 +6,7 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.db.models import Sum, Max
+from django.core.paginator import Paginator
 
 from reports.models import Answer, Attachment, Field, Option, Report, ReportFile, ReportLink, SchoolReport, Section, SectionSreport, OptionCombination
 from reports.utils import count_points, select_range_option, count_section_points, count_points_field
@@ -238,11 +239,28 @@ def report(request, report_id, school_id):
                                 
                             answer.points = total_points
                         
-                        # Определяем зону на основе баллов
-                        if answer.points > 0:
-                            answer.zone = 'G'
+                        # Определяем зону на основе баллов и настроек показателя
+                        field = question
+                        if field.yellow_zone_min is not None and field.green_zone_min is not None:
+                            if answer.points < field.yellow_zone_min:
+                                answer.zone = 'R'
+                            elif answer.points >= field.green_zone_min:
+                                answer.zone = 'G'
+                            else:
+                                answer.zone = 'Y'
                         else:
-                            answer.zone = 'R'
+                            # Если в показателе не заданы зоны, попробуем использовать зоны из раздела
+                            section = field.sections.first()
+                            if section and section.yellow_zone_min is not None and section.green_zone_min is not None:
+                                if answer.points < section.yellow_zone_min:
+                                    answer.zone = 'R'
+                                elif answer.points >= section.green_zone_min:
+                                    answer.zone = 'G'
+                                else:
+                                    answer.zone = 'Y'
+                            else:
+                                # Если нигде не заданы зоны, то определяем по наличию баллов
+                                answer.zone = 'G' if answer.points > 0 else 'R'
                     else:
                         # Если ничего не выбрано, обнуляем баллы
                         answer.points = 0
@@ -315,29 +333,59 @@ def mo_reports(request):
     s_reports = SchoolReport.objects.filter(school__in=schools, report__is_published=True)
     
     filter = None
+    # Reset filter if requested
+    if 'reset' in request.GET:
+        if 'mo_reports_filter' in request.session:
+            del request.session['mo_reports_filter']
+        return HttpResponseRedirect(reverse('mo_reports'))
+    
+    # Store filter parameters in session when POST request
     if 'filter' in request.POST:
+        filter_params = {}
         if len(request.POST.getlist('ter_admins')) != 0:
             schools = schools.filter(ter_admin__in=request.POST.getlist('ter_admins'))
             s_reports = s_reports.filter(school__in=schools)
+            filter_params['ter_admins'] = request.POST.getlist('ter_admins')
         if len(request.POST.getlist('closters')) != 0:
             schools = schools.filter(closter__in=request.POST.getlist('closters'))
             s_reports = s_reports.filter(school__in=schools)
+            filter_params['closters'] = request.POST.getlist('closters')
         if len(request.POST.getlist('status')) != 0:
             s_reports = s_reports.filter(status__in=request.POST.getlist('status'))
-        filter = {
-            'ter_admins': request.POST.getlist('ter_admins'),
-            'closters': request.POST.getlist('closters'),
-            'status': request.POST.getlist('status')
-        }
+            filter_params['status'] = request.POST.getlist('status')
+        
+        filter = filter_params
+        request.session['mo_reports_filter'] = filter_params
+    # Use filter from session for GET requests (pagination)
+    elif request.method == 'GET' and 'mo_reports_filter' in request.session:
+        filter_params = request.session['mo_reports_filter']
+        filter = filter_params
+        
+        if 'ter_admins' in filter_params and filter_params['ter_admins']:
+            schools = schools.filter(ter_admin__in=filter_params['ter_admins'])
+            s_reports = s_reports.filter(school__in=schools)
+        if 'closters' in filter_params and filter_params['closters']:
+            schools = schools.filter(closter__in=filter_params['closters'])
+            s_reports = s_reports.filter(school__in=schools)
+        if 'status' in filter_params and filter_params['status']:
+            s_reports = s_reports.filter(status__in=filter_params['status'])
+            
     if 'send-reports' in request.POST:
         s_reports.filter(status='B').update(status='D')
         return HttpResponseRedirect(reverse('mo_reports'))
+    
+    # Pagination
+    paginator = Paginator(s_reports, 20)  # 20 reports per page
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
         
     return render(request, "reports/mo_reports.html", {
-        'reports': s_reports,
+        'reports': page_obj,
         'ter_admins': ter_admins,
         'closters': closters,
-        'filter': filter
+        'filter': filter,
+        'paginator': paginator,
+        'page_obj': page_obj
     })
 
 
@@ -351,28 +399,57 @@ def ter_admin_reports(request, user_id):
     s_reports = SchoolReport.objects.filter(school__in=schools, report__is_published=True)
 
     filter = None
+    # Reset filter if requested
+    if 'reset' in request.GET:
+        if f'ter_admin_reports_filter_{user_id}' in request.session:
+            del request.session[f'ter_admin_reports_filter_{user_id}']
+        return HttpResponseRedirect(reverse('ter_admin_reports', args=[user_id]))
+    
+    # Store filter parameters in session when POST request
     if 'filter' in request.POST:
+        filter_params = {}
         if len(request.POST.getlist('schools')) != 0:
             schools = schools.filter(id__in=request.POST.getlist('schools'))
             s_reports = s_reports.filter(school__in=schools)
+            filter_params['schools'] = request.POST.getlist('schools')
         if len(request.POST.getlist('closters')) != 0:
             schools = schools.filter(closter__in=request.POST.getlist('closters'))
             s_reports = s_reports.filter(school__in=schools)
+            filter_params['closters'] = request.POST.getlist('closters')
         if len(request.POST.getlist('status')) != 0:
             s_reports = s_reports.filter(status__in=request.POST.getlist('status'))
-        filter = {
-            'schools': request.POST.getlist('schools'),
-            'closters': request.POST.getlist('closters'),
-            'status': request.POST.getlist('status')
-        }
+            filter_params['status'] = request.POST.getlist('status')
+        
+        filter = filter_params
+        request.session[f'ter_admin_reports_filter_{user_id}'] = filter_params
+    # Use filter from session for GET requests (pagination)
+    elif request.method == 'GET' and f'ter_admin_reports_filter_{user_id}' in request.session:
+        filter_params = request.session[f'ter_admin_reports_filter_{user_id}']
+        filter = filter_params
+        
+        if 'schools' in filter_params and filter_params['schools']:
+            schools = schools.filter(id__in=filter_params['schools'])
+            s_reports = s_reports.filter(school__in=schools)
+        if 'closters' in filter_params and filter_params['closters']:
+            schools = schools.filter(closter__in=filter_params['closters'])
+            s_reports = s_reports.filter(school__in=schools)
+        if 'status' in filter_params and filter_params['status']:
+            s_reports = s_reports.filter(status__in=filter_params['status'])
+    
+    # Pagination
+    paginator = Paginator(s_reports, 20)  # 20 reports per page
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
 
     return render(request, "reports/ter_admin_reports.html", {
         'user_id': user_id,
         'ter_admin': ter_admin,
-        'reports': s_reports,
+        'reports': page_obj,
         'schools': all_schools,
         'closters': closters,
-        'filter': filter
+        'filter': filter,
+        'paginator': paginator,
+        'page_obj': page_obj
     })
 
 
@@ -468,11 +545,28 @@ def mo_report(request, s_report_id):
                                 
                             answer.points = total_points
                         
-                        # Определяем зону на основе баллов
-                        if answer.points > 0:
-                            answer.zone = 'G'
+                        # Определяем зону на основе баллов и настроек показателя
+                        field = question
+                        if field.yellow_zone_min is not None and field.green_zone_min is not None:
+                            if answer.points < field.yellow_zone_min:
+                                answer.zone = 'R'
+                            elif answer.points >= field.green_zone_min:
+                                answer.zone = 'G'
+                            else:
+                                answer.zone = 'Y'
                         else:
-                            answer.zone = 'R'
+                            # Если в показателе не заданы зоны, попробуем использовать зоны из раздела
+                            section = field.sections.first()
+                            if section and section.yellow_zone_min is not None and section.green_zone_min is not None:
+                                if answer.points < section.yellow_zone_min:
+                                    answer.zone = 'R'
+                                elif answer.points >= section.green_zone_min:
+                                    answer.zone = 'G'
+                                else:
+                                    answer.zone = 'Y'
+                            else:
+                                # Если нигде не заданы зоны, то определяем по наличию баллов
+                                answer.zone = 'G' if answer.points > 0 else 'R'
                     else:
                         # Если ничего не выбрано, обнуляем баллы
                         answer.points = 0
@@ -641,11 +735,28 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
                                 
                             answer.points = total_points
                         
-                        # Определяем зону на основе баллов
-                        if answer.points > 0:
-                            answer.zone = 'G'
+                        # Определяем зону на основе баллов и настроек показателя
+                        field = question
+                        if field.yellow_zone_min is not None and field.green_zone_min is not None:
+                            if answer.points < field.yellow_zone_min:
+                                answer.zone = 'R'
+                            elif answer.points >= field.green_zone_min:
+                                answer.zone = 'G'
+                            else:
+                                answer.zone = 'Y'
                         else:
-                            answer.zone = 'R'
+                            # Если в показателе не заданы зоны, попробуем использовать зоны из раздела
+                            section = field.sections.first()
+                            if section and section.yellow_zone_min is not None and section.green_zone_min is not None:
+                                if answer.points < section.yellow_zone_min:
+                                    answer.zone = 'R'
+                                elif answer.points >= section.green_zone_min:
+                                    answer.zone = 'G'
+                                else:
+                                    answer.zone = 'Y'
+                            else:
+                                # Если нигде не заданы зоны, то определяем по наличию баллов
+                                answer.zone = 'G' if answer.points > 0 else 'R'
                     else:
                         # Если ничего не выбрано, обнуляем баллы
                         answer.points = 0

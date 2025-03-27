@@ -21,9 +21,9 @@
                 <select class="selectpicker" title="Выберите год" name="year" id="YearFilter" data-width="100%" data-container="body" required>
                     {% for year in years %}
                         {% if forloop.first  and selected_year is None %}
-                            <option value="{{ year }}" selected>{{ year }}</option>
+                            <option value="{{ year }}" selected>{{ year.year }}</option>
                         {% else %}
-                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year.year }}</option>
                         {% endif %}
                     {% endfor %}
                 </select>
@@ -60,7 +60,12 @@
                     {% endfor %}
                 </select>
             </div>
-            
+            <div class="form-check mb-3" style="display: flex;flex-direction: row;gap: 5px;">
+                <input class="form-check-input" type="checkbox" name="show_ter_status" id="showTerStatus" {% if show_ter_status %}checked{% endif %}>
+                <label class="form-check-label" for="showTerStatus" style="padding-top: 4px;">
+                    Показывать школы на согласовании ТУ/ДО
+                </label>
+            </div>
         </div>
         <div style="width: 100%; display: flex; justify-content: space-between;flex-direction: row-reverse; margin-top: 10px;">
             <div style="display: flex; gap: 10px;">
@@ -82,7 +87,12 @@
                         <th scope="row" class="sticky-top" style="text-align: center; cursor: pointer;"onclick="sortTable(2)"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>Среднее значение</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                         {% for s_report in s_reports %}
                             <th scope="row" style="text-align: center;" class="section-hdr sticky-top" onclick="sortTable({{ forloop.counter|add:2 }})">
-                                <div style="display: flex; gap: 5px; align-items: center; justify-content: center; cursor: pointer;"><div>{{s_report.school}}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div>
+                                <div style="display: flex; gap: 5px; align-items: center; justify-content: center; cursor: pointer;"><div>
+                                    {% if show_ter_status and s_report.status == 'A' %}
+                                        <span style="margin-bottom: 3px;" class="badge bg-warning" title="На согласовании в ТУ/ДО">!</span>
+                                    {% endif %}
+                                    {{s_report.school}}
+                                </div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div>
                             </th>
                         {% endfor %}
                     </tr>
@@ -117,7 +127,13 @@
                             <th scope="row" class="sticky-top" style="text-align: center; max-width: 125px;  cursor: pointer;"onclick="sortTable(1, 'table-{{ section.0 }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Максимальное значение</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             <th scope="row" class="sticky-top" style="text-align: center; max-width: 95px; cursor: pointer;"onclick="sortTable(2, 'table-{{ section.0 }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Среднее значение</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             {% for s_report in s_reports %}
-                                <th scope="row" class="sticky-top" style="text-align: center; max-width: 200px; min-width: 150px; cursor: pointer;" onclick="sortTable({{ forloop.counter|add:2 }}, 'table-{{ section.0 }}')"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;"><div>{{ s_report.school }}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
+                                <th scope="row" class="sticky-top" style="text-align: center; max-width: 200px; min-width: 150px; cursor: pointer;" onclick="sortTable({{ forloop.counter|add:2 }}, 'table-{{ section.0 }}')"><div style="display: flex; gap: 5px; align-items: center; justify-content: center;">
+                                    <div>
+                                        {% if show_ter_status and s_report.status == 'A' %}
+                                            <span style="margin-bottom: 3px;" class="badge bg-warning" title="На согласовании в ТУ/ДО">!</span>
+                                        {% endif %}
+                                        {{ s_report.school }}
+                                    </div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                             {% endfor %}
                         </tr>
                         {% for question in section.2|dictsort_fields_dash  %}

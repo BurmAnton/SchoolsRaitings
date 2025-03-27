@@ -1,9 +1,16 @@
 from decimal import Decimal
-from django.db.models import Sum, Avg, Max
+from django.db.models import Sum, Avg, Max, Count
 from common.utils import get_cache_key
+from django.http import HttpResponse
+from io import BytesIO
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Font
+from openpyxl.utils import get_column_letter
+from datetime import datetime
 
-from reports.models import Answer, Report, SchoolReport, Section, SectionSreport, Field
+from reports.models import Answer, Report, SchoolReport, Section, SectionSreport, Field, Option, Year
 from reports.utils import count_points, count_points_field
+from schools.models import TerAdmin, School, SchoolCloster
 
 def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
     stats = {}
@@ -656,4 +663,751 @@ def generate_closters_report_csv(year, schools, s_reports):
     response['Content-Disposition'] = f'attachment; filename="closters_report_{year}.xlsx"'
     
     return response
+
+def calculate_answers_distribution(year, schools_reports, sections, ter_admin=None, closter=None, ed_level=None):
+    """
+    Рассчитывает распределение вариантов ответов для каждого показателя
+    с разбивкой по ТУ/ДО, кластерам и уровням образования
+    
+    :param year: год отчета
+    :param schools_reports: QuerySet с отчетами школ
+    :param sections: разделы отчета
+    :param ter_admin: фильтр по территориальному управлению
+    :param closter: фильтр по кластеру
+    :param ed_level: фильтр по уровню образования
+    :return: словарь со статистикой по распределению ответов
+    """
+    # Словарь, в котором будем хранить результаты
+    result = {
+        'overall_stats': {},           # Общая статистика по всем школам
+        'ter_admin_stats': {},         # Статистика по ТУ/ДО
+        'closter_stats': {},           # Статистика по кластерам
+        'ed_level_stats': {},          # Статистика по уровням образования
+        'field_school_counts': {},     # Количество школ, заполнивших показатель
+        'last_monitoring_date': str(year)   # Дата последнего мониторинга
+    }
+    
+    # Подготавливаем списки для группировки и фильтрации
+    ter_admin_ids = set()
+    closter_ids = set()
+    ed_levels = set()
+    
+    # Получаем отчеты школ с фильтрацией
+    filtered_schools_reports = []
+    
+    for report in schools_reports:
+        school = report.school
+        if not school:
+            continue
+        
+        # Применяем фильтры
+        if ter_admin and school.ter_admin_id != ter_admin.id:
+            continue
+        
+        if closter and school.closter_id != closter.id:
+            continue
+        
+        if ed_level and school.ed_level != ed_level:
+            continue
+        
+        # Добавляем данные в списки для группировки
+        ter_admin_ids.add(school.ter_admin_id)
+        if school.closter_id:
+            closter_ids.add(school.closter_id)
+        ed_levels.add(school.ed_level)
+        
+        # Добавляем отчет в список
+        filtered_schools_reports.append(report)
+
+    # Обрабатываем каждую секцию
+    for section in sections:
+        section_id = str(section.id)
+        
+        # Инициализируем секцию в словарях статистики
+        if section_id not in result['overall_stats']:
+            result['overall_stats'][section_id] = {}
+        
+        # Обрабатываем каждое поле секции
+        for field in section.fields.all():
+            field_id = str(field.id)
+            
+            # Инициализируем поле в словаре общей статистики
+            if field_id not in result['overall_stats'][section_id]:
+                result['overall_stats'][section_id][field_id] = {}
+            
+            # Словари для подсчета по разным разрезам
+            overall_counts = {}  # Общий счетчик по вариантам ответов
+            ter_admin_counts = {ter_id: {} for ter_id in ter_admin_ids}  # Счетчики по ТУ/ДО
+            closter_counts = {closter_id: {} for closter_id in closter_ids}  # Счетчики по кластерам
+            ed_level_counts = {level: {} for level in ed_levels}  # Счетчики по уровням образования
+            
+            # Количество школ, заполнивших данный показатель
+            field_schools_count = 0
+            
+            # Обрабатываем каждую школу
+            for report in filtered_schools_reports:
+                school = report.school
+                if not school:
+                    continue
+                
+                # Получаем ответ на вопрос
+                answer = None
+                for a in report.answers.all():
+                    if a.question_id == field.id:
+                        answer = a
+                        break
+                
+                if not answer:
+                    continue
+                
+                # Увеличиваем счетчик школ
+                field_schools_count += 1
+                
+                # Получаем идентификатор и имя варианта ответа
+                option_id = None
+                option_name = None
+                zone = answer.zone if answer.zone else 'N'
+                
+                # Определяем вариант ответа в зависимости от типа поля
+                if field.answer_type == 'LST':  # Выбор из списка
+                    if answer.option:
+                        option_id = str(answer.option.id)
+                        option_name = answer.option.name
+                elif field.answer_type == 'BL':  # Бинарный ответ (да/нет)
+                    option_id = 'yes' if answer.bool_value else 'no'
+                    option_name = 'Да' if answer.bool_value else 'Нет'
+                elif field.answer_type == 'MULT':  # Множественный выбор
+                    # Для множественного выбора создаем отдельные счетчики для каждого выбранного варианта
+                    for opt in answer.selected_options.all():
+                        option_id = str(opt.id)
+                        option_name = opt.name
+                        
+                        # Обновляем общую статистику
+                        if option_id not in overall_counts:
+                            overall_counts[option_id] = {
+                                'count': 0,
+                                'percentage': 0,
+                                'option_name': option_name,
+                                'zone': zone
+                            }
+                        overall_counts[option_id]['count'] += 1
+                        
+                        # Обновляем статистику по ТУ/ДО
+                        if school.ter_admin_id:
+                            if option_id not in ter_admin_counts[school.ter_admin_id]:
+                                ter_admin_counts[school.ter_admin_id][option_id] = {
+                                    'count': 0,
+                                    'percentage': 0,
+                                    'option_name': option_name,
+                                    'zone': zone
+                                }
+                            ter_admin_counts[school.ter_admin_id][option_id]['count'] += 1
+                        
+                        # Обновляем статистику по кластерам
+                        if school.closter_id:
+                            if option_id not in closter_counts[school.closter_id]:
+                                closter_counts[school.closter_id][option_id] = {
+                                    'count': 0,
+                                    'percentage': 0,
+                                    'option_name': option_name,
+                                    'zone': zone
+                                }
+                            closter_counts[school.closter_id][option_id]['count'] += 1
+                        
+                        # Обновляем статистику по уровням образования
+                        if option_id not in ed_level_counts[school.ed_level]:
+                            ed_level_counts[school.ed_level][option_id] = {
+                                'count': 0,
+                                'percentage': 0,
+                                'option_name': option_name,
+                                'zone': zone
+                            }
+                        ed_level_counts[school.ed_level][option_id]['count'] += 1
+                    
+                    # Пропускаем остальную логику для множественного выбора, т.к. уже обработали все варианты
+                    continue
+                elif field.answer_type in ['NMBR', 'PRC']:  # Числовой ответ или процент
+                    # Для числовых полей разбиваем на диапазоны
+                    option_id = f'range_{get_range_for_number(answer.number_value, field)}'
+                    option_name = f'{answer.number_value}'
+                
+                # Если не удалось определить вариант ответа, пропускаем
+                if option_id is None:
+                    continue
+            
+            # Сохраняем количество школ, заполнивших показатель
+            result['field_school_counts'][field_id] = field_schools_count
+            
+            # Если нет данных по показателю, переходим к следующему
+            if field_schools_count == 0:
+                continue
+            
+            # Рассчитываем проценты для общей статистики
+            for option_id, data in overall_counts.items():
+                data['percentage'] = round(data['count'] * 100 / field_schools_count, 1)
+                result['overall_stats'][section_id][field_id][option_id] = data
+            
+            # Рассчитываем проценты для статистики по ТУ/ДО
+            for ter_id, options in ter_admin_counts.items():
+                # Подсчитываем количество школ в данном ТУ/ДО, заполнивших показатель
+                ter_schools_count = sum(1 for report in filtered_schools_reports 
+                                     if report.school and report.school.ter_admin_id == ter_id)
+                
+                if ter_schools_count == 0:
+                    continue
+                
+                # Инициализируем структуру данных, если нужно
+                ter_admin = TerAdmin.objects.get(id=ter_id)
+                ter_admin_name = ter_admin.name if ter_admin else str(ter_id)
+                
+                if ter_id not in result['ter_admin_stats']:
+                    result['ter_admin_stats'][ter_id] = {
+                        'name': ter_admin_name,
+                    }
+                
+                if section_id not in result['ter_admin_stats'][ter_id]:
+                    result['ter_admin_stats'][ter_id][section_id] = {}
+                
+                if field_id not in result['ter_admin_stats'][ter_id][section_id]:
+                    result['ter_admin_stats'][ter_id][section_id][field_id] = {}
+                
+                # Рассчитываем проценты для каждого варианта ответа
+                for option_id, data in options.items():
+                    data['percentage'] = round(data['count'] * 100 / ter_schools_count, 1)
+                    result['ter_admin_stats'][ter_id][section_id][field_id][option_id] = data
+            
+            # Рассчитываем проценты для статистики по кластерам
+            for closter_id, options in closter_counts.items():
+                # Подсчитываем количество школ в данном кластере, заполнивших показатель
+                closter_schools_count = sum(1 for report in filtered_schools_reports 
+                                     if report.school and report.school.closter_id == closter_id)
+                
+                if closter_schools_count == 0:
+                    continue
+                
+                # Инициализируем структуру данных, если нужно
+                closter = SchoolCloster.objects.get(id=closter_id)
+                closter_name = closter.name if closter else str(closter_id)
+                
+                if closter_id not in result['closter_stats']:
+                    result['closter_stats'][closter_id] = {
+                        'name': closter_name,
+                    }
+                
+                if section_id not in result['closter_stats'][closter_id]:
+                    result['closter_stats'][closter_id][section_id] = {}
+                
+                if field_id not in result['closter_stats'][closter_id][section_id]:
+                    result['closter_stats'][closter_id][section_id][field_id] = {}
+                
+                # Рассчитываем проценты для каждого варианта ответа
+                for option_id, data in options.items():
+                    data['percentage'] = round(data['count'] * 100 / closter_schools_count, 1)
+                    result['closter_stats'][closter_id][section_id][field_id][option_id] = data
+            
+            # Рассчитываем проценты для статистики по уровням образования
+            for ed_level, options in ed_level_counts.items():
+                # Подсчитываем количество школ данного уровня, заполнивших показатель
+                ed_level_schools_count = sum(1 for report in filtered_schools_reports 
+                                     if report.school and report.school.ed_level == ed_level)
+                
+                if ed_level_schools_count == 0:
+                    continue
+                
+                # Инициализируем структуру данных, если нужно
+                ed_level_name = dict(School.SCHOOL_LEVELS).get(ed_level, str(ed_level))
+                
+                if ed_level not in result['ed_level_stats']:
+                    result['ed_level_stats'][ed_level] = {
+                        'name': ed_level_name,
+                    }
+                
+                if section_id not in result['ed_level_stats'][ed_level]:
+                    result['ed_level_stats'][ed_level][section_id] = {}
+                
+                if field_id not in result['ed_level_stats'][ed_level][section_id]:
+                    result['ed_level_stats'][ed_level][section_id][field_id] = {}
+                
+                # Рассчитываем проценты для каждого варианта ответа
+                for option_id, data in options.items():
+                    data['percentage'] = round(data['count'] * 100 / ed_level_schools_count, 1)
+                    result['ed_level_stats'][ed_level][section_id][field_id][option_id] = data
+    
+    return result
+
+def generate_answers_distribution_excel(year, schools_reports, sections, stats):
+    """
+    Создает Excel-файл с распределением вариантов ответов по показателям
+    
+    :param year: год отчета
+    :param schools_reports: отчеты школ
+    :param sections: разделы отчета
+    :param stats: статистические данные
+    :return: HttpResponse с Excel-файлом
+    """
+    # Создаем workbook
+    workbook = Workbook()
+    
+    # Настройка форматирования для разных зон
+    red_fill = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
+    yellow_fill = PatternFill(start_color='FFEB9C', end_color='FFEB9C', fill_type='solid')
+    green_fill = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')
+    
+    # Добавляем общий лист с информацией
+    info_sheet = workbook.active
+    info_sheet.title = "Общая информация"
+    
+    # Заголовок
+    info_sheet['A1'] = f"Распределение вариантов ответов по показателям за {year} год"
+    info_sheet['A1'].font = Font(size=14, bold=True)
+    info_sheet.merge_cells('A1:F1')
+    
+    # Информация о фильтрах
+    info_sheet['A3'] = "Дата формирования:"
+    info_sheet['B3'] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    
+    info_sheet['A4'] = "Всего образовательных организаций:"
+    info_sheet['B4'] = len(schools_reports)
+    
+    row = 6
+    
+    # Добавляем информацию о зонах
+    info_sheet['A6'] = "Цветовые обозначения:"
+    info_sheet['A7'] = "Красная зона"
+    info_sheet['A7'].fill = red_fill
+    
+    info_sheet['A8'] = "Желтая зона"
+    info_sheet['A8'].fill = yellow_fill
+    
+    info_sheet['A9'] = "Зеленая зона"
+    info_sheet['A9'].fill = green_fill
+    
+    # Обрабатываем каждый раздел
+    for section in sections:
+        # Создаем лист для раздела
+        sheet_name = f"{section.number}. {section.name[:20]}"
+        sheet = workbook.create_sheet(sheet_name)
+        
+        # Заголовок раздела
+        sheet['A1'] = f"{section.number}. {section.name}"
+        sheet['A1'].font = Font(size=14, bold=True)
+        sheet.merge_cells('A1:F1')
+        
+        row = 3
+        
+        # Добавляем данные по каждому полю раздела
+        for field in section.fields.all():
+            # Заголовок поля
+            header = f"{section.number}.{field.number}. {field.name}"
+            sheet[f'A{row}'] = header
+            sheet[f'A{row}'].font = Font(size=12, bold=True)
+            sheet.merge_cells(f'A{row}:F{row}')
+            row += 1
+            
+            # Количество школ, заполнивших это поле
+            sheet[f'A{row}'] = f"Всего школ: {stats['field_school_counts'].get(field.id, 0)}"
+            sheet.merge_cells(f'A{row}:F{row}')
+            row += 2
+            
+            # Заголовки таблицы для общей статистики
+            sheet[f'A{row}'] = "Общее распределение вариантов ответов"
+            sheet[f'A{row}'].font = Font(bold=True)
+            sheet.merge_cells(f'A{row}:F{row}')
+            row += 1
+            
+            sheet[f'A{row}'] = "Вариант ответа"
+            sheet[f'B{row}'] = "Количество"
+            sheet[f'C{row}'] = "Процент"
+            sheet[f'D{row}'] = "Зона"
+            
+            for cell in [f'A{row}', f'B{row}', f'C{row}', f'D{row}']:
+                sheet[cell].font = Font(bold=True)
+            row += 1
+            
+            # Данные общей статистики
+            overall_stats = stats['overall_stats'].get(str(section.id), {}).get(str(field.id), {})
+            for option_id, option_data in overall_stats.items():
+                sheet[f'A{row}'] = option_data['option_name']
+                sheet[f'B{row}'] = option_data['count']
+                sheet[f'C{row}'] = f"{option_data['percentage']}%"
+                sheet[f'D{row}'] = option_data['zone']
+                
+                # Применяем цветовую маркировку
+                zone_cell = sheet[f'D{row}']
+                if option_data['zone'] == 'R':
+                    for cell in [f'A{row}', f'B{row}', f'C{row}', f'D{row}']:
+                        sheet[cell].fill = red_fill
+                elif option_data['zone'] == 'Y':
+                    for cell in [f'A{row}', f'B{row}', f'C{row}', f'D{row}']:
+                        sheet[cell].fill = yellow_fill
+                elif option_data['zone'] == 'G':
+                    for cell in [f'A{row}', f'B{row}', f'C{row}', f'D{row}']:
+                        sheet[cell].fill = green_fill
+                
+                row += 1
+            
+            row += 2
+            
+            # Создаем таблицы для ТУ/ДО, кластеров и уровней образования
+            # Таблица по ТУ/ДО
+            if stats['ter_admin_stats']:
+                sheet[f'A{row}'] = "Распределение по ТУ/ДО"
+                sheet[f'A{row}'].font = Font(bold=True)
+                sheet.merge_cells(f'A{row}:F{row}')
+                row += 1
+                
+                # Собираем все варианты ответов для этого поля
+                options = set()
+                ter_admins = []
+                
+                for ter_admin_id, ter_admin_data in stats['ter_admin_stats'].items():
+                    if ter_admin_data.get(str(section.id), {}).get(str(field.id)):
+                        ter_admins.append(ter_admin_id)
+                        for option_id in ter_admin_data[str(section.id)][str(field.id)].keys():
+                            options.add(option_id)
+                
+                # Заголовки таблицы
+                sheet[f'A{row}'] = "ТУ/ДО"
+                col = 1
+                options_list = sorted(list(options))
+                option_cols = {}  # Для сопоставления вариантов ответов с столбцами
+                
+                for option_id in options_list:
+                    option_name = ""
+                    # Найдем имя варианта ответа из любой статистики, где он есть
+                    for ter_admin_id in ter_admins:
+                        ter_admin_data = stats['ter_admin_stats'].get(ter_admin_id, {})
+                        if (ter_admin_data.get(str(section.id), {}).get(str(field.id), {}).get(option_id)):
+                            option_name = ter_admin_data[str(section.id)][str(field.id)][option_id]['option_name']
+                            break
+                    
+                    col_letter = get_column_letter(col + 1)
+                    sheet[f'{col_letter}{row}'] = option_name
+                    sheet[f'{col_letter}{row}'].font = Font(bold=True)
+                    option_cols[option_id] = col_letter
+                    col += 1
+                
+                row += 1
+                
+                # Данные по ТУ/ДО
+                for ter_admin_id in sorted(ter_admins):
+                    sheet[f'A{row}'] = ter_admin_id
+                    
+                    for option_id in options_list:
+                        if (stats['ter_admin_stats'].get(ter_admin_id, {}).get(str(section.id), {}).get(str(field.id), {}).get(option_id)):
+                            option_data = stats['ter_admin_stats'][ter_admin_id][str(section.id)][str(field.id)][option_id]
+                            col_letter = option_cols[option_id]
+                            sheet[f'{col_letter}{row}'] = f"{option_data['percentage']}%"
+                            
+                            # Применяем цветовую маркировку
+                            if option_data['zone'] == 'R':
+                                sheet[f'{col_letter}{row}'].fill = red_fill
+                            elif option_data['zone'] == 'Y':
+                                sheet[f'{col_letter}{row}'].fill = yellow_fill
+                            elif option_data['zone'] == 'G':
+                                sheet[f'{col_letter}{row}'].fill = green_fill
+                        else:
+                            col_letter = option_cols[option_id]
+                            sheet[f'{col_letter}{row}'] = "0%"
+                    
+                    row += 1
+                
+                row += 2
+            
+            # Таблица по кластерам
+            if stats['closter_stats']:
+                sheet[f'A{row}'] = "Распределение по кластерам"
+                sheet[f'A{row}'].font = Font(bold=True)
+                sheet.merge_cells(f'A{row}:F{row}')
+                row += 1
+                
+                # Собираем все варианты ответов для этого поля
+                options = set()
+                closters = []
+                
+                for closter_id, closter_data in stats['closter_stats'].items():
+                    if closter_data.get(str(section.id), {}).get(str(field.id)):
+                        closters.append(closter_id)
+                        for option_id in closter_data[str(section.id)][str(field.id)].keys():
+                            options.add(option_id)
+                
+                # Заголовки таблицы
+                sheet[f'A{row}'] = "Кластер"
+                col = 1
+                options_list = sorted(list(options))
+                option_cols = {}  # Для сопоставления вариантов ответов с столбцами
+                
+                for option_id in options_list:
+                    option_name = ""
+                    # Найдем имя варианта ответа из любой статистики, где он есть
+                    for closter_id in closters:
+                        closter_data = stats['closter_stats'].get(closter_id, {})
+                        if (closter_data.get(str(section.id), {}).get(str(field.id), {}).get(option_id)):
+                            option_name = closter_data[str(section.id)][str(field.id)][option_id]['option_name']
+                            break
+                    
+                    col_letter = get_column_letter(col + 1)
+                    sheet[f'{col_letter}{row}'] = option_name
+                    sheet[f'{col_letter}{row}'].font = Font(bold=True)
+                    option_cols[option_id] = col_letter
+                    col += 1
+                
+                row += 1
+                
+                # Данные по кластерам
+                for closter_id in sorted(closters):
+                    sheet[f'A{row}'] = closter_id
+                    
+                    for option_id in options_list:
+                        if (stats['closter_stats'].get(closter_id, {}).get(str(section.id), {}).get(str(field.id), {}).get(option_id)):
+                            option_data = stats['closter_stats'][closter_id][str(section.id)][str(field.id)][option_id]
+                            col_letter = option_cols[option_id]
+                            sheet[f'{col_letter}{row}'] = f"{option_data['percentage']}%"
+                            
+                            # Применяем цветовую маркировку
+                            if option_data['zone'] == 'R':
+                                sheet[f'{col_letter}{row}'].fill = red_fill
+                            elif option_data['zone'] == 'Y':
+                                sheet[f'{col_letter}{row}'].fill = yellow_fill
+                            elif option_data['zone'] == 'G':
+                                sheet[f'{col_letter}{row}'].fill = green_fill
+                        else:
+                            col_letter = option_cols[option_id]
+                            sheet[f'{col_letter}{row}'] = "0%"
+                    
+                    row += 1
+                
+                row += 2
+            
+            # Таблица по уровням образования
+            if stats['ed_level_stats']:
+                sheet[f'A{row}'] = "Распределение по уровням образования"
+                sheet[f'A{row}'].font = Font(bold=True)
+                sheet.merge_cells(f'A{row}:F{row}')
+                row += 1
+                
+                # Собираем все варианты ответов для этого поля
+                options = set()
+                ed_levels = []
+                
+                for ed_level, ed_level_data in stats['ed_level_stats'].items():
+                    if ed_level_data.get(str(section.id), {}).get(str(field.id)):
+                        ed_levels.append(ed_level)
+                        for option_id in ed_level_data[str(section.id)][str(field.id)].keys():
+                            options.add(option_id)
+                
+                # Заголовки таблицы
+                sheet[f'A{row}'] = "Уровень образования"
+                col = 1
+                options_list = sorted(list(options))
+                option_cols = {}  # Для сопоставления вариантов ответов с столбцами
+                
+                for option_id in options_list:
+                    option_name = ""
+                    # Найдем имя варианта ответа из любой статистики, где он есть
+                    for ed_level in ed_levels:
+                        ed_level_data = stats['ed_level_stats'].get(ed_level, {})
+                        if (ed_level_data.get(str(section.id), {}).get(str(field.id), {}).get(option_id)):
+                            option_name = ed_level_data[str(section.id)][str(field.id)][option_id]['option_name']
+                            break
+                    
+                    col_letter = get_column_letter(col + 1)
+                    sheet[f'{col_letter}{row}'] = option_name
+                    sheet[f'{col_letter}{row}'].font = Font(bold=True)
+                    option_cols[option_id] = col_letter
+                    col += 1
+                
+                row += 1
+                
+                # Данные по уровням образования
+                for ed_level in sorted(ed_levels):
+                    sheet[f'A{row}'] = ed_level
+                    
+                    for option_id in options_list:
+                        if (stats['ed_level_stats'].get(ed_level, {}).get(str(section.id), {}).get(str(field.id), {}).get(option_id)):
+                            option_data = stats['ed_level_stats'][ed_level][str(section.id)][str(field.id)][option_id]
+                            col_letter = option_cols[option_id]
+                            sheet[f'{col_letter}{row}'] = f"{option_data['percentage']}%"
+                            
+                            # Применяем цветовую маркировку
+                            if option_data['zone'] == 'R':
+                                sheet[f'{col_letter}{row}'].fill = red_fill
+                            elif option_data['zone'] == 'Y':
+                                sheet[f'{col_letter}{row}'].fill = yellow_fill
+                            elif option_data['zone'] == 'G':
+                                sheet[f'{col_letter}{row}'].fill = green_fill
+                        else:
+                            col_letter = option_cols[option_id]
+                            sheet[f'{col_letter}{row}'] = "0%"
+                    
+                    row += 1
+                
+                row += 2
+    
+    # Настройка автоширины столбцов
+    for sheet in workbook.worksheets:
+        for column in sheet.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = (max_length + 2)
+            sheet.column_dimensions[column_letter].width = adjusted_width
+    
+    # Сохраняем в ответ HTTP
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="answers_distribution_{year}.xlsx"'
+    workbook.save(response)
+    
+    return response
+
+def get_schools_reports(year, user):
+    """
+    Получает данные отчетов школ за указанный год
+    
+    :param year: год отчета
+    :param user: текущий пользователь
+    :return: словарь с данными отчетов школ
+    """
+    from schools.models import TerAdmin, School
+    
+    # Получаем объект года или используем строковое представление
+    if not isinstance(year, Year):
+        try:
+            year = Year.objects.get(year=year)
+        except Year.DoesNotExist:
+            return {}
+    
+    # Определяем доступные территориальные управления для пользователя
+    is_ter_admin = TerAdmin.objects.filter(representatives=user).exists()
+    
+    if is_ter_admin:
+        ter_admins = TerAdmin.objects.filter(representatives=user)
+    else:
+        ter_admins = TerAdmin.objects.all()
+    
+    # Получаем школы из доступных территориальных управлений
+    schools = School.objects.filter(ter_admin__in=ter_admins, is_archived=False)
+    
+    # Получаем отчеты за указанный год
+    reports = Report.objects.filter(year=year, is_published=True)
+    
+    # Получаем отчеты школ
+    schools_reports = SchoolReport.objects.filter(
+        report__in=reports,
+        school__in=schools,
+        status='D'  # Только принятые отчеты
+    ).select_related(
+        'school',
+        'report',
+        'school__ter_admin',
+        'school__closter',
+    ).prefetch_related(
+        'answers',
+        'sections__section__fields',
+        'sections__section',
+    )
+    
+    # Преобразуем в словарь для удобного доступа
+    result = {}
+    for s_report in schools_reports:
+        school_id = s_report.school.id
+        if school_id not in result:
+            result[school_id] = {
+                'school': s_report.school,
+                'sections': {},
+            }
+        
+        # Добавляем данные по секциям
+        for section in s_report.sections.all():
+            section_id = str(section.section.id)
+            if section_id not in result[school_id]['sections']:
+                result[school_id]['sections'][section_id] = {
+                    'id': section.section.id,
+                    'name': section.section.name,
+                    'number': section.section.number,
+                    'points': section.points,
+                    'zone': section.zone,
+                    'fields': {},
+                }
+            
+            # Создаем индекс для быстрого поиска ответов
+            answers_lookup = {a.question_id: a for a in s_report.answers.all()}
+            
+            # Добавляем данные по полям
+            for field in section.section.fields.all():
+                field_id = str(field.id)
+                answer = answers_lookup.get(field.id)
+                if answer:
+                    result[school_id]['sections'][section_id]['fields'][field_id] = {
+                        'id': field.id,
+                        'name': field.name,
+                        'number': field.number,
+                        'type': field.answer_type,
+                        'answers': []
+                    }
+                    
+                    # Добавляем данные об ответе в зависимости от типа поля
+                    if field.answer_type == 'LST':
+                        # Ответ из списка
+                        result[school_id]['sections'][section_id]['fields'][field_id]['answers'].append({
+                            'option_id': answer.option.id if answer.option else None,
+                            'option_name': answer.option.name if answer.option else None,
+                            'zone': answer.zone,
+                            'points': answer.points
+                        })
+                    elif field.answer_type == 'BL':
+                        # Бинарный ответ (да/нет)
+                        result[school_id]['sections'][section_id]['fields'][field_id]['answers'].append({
+                            'option_id': 'yes' if answer.bool_value else 'no',
+                            'option_name': 'Да' if answer.bool_value else 'Нет',
+                            'zone': answer.zone,
+                            'points': answer.points
+                        })
+                    elif field.answer_type == 'MULT':
+                        # Множественный выбор
+                        for option in answer.selected_options.all():
+                            result[school_id]['sections'][section_id]['fields'][field_id]['answers'].append({
+                                'option_id': option.id,
+                                'option_name': option.name,
+                                'zone': option.zone,
+                                'points': None  # В множественном выборе баллы привязаны ко всему ответу
+                            })
+                    elif field.answer_type in ['NMBR', 'PRC']:
+                        # Числовой ответ или процент
+                        result[school_id]['sections'][section_id]['fields'][field_id]['answers'].append({
+                            'option_id': f'range_{get_range_for_number(answer.number_value, field)}',
+                            'option_name': f'{answer.number_value}',
+                            'zone': answer.zone,
+                            'points': answer.points
+                        })
+    
+    return result
+
+def get_range_for_number(value, field):
+    """Вспомогательная функция для определения диапазона числового значения"""
+    # Получаем максимальное значение для данного поля
+    max_value = Answer.objects.filter(question=field).aggregate(Max('number_value'))['number_value__max'] or 0
+    
+    if max_value == 0:
+        return 1
+    
+    # Создаем 5 равных диапазонов
+    range_size = max_value / 5
+    
+    # Определяем, к какому диапазону относится значение
+    if value <= range_size:
+        return 1
+    elif value <= range_size * 2:
+        return 2
+    elif value <= range_size * 3:
+        return 3
+    elif value <= range_size * 4:
+        return 4
+    else:
+        return 5
 

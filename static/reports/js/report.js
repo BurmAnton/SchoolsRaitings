@@ -1,20 +1,20 @@
 document.addEventListener('DOMContentLoaded', function() {
     check_section()
 
-    document.querySelector('#btn-forward').addEventListener('click', (btn) => {
-        let current_section = document.querySelector('.current-section')
-        current_section.classList.remove('current-section')
-        current_section.nextElementSibling.classList.add('current-section')
-        check_section()
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    })
-    document.querySelector('#btn-back').addEventListener('click', (btn) => {
-        let current_section = document.querySelector('.current-section')
-        current_section.classList.remove('current-section')
-        current_section.previousElementSibling.classList.add('current-section')
-        check_section()
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    })
+    // document.querySelector('#btn-forward').addEventListener('click', (btn) => {
+    //     let current_section = document.querySelector('.current-section')
+    //     current_section.classList.remove('current-section')
+    //     current_section.nextElementSibling.classList.add('current-section')
+    //     check_section()
+    //     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // })
+    // document.querySelector('#btn-back').addEventListener('click', (btn) => {
+    //     let current_section = document.querySelector('.current-section')
+    //     current_section.classList.remove('current-section')
+    //     current_section.previousElementSibling.classList.add('current-section')
+    //     check_section()
+    //     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // })
     document.querySelectorAll('.selectpicker').forEach(input => {
         input.addEventListener('change', () => {
             let points = document.querySelector(`option[value="${input.value}"]`).dataset.points
@@ -135,10 +135,23 @@ function set_max_points(th){
 
 function set_points(th){
     let max_points = 0
-    th.parentElement.parentElement.querySelectorAll('.question-points').forEach(td => {
-        max_points += Number(td.innerHTML)
-    })
-    th.innerHTML = max_points
+    th.parentElement.parentElement.parentElement.querySelectorAll('.question-points').forEach(td => {
+        let pointValue = td.innerHTML.trim().replace(',', '.');
+        let pointNumber = parseFloat(pointValue) || 0;
+        max_points += pointNumber;
+    });
+    
+    th.innerHTML = max_points.toString().replace('.', ',').replace(/,0$/, '');
+    
+    let totalPoints = 0;
+    document.querySelectorAll('.section-points').forEach(sectionTotal => {
+        let sectionValue = parseFloat(sectionTotal.innerHTML.trim().replace(',', '.')) || 0;
+        totalPoints += sectionValue;
+    });
+    
+    if (document.getElementById('report-points')) {
+        document.getElementById('report-points').innerHTML = totalPoints.toString().replace('.', ',').replace(/,0$/, '');
+    }
 }
 
 
@@ -354,16 +367,35 @@ function upload_file(file, name, input){
 
 
 function check_section(){
-    let current_section = document.querySelector('.current-section')
-    if (current_section.classList.contains('first')){
-        document.querySelector('#btn-back').style.display = 'none'
-    } else {
-        document.querySelector('#btn-back').style.display = 'block'
+    let current_section = document.querySelector('.current-section');
+    let backButton = document.querySelector('#btn-back');
+    let forwardButton = document.querySelector('#btn-forward');
+    
+    if (!current_section) return;
+    
+    if (backButton) {
+        if (current_section.classList.contains('first')){
+            backButton.style.display = 'none';
+        } else {
+            backButton.style.display = 'block';
+        }
     }
-    if (current_section.classList.contains('last')){
-        document.querySelector('#btn-forward').style.display = 'none'
-    } else {
-        document.querySelector('#btn-forward').style.display = 'block'
+    
+    if (forwardButton) {
+        if (current_section.classList.contains('last')){
+            forwardButton.style.display = 'none';
+        } else {
+            forwardButton.style.display = 'block';
+        }
+    }
+    
+    document.querySelectorAll('.page-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    let currentSectionId = current_section.dataset.sectionId;
+    if (currentSectionId) {
+        document.querySelector(`.page-item a[href*="current_section=${currentSectionId}"]`)?.parentElement.classList.add('active');
     }
 }
 
