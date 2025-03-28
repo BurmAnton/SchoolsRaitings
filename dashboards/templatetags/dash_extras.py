@@ -276,3 +276,56 @@ def safe_json(value):
     import json
     json_str = json.dumps(value, ensure_ascii=False)
     return json_str.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
+
+@register.filter
+def multiply(value, arg):
+    """
+    Умножает значение на аргумент.
+    Пример: {{ value|multiply:2 }}
+    """
+    try:
+        return float(value) * float(arg)
+    except (ValueError, TypeError):
+        return 0
+
+@register.filter
+def divide(value, arg):
+    """
+    Divides the value by the argument
+    
+    Usage:
+        {{ value|divide:arg }}
+    
+    Examples:
+        {{ 10|divide:2 }}
+        {{ 10|divide:3 }}
+        
+    Results:
+        5
+        3.33
+    """
+    try:
+        return float(value) / float(arg)
+    except (ValueError, ZeroDivisionError):
+        return 0
+
+@register.filter
+def subtract(value, arg):
+    """
+    Subtracts the argument from the value
+    
+    Usage:
+        {{ value|subtract:arg }}
+    
+    Examples:
+        {{ 10|subtract:2 }}
+        {{ 5|subtract:7 }}
+        
+    Results:
+        8
+        -2
+    """
+    try:
+        return float(value) - float(arg)
+    except ValueError:
+        return 0

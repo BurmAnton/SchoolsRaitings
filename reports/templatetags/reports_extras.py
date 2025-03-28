@@ -262,37 +262,41 @@ def safe_json(value):
 
 @register.filter
 def get_completion_percent(report):
-    """
-    Вычисляет процент заполнения отчета.
-    """
-    from reports.models import Answer, Field
-    from django.db.models import Count, Q
-
-    # Получаем все уникальные поля отчета
-    total_fields = Field.objects.filter(sections__report=report.report).distinct().count()
-    
-    if total_fields == 0:
-        return [0, 0, 0]
-
-    # Подсчитываем заполненные поля одним запросом
-    filled_count = Answer.objects.filter(
-        s_report=report,
-        question__sections__report=report.report
-    ).filter(
-        Q(question__answer_type__in=['NMBR', 'PRC'], number_value__isnull=False) |
-        Q(question__answer_type='LST', option__isnull=False) |
-        Q(question__answer_type='BL', bool_value__isnull=False) |
-        Q(question__answer_type='MULT', selected_options__isnull=False)
-    ).distinct().count()
-
-    # Вычисляем процент
-    percent = (filled_count / total_fields) * 100
-    return [min(int(percent), 100), filled_count, total_fields]
+    """Calculates the completion percentage of a report"""
+    try:
+        from reports.models import Answer
+        
+        total_fields = report.report.sections.all().values_list("fields", flat=True).distinct().count()
+        if total_fields == 0:
+            return 100, "100%"  # Если нет полей, считаем отчет заполненным
+        
+        # Проверяем заполненность полей
+        filled_fields = 0
+        answers = Answer.objects.filter(s_report=report)
+        
+        for answer in answers:
+            if answer.question.answer_type == 'LST' and answer.option is not None:
+                filled_fields += 1
+            elif answer.question.answer_type == 'BL' and answer.bool_value is not None:
+                filled_fields += 1
+            elif answer.question.answer_type in ['NMBR', 'PRC'] and answer.number_value is not None:
+                filled_fields += 1
+            elif answer.question.answer_type == 'MULT' and answer.selected_options.exists():
+                filled_fields += 1
+        
+        if filled_fields > total_fields:
+            filled_fields = total_fields  # На случай несоответствия в БД
+            
+        percentage = int((filled_fields / total_fields) * 100)
+        return percentage, f"{percentage}%"
+    except Exception as e:
+        return 0, "0%"
 
 @register.filter
 def get_completion_percent_str(report):
-    """
-    Вычисляет процент заполнения отчета и возвращает строку с процентом и соотношением.
-    """
-    result = get_completion_percent(report)
-    return f"{result[0]}% ({result[1]}/{result[2]})"
+    """Returns the string representation of the completion percentage"""
+    try:
+        percentage, percentage_str = get_completion_percent(report)
+        return percentage_str
+    except:
+        return "0%"

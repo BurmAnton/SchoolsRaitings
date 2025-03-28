@@ -54,14 +54,25 @@ def start(request):
 @login_required
 def reports(request, school_id):
     school = get_object_or_404(School, id=school_id)
-    reports = Report.objects.filter(closter=school.closter, ed_level=school.ed_level, is_published=True).order_by('year').distinct()
+    
+    # Get all published reports for the school's cluster and education level
+    all_reports = Report.objects.filter(closter=school.closter, ed_level=school.ed_level, is_published=True).order_by('year').distinct()
+    
+    # Filter reports based on year status - only show reports for years that are in 'filling' status or later
+    filtered_reports = []
+    for report in all_reports:
+        # Check year status - only show if status is 'filling' or 'completed'
+        if report.year.status in ['filling', 'completed']:
+            filtered_reports.append(report)
+    
     s_reports = SchoolReport.objects.filter(school=school)
     reports_list = []
     notifications = Notification.objects.filter(user=request.user, is_read=False)
     for notification in notifications:
         notification.is_read = True
         notification.save()
-    for report in reports:
+        
+    for report in filtered_reports:
         if s_reports.filter(report=report).count() != 0:
             reports_list.append([report, s_reports.filter(report=report)[0]])
         else:
@@ -82,6 +93,14 @@ def report(request, report_id, school_id):
     report = get_object_or_404(Report, id=report_id)
     school = get_object_or_404(School, id=school_id)
 
+    # Check year status - only allow report creation/editing if year status is 'filling' or later
+    if report.year.status == 'forming':
+        return render(request, "reports/report_not_available.html", {
+            'school': school,
+            'report': report,
+            'message': "Отчет в стадии формирования и пока недоступен для заполнения."
+        })
+        
     current_section = request.GET.get('current_section', '')
     if current_section == "":
         current_section = report.sections.all().first().id
@@ -90,6 +109,9 @@ def report(request, report_id, school_id):
     s_report, is_new_report = SchoolReport.objects.get_or_create(
         report=report, school=school, 
     )
+    
+    # If year status is 'completed', make the report read-only
+    is_readonly = report.year.status == 'completed'
     
     sections = report.sections.all()
     for question in Field.objects.filter(sections__in=sections):
@@ -316,11 +338,13 @@ def report(request, report_id, school_id):
             )
 
     return render(request, "reports/report.html", {
-        'message': message,
         'school': school,
-        'report': s_report,
+        'report': report,
+        'current_section': current_section,
+        'message': message,
+        's_report': s_report,
         'answers': answers,
-        'current_section': current_section
+        'is_readonly': is_readonly,
     })
 
 
@@ -436,6 +460,14 @@ def ter_admin_reports(request, user_id):
         if 'status' in filter_params and filter_params['status']:
             s_reports = s_reports.filter(status__in=filter_params['status'])
     
+    # Обработка пакетной отправки отчетов в МинОбр
+    if 'send-reports' in request.POST:
+        report_ids = request.POST.getlist('report_ids')
+        if report_ids:
+            # Обновляем статус выбранных отчетов с 'A' (на согласовании в ТУ/ДО) на 'B' (отправлено в МинОбр)
+            SchoolReport.objects.filter(id__in=report_ids, status='A').update(status='B')
+        return HttpResponseRedirect(reverse('ter_admin_reports', args=[user_id]))
+    
     # Pagination
     paginator = Paginator(s_reports, 20)  # 20 reports per page
     page_number = request.GET.get('page', 1)
@@ -460,12 +492,15 @@ def mo_report(request, s_report_id):
     s_report = get_object_or_404(SchoolReport, id=s_report_id)
     answers = Answer.objects.filter(s_report=s_report)
     
+    # If year status is 'completed', make the report read-only
+    is_readonly = s_report.report.year.status == 'completed'
+    
     current_section = request.GET.get('current_section', '')
     if current_section == "":
         current_section = s_report.report.sections.all().first().id
     else: current_section = int(current_section)
 
-    if request.method == 'POST':
+    if request.method == 'POST' and not is_readonly:
         if 'send-report' in request.POST:
             s_report.status = 'D'
             s_report.save()
@@ -610,7 +645,8 @@ def mo_report(request, s_report_id):
         'school': s_report.school,
         'report': s_report,
         'answers': answers,
-        'current_section': current_section
+        'current_section': current_section,
+        'is_readonly': is_readonly,
     })
 
 
@@ -622,12 +658,15 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
     s_report = get_object_or_404(SchoolReport, id=s_report_id)
     answers = Answer.objects.filter(s_report=s_report)
 
+    # If year status is 'completed', make the report read-only
+    is_readonly = s_report.report.year.status == 'completed'
+
     current_section = request.GET.get('current_section', '')
     if current_section == "":
         current_section = s_report.report.sections.all().first().id
     else: current_section = int(current_section)
     
-    if request.method == 'POST':
+    if request.method == 'POST' and not is_readonly:
         if 'send-report' in request.POST:
             s_report.status = 'B'
             s_report.save()
@@ -800,7 +839,8 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
         'school': s_report.school,
         'report': s_report,
         'answers': answers,
-        'current_section': current_section
+        'current_section': current_section,
+        'is_readonly': is_readonly,
     })
 
 def update_answer(request, answer_id):

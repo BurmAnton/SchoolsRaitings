@@ -2,141 +2,12 @@
 {% load static %}
 {% load dash_extras %}
 {% load reports_extras %}
-{% block title %}Распределение вариантов ответов{% endblock %}
+{% block title %}Распределение отчетов по зонам{% endblock %}
 
 {% block style %}
     <link href="{% static 'dashboards/css/ter_admins_dash.css' %}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .chart-container {
-            width: 100%;
-            margin-bottom: 30px;
-        }
-        
-        .section-header {
-            margin-top: 40px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #003366;
-            padding-bottom: 10px;
-            color: #003366;
-        }
-        
-        .field-header {
-            margin-top: 25px;
-            margin-bottom: 15px;
-            font-size: 1.2rem;
-            font-weight: 500;
-            color: #444;
-            background-color: #f5f5f5;
-            padding: 10px 15px;
-            border-radius: 6px;
-            border-left: 4px solid #003366;
-        }
-        
-        .field-header h3 {
-            margin: 0;
-            font-size: 1.2rem;
-        }
-        
-        .field-header p {
-            margin: 5px 0 0 0;
-            font-size: 0.9rem;
-            color: #666;
-        }
-        
-        .field-charts {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-        
-        .chart-card {
-            flex: 1 1 calc(50% - 20px);
-            min-width: 400px;
-            border: 1px solid #dee2e6;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-            background-color: white;
-            transition: box-shadow 0.3s ease;
-        }
-        
-        .chart-card:hover {
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-        }
-        
-        .chart-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            text-align: center;
-            color: #003366;
-        }
-        
-        .chart-subtitle {
-            font-size: 14px;
-            color: #6c757d;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-        
-        .date-info {
-            text-align: center;
-            margin: 20px 0;
-            font-size: 18px;
-            color: #555;
-            background-color: #f9f9f9;
-            padding: 10px;
-            border-radius: 6px;
-        }
-        
-        .legend {
-            text-align: center;
-            margin-bottom: 25px;
-            background-color: #f9f9f9;
-            padding: 12px;
-            border-radius: 6px;
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-        }
-        
-        .legend span {
-            display: flex;
-            align-items: center;
-            font-size: 14px;
-        }
-        
-        .red-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background-color: #FFC7CE;
-            display: inline-block;
-            margin-right: 8px;
-            border: 1px solid rgba(0, 0, 0, 0.1);
-        }
-        
-        .yellow-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background-color: #FFEB9C;
-            display: inline-block;
-            margin-right: 8px;
-            border: 1px solid rgba(0, 0, 0, 0.1);
-        }
-        
-        .green-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background-color: #C6EFCE;
-            display: inline-block;
-            margin-right: 8px;
-            border: 1px solid rgba(0, 0, 0, 0.1);
-        }
-        
         .report-container {
             background-color: #fff;
             border-radius: 8px;
@@ -152,31 +23,58 @@
             font-size: 1.8rem;
         }
         
-        .filter {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+        .filter-card {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 15px;
         }
         
-        .form label {
+        .filter-label {
             font-weight: 500;
-            margin-bottom: 5px;
-            color: #555;
+            font-size: 1rem;
+            color: #444;
         }
         
-        .filter-buttons {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            flex-direction: row-reverse;
-            margin-top: 15px;
-            margin-bottom: 30px;
+        .toggle-button {
+            position: absolute;
+            right: 15px;
+            top: 15px;
         }
         
-        .filter-buttons-right {
+        .selected-years {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .selected-year {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: #eee;
+            border-radius: 3px;
+            color: #333;
+            margin-right: 5px;
+        }
+        
+        .filter-actions {
             display: flex;
+            justify-content: flex-end;
             gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .year-dropdown {
+            width: 100%;
         }
         
         .btn-outline-primary {
@@ -199,493 +97,1014 @@
             border-color: #002244;
         }
         
+        .zone-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .zone-table th, .zone-table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+        
+        .zone-table th {
+            background-color: #003366;
+            color: white;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+        }
+        
+        .zone-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .zone-table tr:hover {
+            background-color: #e9ecef;
+        }
+        
+        .zone-table .ter-admin-col {
+            text-align: left;
+            font-weight: 500;
+        }
+        
+        .red-zone {
+            background-color: #FFC7CE;
+            font-weight: 500;
+        }
+        
+        .yellow-zone {
+            background-color: #FFEB9C;
+            font-weight: 500;
+        }
+        
+        .green-zone {
+            background-color: #C6EFCE;
+            font-weight: 500;
+        }
+        
+        .year-header {
+            text-align: center;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-top: 30px;
+            margin-bottom: 30px;
+            position: relative;
+            border: 1px solid #e0e0e0;
+            padding: 10px;
+            background-color: #fdfdfd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        
+        .chart-title {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #003366;
+        }
+        
+        .legend-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 0 10px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+            border: 1px solid #ccc;
+        }
+        
+        .legend-red {
+            background-color: #FFC7CE;
+        }
+        
+        .legend-yellow {
+            background-color: #FFEB9C;
+        }
+        
+        .legend-green {
+            background-color: #C6EFCE;
+        }
+        
         /* Стили для адаптивности на мобильных устройствах */
         @media (max-width: 768px) {
-            .field-charts {
-                flex-direction: column;
-            }
-            
-            .chart-card {
-                min-width: 100%;
-            }
-            
-            .filter-buttons {
+            .filter-actions {
                 flex-direction: column;
                 gap: 10px;
-            }
-            
-            .filter-buttons-right {
-                flex-direction: column;
-                width: 100%;
             }
             
             .btn {
                 width: 100% !important;
             }
+            
+            .zone-table {
+                display: block;
+                overflow-x: auto;
+            }
+            
+            .zone-table th, .zone-table td {
+                padding: 8px;
+                font-size: 14px;
+            }
+            
+            .chart-container {
+                height: 300px;
+            }
+        }
+        .dropdown-toggle{
+            
+            border: 1px solid #31343783 !important;
+            background-color: white !important;
+        }
+        .input-group-text{
+            border: 1px solid #31343783 !important;
+            border-right: 0 !important;
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+        }
+        .dropdown-menu{
+            z-index: 100;
+            max-width: 100%!important;
+        }
+        .dropdown-item span{
+            white-space: wrap !important;
+        }
+        .filter-option-inner-inner{
+            text-wrap: auto !important;
+        }
+        label{
+            margin-bottom: 5px;
         }
     </style>
-    <!-- Подключаем библиотеку для построения графиков Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 {% endblock %}
 
 {% block body %}
-    <form action="{% url 'answers_distribution_report' %}" method="post">
-        {% csrf_token %}
-        <h2>Фильтр</h2>
-        <div class="filter">
-            <div class="form mb-3">
-                <label for="YearFilter">Год</label>
-                <select class="selectpicker form-control" title="Выберите год" name="year" id="YearFilter" data-width="100%" data-container="body" required>
-                    {% for year in filter.years %}
-                        {% if forloop.first %}
-                            <option value="{{ year }}" {% if year == filter.year %}selected{% endif %}>{{ year }}</option>
-                        {% else %}
-                            <option value="{{ year }}" {% if year == filter.year %}selected{% endif %}>{{ year }}</option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form mb-3">
-                <label for="TerAdminFilter">Территориальные управления/Департаменты образования</label>
-                <select class="selectpicker form-control" title="Выберите ТУ/ДО" name="ter_admin" id="TerAdminFilter" data-width="100%" data-container="body" data-live-search="true">
-                    <option value="">Все ТУ/ДО</option>
-                    {% for ter_admin in filter.ter_admins %}
-                        <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i" == filter.ter_admin %}selected{% endif %}>{{ ter_admin }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form mb-3">
-                <label for="ClosterFilter">Кластер</label>
-                <select class="selectpicker form-control" title="Выберите кластер" name="closter" id="ClosterFilter" data-width="100%" data-container="body" data-live-search="true">
-                    <option value="">Все кластеры</option>
-                    {% for closter in filter.closters %}
-                        <option value="{{ closter.id }}" {% if closter.id|stringformat:"i" == filter.closter %}selected{% endif %}>{{ closter }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form mb-3">
-                <label for="EdLevelFilter">Уровень образования</label>
-                <select class="selectpicker form-control" title="Выберите уровень образования" name="ed_level" id="EdLevelFilter" data-width="100%" data-container="body">
-                    <option value="">Все уровни</option>
-                    {% for key, name in filter.school_levels.items %}
-                        <option value="{{ key }}" {% if key == filter.ed_level %}selected{% endif %}>{{ name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-        <div class="filter-buttons">
-            <div class="filter-buttons-right">
-                <button name="download" class="btn btn-outline-primary" type="submit">Скачать в Excel</button>
-                <button name="filter" class="btn btn-outline-primary" type="submit">Фильтровать</button>
-            </div>
-            <a href="{% url 'answers_distribution_report' %}" class="btn btn-primary">Сбросить</a>
-        </div>
-    </form>
-    
     <div class="report-container">
-        <h1>Распределение вариантов ответов по показателям</h1>
+        <h1>Распределение отчетов школ по зонам</h1>
+    <form action="{% url 'answers_distribution_report' %}" method="post">
+            <div class="filter-label" style="font-size: 1.2rem; font-weight: bold;text-align: center; margin:auto;">Фильтр</div>
+        {% csrf_token %}
+            <div class="collapse show" id="filterCollapse" style="width: 100%;">
+                <label for="yearSelect" class="form-label">Годы</label>
+                <select class="selectpicker form-control year-dropdown" id="yearSelect" name="years" multiple title="Выберите годы" data-width="100%" data-container="body">
+                    {% for year in filter.years %}
+                    <option value="{{ year.id }}" {% if year.id in selected_year_ids %}selected{% endif %}>{{ year.year }}</option>
+                    {% endfor %}
+                </select>
+                {% if selected_years %}
+                    <div class="selected-years">
+                        Выбрано: 
+                        {% for year in selected_years %}
+                        <span class="selected-year">{{ year.year }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <div class="filter-actions">
+                    <button type="submit" name="download" class="btn btn-outline-primary">
+                        <i class="bi bi-file-excel me-1"></i> Скачать Excel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search me-1"></i> Применить
+                    </button>
+                </div>
+            </div>
+        </form>
+
         
-        <div class="date-info">
-            <p>Данные мониторинга за {{ stats.last_monitoring_date }} год</p>
-        </div>
+        {% if stats %}
+            <!-- Таблица -->
+            <div class="table-responsive">
+                <table class="zone-table">
+                    <thead>
+                        <tr>
+                            <th>ТУ/ДО</th>
+                            {% if show_year_column %}
+                                <th>Год</th>
+                            {% endif %}
+                            <th>Красная зона</th>
+                            <th>Жёлтая зона</th>
+                            <th>Зелёная зона</th>
+                            <th>Всего отчетов</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if show_year_column %}
+                            {% for item in stats %}
+                                {% for year_item in item.years %}
+                                    <tr>
+                        {% if forloop.first %}
+                                            <td class="ter-admin-col" rowspan="{{ item.rowspan }}">{{ item.ter_admin_name }}</td>
+                        {% endif %}
+                                        <td>{{ year_item.year }}</td>
+                                        <td class="red-zone">{{ year_item.red_zone|default:"-" }}</td>
+                                        <td class="yellow-zone">{{ year_item.yellow_zone|default:"-" }}</td>
+                                        <td class="green-zone">{{ year_item.green_zone|default:"-" }}</td>
+                                        <td>{{ year_item.total|default:"-" }}</td>
+                                    </tr>
+                    {% endfor %}
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">Нет данных для отображения</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            {% for item in stats %}
+                                <tr>
+                                    <td class="ter-admin-col">{{ item.ter_admin_name }}</td>
+                                    <td class="red-zone">{{ item.red_zone|default:"-" }}</td>
+                                    <td class="yellow-zone">{{ item.yellow_zone|default:"-" }}</td>
+                                    <td class="green-zone">{{ item.green_zone|default:"-" }}</td>
+                                    <td>{{ item.total|default:"-" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">Нет данных для отображения</td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
         
-        <div class="legend">
-            <span><span class="red-dot"></span> Красная зона</span>
-            <span><span class="yellow-dot"></span> Желтая зона</span>
-            <span><span class="green-dot"></span> Зеленая зона</span>
-        </div>
-        
-        {% for section in sections %}
-            <div class="section-header">
-                <h2>{{ section.number }}. {{ section.name }}</h2>
+            <!-- Статический 100% стековый график через таблицу HTML -->
+            <div style="margin-top: 40px; text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px;">
+                Распределение отчетов по зонам (в процентах)
             </div>
             
-            {% for field in section.fields.all|dictsort_fields %}
-                <div class="field-header">
-                    <h3>{{ section.number }}.{{ field.number }}. {{ field.name }}</h3>
-                    <p>Всего школ: {{ stats.field_school_counts|get_item:field.id }}</p>
+            <div style="width: 100%; border: 1px solid #ccc; padding: 20px; background-color: #fdfdfd; border-radius: 8px; overflow-x: auto;">
+                <!-- Горизонтальный стековый график -->
+                <div style="display: flex; flex-direction: column; width: 100%; position: relative;">
+                    <!-- Процентная шкала сверху -->
+                    <div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; padding-left: 310px;">
+                        <div>0%</div>
+                        <div>25%</div>
+                        <div>50%</div>
+                        <div>75%</div>
+                        <div>100%</div>
+                    </div>
+                    
+                    <!-- Линии сетки для шкалы -->
+                    <div style="position: absolute; top: 30px; left: 310px; right: 0; bottom: 0; display: flex; justify-content: space-between; pointer-events: none;">
+                        <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                        <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                        <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                        <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                        <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                    </div>
+                    
+                    <!-- Сначала найдем максимальное общее значение среди всех ТУ/ДО -->
+                    {% with max_total=0 %}
+                        {% for item in stats %}
+                            {% with current_total=item.total %}
+                                {% if current_total > max_total %}
+                                    {% with max_total=current_total %}{% endwith %}
+                                {% endif %}
+                            {% endwith %}
+                    {% endfor %}
+                    
+                    <!-- Горизонтальные полосы для каждого ТУ/ДО -->
+                    {% if show_year_column %}
+                        {% for group in stats %}
+                            {% for year_item in group.years %}
+                                <div style="display: flex; align-items: center; margin-bottom: 10px; height: 40px;">
+                                    <!-- Название ТУ/ДО с rowspan эффектом -->
+                                    {% if forloop.first %}
+                                        <div style="width: 250px; text-align: right; padding-right: 10px; font-weight: bold; font-size: 14px; white-space: normal; align-self: flex-start; margin-top: {% if group.rowspan > 1 %}{{ 20|multiply:group.rowspan|subtract:30 }}{% else %}0{% endif %}px;">
+                                            {{ group.ter_admin_name }}
+            </div>
+                                    {% else %}
+                                        <div style="width: 250px;"></div>
+                                    {% endif %}
+                                    
+                                    <!-- Год -->
+                                    <div style="width: 50px; text-align: center; font-weight: bold; font-size: 14px; margin-right: 10px;">
+                                        {{ year_item.year }}
+                                    </div>
+                                    
+                                    <!-- Контейнер для полосы -->
+                                    <div style="flex-grow: 1; height: 30px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden; display: flex; width: calc(100% - 310px);">
+                                        {% if year_item.total > 0 %}
+                                            <!-- Каждая полоса занимает 100% ширины -->
+                                            <div style="width: 100%; height: 100%; display: flex;">
+                                                <!-- Красная зона (слева) -->
+                                                {% if year_item.red_zone > 0 %}
+                                                    <div style="background-color: #FFC7CE; width: {{ year_item.red_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                        <span style="font-weight: bold; color: #9C0006; font-size: 12px;">{{ year_item.red_zone }}</span>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <!-- Желтая зона (посередине) -->
+                                                {% if year_item.yellow_zone > 0 %}
+                                                    <div style="background-color: #FFEB9C; width: {{ year_item.yellow_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                        <span style="font-weight: bold; color: #9C6500; font-size: 12px;">{{ year_item.yellow_zone }}</span>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <!-- Зеленая зона (справа) -->
+                                                {% if year_item.green_zone > 0 %}
+                                                    <div style="background-color: #C6EFCE; width: {{ year_item.green_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                        <span style="font-weight: bold; color: #006100; font-size: 12px;">{{ year_item.green_zone }}</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <!-- Если нет данных -->
+                                            <div style="width: 100%; height: 100%; background-color: #f5f5f5; display: flex; justify-content: center; align-items: center;">
+                                                <span style="color: #999; font-size: 12px;">Нет данных</span>
+                                            </div>
+                                        {% endif %}
+                    </div>
+                </div>
+                    {% endfor %}
+        {% endfor %}
+                    {% else %}
+                        {% for item in stats %}
+                            <div style="display: flex; align-items: center; margin-bottom: 10px; height: 40px;">
+                                <!-- Название ТУ/ДО -->
+                                <div style="width: 250px; text-align: right; padding-right: 10px; font-weight: bold; font-size: 14px; white-space: normal;">
+                                    {{ item.ter_admin_name }}
+            </div>
+                                
+                                <!-- Контейнер для всей полосы -->
+                                <div style="flex-grow: 1; height: 30px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden; display: flex; width: calc(100% - 250px);">
+                                    {% if item.total > 0 %}
+                                        <!-- Каждая полоса занимает 100% ширины -->
+                                        <div style="width: 100%; height: 100%; display: flex;">
+                                            <!-- Красная зона (слева) -->
+                                            {% if item.red_zone > 0 %}
+                                                <div style="background-color: #FFC7CE; width: {{ item.red_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                    <span style="font-weight: bold; color: #9C0006; font-size: 12px;">{{ item.red_zone }}</span>
+                                                </div>
+                                            {% endif %}
+                                            
+                                            <!-- Желтая зона (посередине) -->
+                                            {% if item.yellow_zone > 0 %}
+                                                <div style="background-color: #FFEB9C; width: {{ item.yellow_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                    <span style="font-weight: bold; color: #9C6500; font-size: 12px;">{{ item.yellow_zone }}</span>
+                                                </div>
+                                            {% endif %}
+                                            
+                                            <!-- Зеленая зона (справа) -->
+                                            {% if item.green_zone > 0 %}
+                                                <div style="background-color: #C6EFCE; width: {{ item.green_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                    <span style="font-weight: bold; color: #006100; font-size: 12px;">{{ item.green_zone }}</span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <!-- Если нет данных -->
+                                        <div style="width: 100%; height: 100%; background-color: #f5f5f5; display: flex; justify-content: center; align-items: center;">
+                                            <span style="color: #999; font-size: 12px;">Нет данных</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+            </div>
+        </div>
+    
+            <!-- Легенда -->
+            <div style="display: flex; justify-content: center; margin: 20px 0;">
+                <div style="display: flex; align-items: center; margin: 0 10px;">
+                    <div style="width: 20px; height: 20px; background-color: #FFC7CE; margin-right: 5px;"></div>
+                    <span>Красная зона</span>
+            </div>
+                <div style="display: flex; align-items: center; margin: 0 10px;">
+                    <div style="width: 20px; height: 20px; background-color: #FFEB9C; margin-right: 5px;"></div>
+                    <span>Жёлтая зона</span>
+        </div>
+                <div style="display: flex; align-items: center; margin: 0 10px;">
+                    <div style="width: 20px; height: 20px; background-color: #C6EFCE; margin-right: 5px;"></div>
+                    <span>Зелёная зона</span>
+                </div>
+            </div>
+            
+            <!-- СЕКЦИЯ 2: РАСПРЕДЕЛЕНИЕ ПО РАЗДЕЛАМ -->
+            <div style="margin-top: 60px; text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; border-top: 1px solid #ccc; padding-top: 40px;">
+                Распределение отчетов по разделам
+            </div>
+            
+            {% if section_stats %}
+                <!-- Таблица распределения по разделам -->
+                <div class="table-responsive">
+                    <table class="zone-table">
+                        <thead>
+                            <tr>
+                                <th>Раздел</th>
+                                {% if show_year_column %}
+                                    <th>Год</th>
+                                {% endif %}
+                                <th>Красная зона</th>
+                                <th>Жёлтая зона</th>
+                                <th>Зелёная зона</th>
+                                <th>Всего отчетов</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if show_year_column %}
+                                {% for item in section_stats %}
+                                    {% for year_item in item.years %}
+                                        <tr>
+                                            {% if forloop.first %}
+                                                <td class="ter-admin-col" rowspan="{{ item.rowspan }}">{{ item.section_name }}</td>
+                                            {% endif %}
+                                            <td>{{ year_item.year }}</td>
+                                            <td class="red-zone">{{ year_item.red_zone|default:"-" }}</td>
+                                            <td class="yellow-zone">{{ year_item.yellow_zone|default:"-" }}</td>
+                                            <td class="green-zone">{{ year_item.green_zone|default:"-" }}</td>
+                                            <td>{{ year_item.total|default:"-" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center">Нет данных для отображения</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                {% for item in section_stats %}
+                                    <tr>
+                                        <td class="ter-admin-col">{{ item.section_name }}</td>
+                                        <td class="red-zone">{{ item.red_zone|default:"-" }}</td>
+                                        <td class="yellow-zone">{{ item.yellow_zone|default:"-" }}</td>
+                                        <td class="green-zone">{{ item.green_zone|default:"-" }}</td>
+                                        <td>{{ item.total|default:"-" }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center">Нет данных для отображения</td>
+                                    </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+        </div>
+        
+                <!-- Статический график для распределения по разделам -->
+                <div style="margin-top: 40px; text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px;">
+                    Распределение отчетов по разделам (в процентах)
+        </div>
+        
+                <div style="width: 100%; border: 1px solid #ccc; padding: 20px; background-color: #fdfdfd; border-radius: 8px; overflow-x: auto;">
+                    <!-- Горизонтальный стековый график -->
+                    <div style="display: flex; flex-direction: column; width: 100%; position: relative;">
+                        <!-- Процентная шкала сверху -->
+                        <div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; padding-left: 450px;">
+                            <div>0%</div>
+                            <div>25%</div>
+                            <div>50%</div>
+                            <div>75%</div>
+                            <div>100%</div>
+            </div>
+            
+                        <!-- Линии сетки для шкалы -->
+                        <div style="position: absolute; top: 30px; left: 450px; right: 0; bottom: 0; display: flex; justify-content: space-between; pointer-events: none;">
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
                 </div>
                 
-                <div class="field-charts">
-                    <!-- График для общей статистики -->
-                    <div class="chart-card">
-                        <div class="chart-title">Общее распределение ответов</div>
-                        <div class="chart-subtitle">Процентное соотношение вариантов ответов</div>
-                        <canvas id="chart-overall-{{ section.id }}-{{ field.id }}"></canvas>
+                        <!-- Горизонтальные полосы для каждого раздела -->
+                        {% if show_year_column %}
+                            {% for group in section_stats %}
+                                {% for year_item in group.years %}
+                                    <div style="display: flex; align-items: center; margin-bottom: 30px; height: 70px;">
+                                        <!-- Название раздела с rowspan эффектом -->
+                                        {% if forloop.first %}
+                                            <div style="width: 400px; text-align: right; padding-right: 20px; font-weight: bold; font-size: 14px; white-space: normal; align-self: flex-start; margin-top: {% if group.rowspan > 1 %}{{ 45|multiply:group.rowspan|subtract:60 }}{% else %}0{% endif %}px;">
+                                                {{ group.section_name }}
+                    </div>
+                                        {% else %}
+                                            <div style="width: 400px;"></div>
+                                        {% endif %}
+                                        
+                                        <!-- Год -->
+                                        <div style="width: 50px; text-align: center; font-weight: bold; font-size: 14px; margin-right: 10px;">
+                                            {{ year_item.year }}
                     </div>
                     
-                    <!-- График для статистики по ТУ/ДО -->
-                    <div class="chart-card">
-                        <div class="chart-title">Распределение ответов по ТУ/ДО</div>
-                        <div class="chart-subtitle">Процентное соотношение вариантов ответов в разрезе ТУ/ДО</div>
-                        <canvas id="chart-teradmin-{{ section.id }}-{{ field.id }}"></canvas>
+                                        <!-- Контейнер для полосы -->
+                                        <div style="flex-grow: 1; height: 40px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden; display: flex; width: calc(100% - 460px);">
+                                            {% if year_item.total > 0 %}
+                                                <!-- Каждая полоса занимает 100% ширины -->
+                                                <div style="width: 100%; height: 100%; display: flex;">
+                                                    <!-- Красная зона (слева) -->
+                                                    {% if year_item.red_zone > 0 %}
+                                                        <div style="background-color: #FFC7CE; width: {{ year_item.red_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                            <span style="font-weight: bold; color: #9C0006; font-size: 13px;">{{ year_item.red_zone }}</span>
                     </div>
-                    
-                    <!-- График для статистики по кластерам -->
-                    <div class="chart-card">
-                        <div class="chart-title">Распределение ответов по кластерам</div>
-                        <div class="chart-subtitle">Процентное соотношение вариантов ответов в разрезе кластеров</div>
-                        <canvas id="chart-closter-{{ section.id }}-{{ field.id }}"></canvas>
-                    </div>
-                    
-                    <!-- График для статистики по уровням образования -->
-                    <div class="chart-card">
-                        <div class="chart-title">Распределение ответов по уровням образования</div>
-                        <div class="chart-subtitle">Процентное соотношение вариантов ответов в разрезе уровней образования</div>
-                        <canvas id="chart-edlevel-{{ section.id }}-{{ field.id }}"></canvas>
+                                                    {% endif %}
+                                                    
+                                                    <!-- Желтая зона (посередине) -->
+                                                    {% if year_item.yellow_zone > 0 %}
+                                                        <div style="background-color: #FFEB9C; width: {{ year_item.yellow_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                            <span style="font-weight: bold; color: #9C6500; font-size: 13px;">{{ year_item.yellow_zone }}</span>
+                                                        </div>
+                                                    {% endif %}
+                                                    
+                                                    <!-- Зеленая зона (справа) -->
+                                                    {% if year_item.green_zone > 0 %}
+                                                        <div style="background-color: #C6EFCE; width: {{ year_item.green_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                            <span style="font-weight: bold; color: #006100; font-size: 13px;">{{ year_item.green_zone }}</span>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <!-- Если нет данных -->
+                                                <div style="width: 100%; height: 100%; background-color: #f5f5f5; display: flex; justify-content: center; align-items: center;">
+                                                    <span style="color: #999; font-size: 12px;">Нет данных</span>
+                                                </div>
+                                            {% endif %}
                     </div>
                 </div>
             {% endfor %}
         {% endfor %}
+                        {% else %}
+                            {% for item in section_stats %}
+                                <div style="display: flex; align-items: center; margin-bottom: 30px; height: 70px;">
+                                    <!-- Название раздела -->
+                                    <div style="width: 400px; text-align: right; padding-right: 20px; font-weight: bold; font-size: 14px; white-space: normal;">
+                                        {{ item.section_name }}
     </div>
     
-    <script>
-        // Функция для инициализации графиков после загрузки страницы
-        document.addEventListener('DOMContentLoaded', function() {
-            // Данные для графиков
-            const statsData = {{ stats|safe_json }};
+                                    <!-- Контейнер для всей полосы -->
+                                    <div style="flex-grow: 1; height: 40px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden; display: flex; width: calc(100% - 400px);">
+                                        {% if item.total > 0 %}
+                                            <!-- Каждая полоса занимает 100% ширины -->
+                                            <div style="width: 100%; height: 100%; display: flex;">
+                                                <!-- Красная зона (слева) -->
+                                                {% if item.red_zone > 0 %}
+                                                    <div style="background-color: #FFC7CE; width: {{ item.red_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                        <span style="font-weight: bold; color: #9C0006; font-size: 13px;">{{ item.red_zone }}</span>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <!-- Желтая зона (посередине) -->
+                                                {% if item.yellow_zone > 0 %}
+                                                    <div style="background-color: #FFEB9C; width: {{ item.yellow_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                        <span style="font-weight: bold; color: #9C6500; font-size: 13px;">{{ item.yellow_zone }}</span>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <!-- Зеленая зона (справа) -->
+                                                {% if item.green_zone > 0 %}
+                                                    <div style="background-color: #C6EFCE; width: {{ item.green_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                        <span style="font-weight: bold; color: #006100; font-size: 13px;">{{ item.green_zone }}</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <!-- Если нет данных -->
+                                            <div style="width: 100%; height: 100%; background-color: #f5f5f5; display: flex; justify-content: center; align-items: center;">
+                                                <span style="color: #999; font-size: 12px;">Нет данных</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info mt-4">
+                    Нет данных о распределении по разделам для отображения.
+                </div>
+            {% endif %}
             
-            // Цвета для зон
-            const zoneColors = {
-                'R': '#FFC7CE',
-                'Y': '#FFEB9C',
-                'G': '#C6EFCE'
-            };
+            <!-- СЕКЦИЯ 3: РАСПРЕДЕЛЕНИЕ ПО КЛАСТЕРАМ -->
+            <div style="margin-top: 60px; text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; border-top: 1px solid #ccc; padding-top: 40px;">
+                Распределение отчетов по кластерам
+            </div>
             
-            // Обработка данных и создание графиков для каждого поля
-            {% for section in sections %}
-                {% for field in section.fields.all|dictsort_fields %}
-                    // Данные для общей статистики
-                    const overallData = statsData.overall_stats['{{ section.id }}']['{{ field.id }}'];
-                    if (overallData) {
-                        const overallLabels = [];
-                        const overallValues = [];
-                        const overallColors = [];
+            {% if cluster_stats %}
+                <!-- Таблица распределения по кластерам -->
+                <div class="table-responsive">
+                    <table class="zone-table">
+                        <thead>
+                            <tr>
+                                <th>Кластер</th>
+                                {% if show_year_column %}
+                                    <th>Год</th>
+                                {% endif %}
+                                <th>Красная зона</th>
+                                <th>Жёлтая зона</th>
+                                <th>Зелёная зона</th>
+                                <th>Всего отчетов</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if show_year_column %}
+                                {% for item in cluster_stats %}
+                                    {% for year_item in item.years %}
+                                        <tr>
+                                            {% if forloop.first %}
+                                                <td class="ter-admin-col" rowspan="{{ item.rowspan }}">{{ item.cluster_name }}</td>
+                                            {% endif %}
+                                            <td>{{ year_item.year }}</td>
+                                            <td class="red-zone">{{ year_item.red_zone|default:"-" }}</td>
+                                            <td class="yellow-zone">{{ year_item.yellow_zone|default:"-" }}</td>
+                                            <td class="green-zone">{{ year_item.green_zone|default:"-" }}</td>
+                                            <td>{{ year_item.total|default:"-" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center">Нет данных для отображения</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                {% for item in cluster_stats %}
+                                    <tr>
+                                        <td class="ter-admin-col">{{ item.cluster_name }}</td>
+                                        <td class="red-zone">{{ item.red_zone|default:"-" }}</td>
+                                        <td class="yellow-zone">{{ item.yellow_zone|default:"-" }}</td>
+                                        <td class="green-zone">{{ item.green_zone|default:"-" }}</td>
+                                        <td>{{ item.total|default:"-" }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center">Нет данных для отображения</td>
+                                    </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Статический график для распределения по кластерам -->
+                <div style="margin-top: 40px; text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px;">
+                    Распределение отчетов по кластерам (в процентах)
+                </div>
+                
+                <div style="width: 100%; border: 1px solid #ccc; padding: 20px; background-color: #fdfdfd; border-radius: 8px; overflow-x: auto;">
+                    <!-- Горизонтальный стековый график -->
+                    <div style="display: flex; flex-direction: column; width: 100%; position: relative;">
+                        <!-- Процентная шкала сверху -->
+                        <div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; padding-left: 420px;">
+                            <div>0%</div>
+                            <div>25%</div>
+                            <div>50%</div>
+                            <div>75%</div>
+                            <div>100%</div>
+                        </div>
                         
-                        for (const [optionId, optionData] of Object.entries(overallData)) {
-                            overallLabels.push(optionData.option_name);
-                            overallValues.push(optionData.percentage);
-                            overallColors.push(zoneColors[optionData.zone] || '#cccccc');
-                        }
+                        <!-- Линии сетки для шкалы -->
+                        <div style="position: absolute; top: 30px; left: 420px; right: 0; bottom: 0; display: flex; justify-content: space-between; pointer-events: none;">
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                            <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                        </div>
                         
-                        // Создаем график для общей статистики
-                        const overallCtx = document.getElementById('chart-overall-{{ section.id }}-{{ field.id }}').getContext('2d');
-                        new Chart(overallCtx, {
-                            type: 'pie',
-                            data: {
-                                labels: overallLabels,
-                                datasets: [{
-                                    data: overallValues,
-                                    backgroundColor: overallColors,
-                                    borderColor: '#ffffff',
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'bottom',
-                                        labels: {
-                                            font: {
-                                                size: 12
-                                            }
-                                        }
-                                    },
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function(context) {
-                                                const label = context.label || '';
-                                                const value = context.raw || 0;
-                                                return `${label}: ${value}%`;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    
-                    // Данные для статистики по ТУ/ДО
-                    const terAdminCtx = document.getElementById('chart-teradmin-{{ section.id }}-{{ field.id }}').getContext('2d');
-                    const terAdminStats = statsData.ter_admin_stats;
-                    
-                    // Собираем данные по ТУ/ДО
-                    const terAdminLabels = [];
-                    const terAdminDatasets = [];
-                    const terAdminOptions = new Set();
-                    
-                    // Собираем все варианты ответов для этого поля
-                    for (const [terAdminId, terAdminData] of Object.entries(terAdminStats)) {
-                        if (terAdminData['{{ section.id }}'] && terAdminData['{{ section.id }}']['{{ field.id }}']) {
-                            for (const [optionId, optionData] of Object.entries(terAdminData['{{ section.id }}']['{{ field.id }}'])) {
-                                terAdminOptions.add(optionId);
-                            }
-                        }
-                    }
-                    
-                    // Преобразуем Set в массив для дальнейшей обработки
-                    const terAdminOptionsArray = Array.from(terAdminOptions);
-                    
-                    // Создаем наборы данных для каждого варианта ответа
-                    for (const optionId of terAdminOptionsArray) {
-                        const dataset = {
-                            label: '',
-                            data: [],
-                            backgroundColor: '',
-                            borderColor: '#ffffff',
-                            borderWidth: 1
-                        };
-                        
-                        for (const [terAdminId, terAdminData] of Object.entries(terAdminStats)) {
-                            if (!terAdminLabels.includes(terAdminId)) {
-                                terAdminLabels.push(terAdminId);
-                            }
-                            
-                            if (terAdminData['{{ section.id }}'] && 
-                                terAdminData['{{ section.id }}']['{{ field.id }}'] && 
-                                terAdminData['{{ section.id }}']['{{ field.id }}'][optionId]) {
-                                
-                                const optionData = terAdminData['{{ section.id }}']['{{ field.id }}'][optionId];
-                                dataset.label = optionData.option_name;
-                                dataset.backgroundColor = zoneColors[optionData.zone] || '#cccccc';
-                                dataset.data.push(optionData.percentage);
-                            } else {
-                                dataset.data.push(0);
-                            }
-                        }
-                        
-                        terAdminDatasets.push(dataset);
-                    }
-                    
-                    // Создаем график для статистики по ТУ/ДО
-                    new Chart(terAdminCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: terAdminLabels,
-                            datasets: terAdminDatasets
-                        },
-                        options: {
-                            responsive: true,
-                            scales: {
-                                x: {
-                                    stacked: true
-                                },
-                                y: {
-                                    stacked: true,
-                                    beginAtZero: true,
-                                    max: 100
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    position: 'bottom',
-                                    labels: {
-                                        font: {
-                                            size: 12
-                                        }
-                                    }
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            const label = context.dataset.label || '';
-                                            const value = context.raw || 0;
-                                            return `${label}: ${value}%`;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    
-                    // Данные для статистики по кластерам
-                    const closterCtx = document.getElementById('chart-closter-{{ section.id }}-{{ field.id }}').getContext('2d');
-                    const closterStats = statsData.closter_stats;
-                    
-                    // Собираем данные по кластерам
-                    const closterLabels = [];
-                    const closterDatasets = [];
-                    const closterOptions = new Set();
-                    
-                    // Собираем все варианты ответов для этого поля
-                    for (const [closterId, closterData] of Object.entries(closterStats)) {
-                        if (closterData['{{ section.id }}'] && closterData['{{ section.id }}']['{{ field.id }}']) {
-                            for (const [optionId, optionData] of Object.entries(closterData['{{ section.id }}']['{{ field.id }}'])) {
-                                closterOptions.add(optionId);
-                            }
-                        }
-                    }
-                    
-                    // Преобразуем Set в массив для дальнейшей обработки
-                    const closterOptionsArray = Array.from(closterOptions);
-                    
-                    // Создаем наборы данных для каждого варианта ответа
-                    for (const optionId of closterOptionsArray) {
-                        const dataset = {
-                            label: '',
-                            data: [],
-                            backgroundColor: '',
-                            borderColor: '#ffffff',
-                            borderWidth: 1
-                        };
-                        
-                        for (const [closterId, closterData] of Object.entries(closterStats)) {
-                            if (!closterLabels.includes(closterId)) {
-                                closterLabels.push(closterId);
-                            }
-                            
-                            if (closterData['{{ section.id }}'] && 
-                                closterData['{{ section.id }}']['{{ field.id }}'] && 
-                                closterData['{{ section.id }}']['{{ field.id }}'][optionId]) {
-                                
-                                const optionData = closterData['{{ section.id }}']['{{ field.id }}'][optionId];
-                                dataset.label = optionData.option_name;
-                                dataset.backgroundColor = zoneColors[optionData.zone] || '#cccccc';
-                                dataset.data.push(optionData.percentage);
-                            } else {
-                                dataset.data.push(0);
-                            }
-                        }
-                        
-                        closterDatasets.push(dataset);
-                    }
-                    
-                    // Создаем график для статистики по кластерам
-                    new Chart(closterCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: closterLabels,
-                            datasets: closterDatasets
-                        },
-                        options: {
-                            responsive: true,
-                            scales: {
-                                x: {
-                                    stacked: true
-                                },
-                                y: {
-                                    stacked: true,
-                                    beginAtZero: true,
-                                    max: 100
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    position: 'bottom',
-                                    labels: {
-                                        font: {
-                                            size: 12
-                                        }
-                                    }
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            const label = context.dataset.label || '';
-                                            const value = context.raw || 0;
-                                            return `${label}: ${value}%`;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    
-                    // Данные для статистики по уровням образования
-                    const edLevelCtx = document.getElementById('chart-edlevel-{{ section.id }}-{{ field.id }}').getContext('2d');
-                    const edLevelStats = statsData.ed_level_stats;
-                    
-                    // Собираем данные по уровням образования
-                    const edLevelLabels = [];
-                    const edLevelDatasets = [];
-                    const edLevelOptions = new Set();
-                    
-                    // Собираем все варианты ответов для этого поля
-                    for (const [edLevel, edLevelData] of Object.entries(edLevelStats)) {
-                        if (edLevelData['{{ section.id }}'] && edLevelData['{{ section.id }}']['{{ field.id }}']) {
-                            for (const [optionId, optionData] of Object.entries(edLevelData['{{ section.id }}']['{{ field.id }}'])) {
-                                edLevelOptions.add(optionId);
-                            }
-                        }
-                    }
-                    
-                    // Преобразуем Set в массив для дальнейшей обработки
-                    const edLevelOptionsArray = Array.from(edLevelOptions);
-                    
-                    // Создаем наборы данных для каждого варианта ответа
-                    for (const optionId of edLevelOptionsArray) {
-                        const dataset = {
-                            label: '',
-                            data: [],
-                            backgroundColor: '',
-                            borderColor: '#ffffff',
-                            borderWidth: 1
-                        };
-                        
-                        for (const [edLevel, edLevelData] of Object.entries(edLevelStats)) {
-                            if (!edLevelLabels.includes(edLevel)) {
-                                edLevelLabels.push(edLevel);
-                            }
-                            
-                            if (edLevelData['{{ section.id }}'] && 
-                                edLevelData['{{ section.id }}']['{{ field.id }}'] && 
-                                edLevelData['{{ section.id }}']['{{ field.id }}'][optionId]) {
-                                
-                                const optionData = edLevelData['{{ section.id }}']['{{ field.id }}'][optionId];
-                                dataset.label = optionData.option_name;
-                                dataset.backgroundColor = zoneColors[optionData.zone] || '#cccccc';
-                                dataset.data.push(optionData.percentage);
-                            } else {
-                                dataset.data.push(0);
-                            }
-                        }
-                        
-                        edLevelDatasets.push(dataset);
-                    }
-                    
-                    // Создаем график для статистики по уровням образования
-                    new Chart(edLevelCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: edLevelLabels,
-                            datasets: edLevelDatasets
-                        },
-                        options: {
-                            responsive: true,
-                            scales: {
-                                x: {
-                                    stacked: true
-                                },
-                                y: {
-                                    stacked: true,
-                                    beginAtZero: true,
-                                    max: 100
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    position: 'bottom',
-                                    labels: {
-                                        font: {
-                                            size: 12
-                                        }
-                                    }
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            const label = context.dataset.label || '';
-                                            const value = context.raw || 0;
-                                            return `${label}: ${value}%`;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
+                        <!-- Горизонтальные полосы для каждого кластера -->
+                        {% if show_year_column %}
+                            {% for group in cluster_stats %}
+                                {% for year_item in group.years %}
+                                    <div style="display: flex; align-items: center; margin-bottom: 20px; height: 60px;">
+                                        <!-- Название кластера с rowspan эффектом -->
+                                        {% if forloop.first %}
+                                            <div style="width: 350px; text-align: right; padding-right: 10px; font-weight: bold; font-size: 14px; white-space: normal; align-self: flex-start; margin-top: {% if group.rowspan > 1 %}{{ 30|multiply:group.rowspan|subtract:50 }}{% else %}0{% endif %}px;">
+                                                {{ group.cluster_name }}
+                                            </div>
+                                        {% else %}
+                                            <div style="width: 350px;"></div>
+                                        {% endif %}
+                                        
+                                        <!-- Год -->
+                                        <div style="width: 60px; text-align: center; font-weight: bold; font-size: 14px; margin-right: 10px;">
+                                            {{ year_item.year }}
+                                        </div>
+                                        
+                                        <!-- Контейнер для полосы -->
+                                        <div style="flex-grow: 1; height: 40px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden; display: flex; width: calc(100% - 420px);">
+                                            {% if year_item.total > 0 %}
+                                                <!-- Каждая полоса занимает 100% ширины -->
+                                                <div style="width: 100%; height: 100%; display: flex;">
+                                                    <!-- Красная зона (слева) -->
+                                                    {% if year_item.red_zone > 0 %}
+                                                        <div style="background-color: #FFC7CE; width: {{ year_item.red_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                            <span style="font-weight: bold; color: #9C0006; font-size: 13px;">{{ year_item.red_zone }}</span>
+                                                        </div>
+                                                    {% endif %}
+                                                    
+                                                    <!-- Желтая зона (посередине) -->
+                                                    {% if year_item.yellow_zone > 0 %}
+                                                        <div style="background-color: #FFEB9C; width: {{ year_item.yellow_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                            <span style="font-weight: bold; color: #9C6500; font-size: 13px;">{{ year_item.yellow_zone }}</span>
+                                                        </div>
+                                                    {% endif %}
+                                                    
+                                                    <!-- Зеленая зона (справа) -->
+                                                    {% if year_item.green_zone > 0 %}
+                                                        <div style="background-color: #C6EFCE; width: {{ year_item.green_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                            <span style="font-weight: bold; color: #006100; font-size: 13px;">{{ year_item.green_zone }}</span>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <!-- Если нет данных -->
+                                                <div style="width: 100%; height: 100%; background-color: #f5f5f5; display: flex; justify-content: center; align-items: center;">
+                                                    <span style="color: #999; font-size: 12px;">Нет данных</span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endfor %}
+                        {% else %}
+                            {% for item in cluster_stats %}
+                                <div style="display: flex; align-items: center; margin-bottom: 20px; height: 60px;">
+                                    <!-- Название кластера -->
+                                    <div style="width: 350px; text-align: right; padding-right: 10px; font-weight: bold; font-size: 14px; white-space: normal;">
+                                        {{ item.cluster_name }}
+                                    </div>
+                                    
+                                    <!-- Контейнер для всей полосы -->
+                                    <div style="flex-grow: 1; height: 40px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden; display: flex; width: calc(100% - 350px);">
+                                        {% if item.total > 0 %}
+                                            <!-- Каждая полоса занимает 100% ширины -->
+                                            <div style="width: 100%; height: 100%; display: flex;">
+                                                <!-- Красная зона (слева) -->
+                                                {% if item.red_zone > 0 %}
+                                                    <div style="background-color: #FFC7CE; width: {{ item.red_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                        <span style="font-weight: bold; color: #9C0006; font-size: 13px;">{{ item.red_zone }}</span>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <!-- Желтая зона (посередине) -->
+                                                {% if item.yellow_zone > 0 %}
+                                                    <div style="background-color: #FFEB9C; width: {{ item.yellow_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                        <span style="font-weight: bold; color: #9C6500; font-size: 13px;">{{ item.yellow_zone }}</span>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <!-- Зеленая зона (справа) -->
+                                                {% if item.green_zone > 0 %}
+                                                    <div style="background-color: #C6EFCE; width: {{ item.green_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                        <span style="font-weight: bold; color: #006100; font-size: 13px;">{{ item.green_zone }}</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <!-- Если нет данных -->
+                                            <div style="width: 100%; height: 100%; background-color: #f5f5f5; display: flex; justify-content: center; align-items: center;">
+                                                <span style="color: #999; font-size: 12px;">Нет данных</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info mt-4">
+                    Нет данных о распределении по кластерам для отображения.
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info mt-4">
+                Нет данных для отображения. Пожалуйста, выберите годы.
+            </div>
+        {% endif %}
+        
+        <!-- СЕКЦИЯ 4: ДЕТАЛИЗАЦИЯ ПО ПОКАЗАТЕЛЯМ В РАЗРЕЗЕ РАЗДЕЛОВ -->
+        {% if section_stats %}
+            <div style="margin-top: 60px; text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; border-top: 1px solid #ccc; padding-top: 40px;">
+                Детализация по показателям разделов
+            </div>
+            
+            <!-- Система вкладок для разделов -->
+            <ul class="nav nav-tabs" id="sectionsDetailTabs" role="tablist">
+                {% for item in indicator_stats %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                id="section-{{ forloop.counter }}-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#section-{{ forloop.counter }}" 
+                                type="button" 
+                                role="tab" 
+                                aria-controls="section-{{ forloop.counter }}" 
+                                aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                            {{ item.section_name|truncatechars:30 }}
+                        </button>
+                    </li>
                 {% endfor %}
-            {% endfor %}
+            </ul>
+            
+            <!-- Содержимое вкладок -->
+            <div class="tab-content" id="sectionsDetailTabsContent">
+                {% for section in indicator_stats %}
+                    <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                         id="section-{{ forloop.counter }}" 
+                         role="tabpanel" 
+                         aria-labelledby="section-{{ forloop.counter }}-tab">
+                        
+                        <div class="mt-4 mb-4">
+                            <h3 class="text-center mb-3">{{ section.section_name }}</h3>
+                            <p class="text-center text-muted mb-4">Распределение отчетов школ по показателям раздела в разрезе ТУ/ДО</p>
+                            
+                            {% for indicator in section.indicators %}
+                                <div class="indicator-container mb-5 pb-4" style="border-bottom: 1px solid #eee;">
+                                    <h4 class="mb-3">{{ indicator.field_number }}. {{ indicator.field_name }}</h4>
+                                    
+                                    <!-- Таблица для показателя -->
+                                    <div class="table-responsive">
+                                        <table class="zone-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>ТУ/ДО</th>
+                                                    <th>Красная зона</th>
+                                                    <th>Жёлтая зона</th>
+                                                    <th>Зелёная зона</th>
+                                                    <th>Всего отчетов</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for ter_admin in indicator.ter_admin_stats %}
+                                                    <tr>
+                                                        <td class="ter-admin-col">{{ ter_admin.ter_admin_name }}</td>
+                                                        <td class="{% if ter_admin.red_zone > 0 %}red-zone{% endif %}">
+                                                            {{ ter_admin.red_zone|default:"-" }}
+                                                        </td>
+                                                        <td class="{% if ter_admin.yellow_zone > 0 %}yellow-zone{% endif %}">
+                                                            {{ ter_admin.yellow_zone|default:"-" }}
+                                                        </td>
+                                                        <td class="{% if ter_admin.green_zone > 0 %}green-zone{% endif %}">
+                                                            {{ ter_admin.green_zone|default:"-" }}
+                                                        </td>
+                                                        <td>{{ ter_admin.total }}</td>
+                                                    </tr>
+                                                {% empty %}
+                                                    <tr>
+                                                        <td colspan="5" class="text-center">
+                                                            <div class="alert alert-info mb-0">
+                                                                Нет данных для этого показателя.
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- График для показателя -->
+                                    <div style="margin-top: 20px; text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 10px;">
+                                        Распределение по ТУ/ДО (%)
+                                    </div>
+                                    
+                                    <div style="width: 100%; border: 1px solid #eee; padding: 15px; background-color: #fdfdfd; border-radius: 8px; overflow-x: auto;">
+                                        <!-- Горизонтальный стековый график -->
+                                        <div style="display: flex; flex-direction: column; width: 100%; position: relative;">
+                                            <!-- Процентная шкала сверху -->
+                                            <div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; padding-left: 250px;">
+                                                <div>0%</div>
+                                                <div>25%</div>
+                                                <div>50%</div>
+                                                <div>75%</div>
+                                                <div>100%</div>
+                                            </div>
+                                            
+                                            <!-- Линии сетки для шкалы -->
+                                            <div style="position: absolute; top: 30px; left: 250px; right: 0; bottom: 0; display: flex; justify-content: space-between; pointer-events: none;">
+                                                <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                                                <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                                                <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                                                <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                                                <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
+                                            </div>
+                                            
+                                            <!-- Полосы для каждого ТУ/ДО -->
+                                            {% for ter_admin in indicator.ter_admin_stats %}
+                                                <div style="display: flex; align-items: center; margin-bottom: 10px; height: 40px;">
+                                                    <!-- Название ТУ/ДО -->
+                                                    <div style="width: 230px; text-align: right; padding-right: 10px; font-weight: 500; font-size: 14px; white-space: normal;">
+                                                        {{ ter_admin.ter_admin_name }}
+                                                    </div>
+                                                    
+                                                    <!-- Контейнер для полосы -->
+                                                    <div style="flex-grow: 1; height: 30px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden; display: flex; width: calc(100% - 250px);">
+                                                        {% if ter_admin.total > 0 %}
+                                                            <!-- Полоса с зонами -->
+                                                            <div style="width: 100%; height: 100%; display: flex;">
+                                                                <!-- Красная зона -->
+                                                                {% if ter_admin.red_zone > 0 %}
+                                                                    <div style="background-color: #FFC7CE; width: {{ ter_admin.red_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                                        <span style="font-weight: bold; color: #9C0006; font-size: 12px;">{{ ter_admin.red_zone }}</span>
+                                                                    </div>
+                                                                {% endif %}
+                                                                
+                                                                <!-- Желтая зона -->
+                                                                {% if ter_admin.yellow_zone > 0 %}
+                                                                    <div style="background-color: #FFEB9C; width: {{ ter_admin.yellow_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                                        <span style="font-weight: bold; color: #9C6500; font-size: 12px;">{{ ter_admin.yellow_zone }}</span>
+                                                                    </div>
+                                                                {% endif %}
+                                                                
+                                                                <!-- Зеленая зона -->
+                                                                {% if ter_admin.green_zone > 0 %}
+                                                                    <div style="background-color: #C6EFCE; width: {{ ter_admin.green_percent }}%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                                                                        <span style="font-weight: bold; color: #006100; font-size: 12px;">{{ ter_admin.green_zone }}</span>
+                                                                    </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        {% else %}
+                                                            <!-- Если нет данных -->
+                                                            <div style="width: 100%; height: 100%; background-color: #f5f5f5; display: flex; justify-content: center; align-items: center;">
+                                                                <span style="color: #999; font-size: 12px;">Нет данных</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="alert alert-info mt-4">
+                                    <p>Нет данных о показателях для этого раздела.</p>
+                                </div>
+                            {% endfor %}
+                            
+                            <div class="text-center mt-4">
+                                <p class="text-muted"><small>Примечание: Данные по показателям обновляются при каждом запросе статистики.</small></p>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="alert alert-info mt-4">
+                        Нет данных о показателях для отображения.
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Инструкции по использованию вкладок -->
+            <div class="card bg-light mt-3 mb-5">
+                <div class="card-body">
+                    <h5 class="card-title">Как использовать этот раздел</h5>
+                    <p class="card-text">
+                        Выберите нужный раздел, нажав на соответствующую вкладку. Для каждого показателя в разделе
+                        отображается отдельная таблица и график с распределением отчетов школ по зонам в разрезе ТУ/ДО.
+                    </p>
+                    <p class="card-text">
+                        Зеленая зона - высокое качество, жёлтая зона - среднее качество, красная зона - требуется улучшение.
+                    </p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Инициализация bootstrap-select
+        if (typeof $ !== 'undefined') {
+            $('.selectpicker').selectpicker();
+            
+            // Выбор значений в selectpicker
+            {% if selected_years %}
+                var years = [{% for year in selected_years %}'{{ year.id }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+                $('#yearSelect').selectpicker('val', years);
+            {% endif %}
+        }
+        
+        // Активация вкладок Bootstrap
+        var triggerTabList = [].slice.call(document.querySelectorAll('#sectionsDetailTabs button'))
+        triggerTabList.forEach(function(triggerEl) {
+            var tabTrigger = new bootstrap.Tab(triggerEl)
+            triggerEl.addEventListener('click', function(event) {
+                event.preventDefault()
+                tabTrigger.show()
+            })
+        })
         });
     </script>
 {% endblock %} 

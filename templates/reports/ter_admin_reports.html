@@ -32,7 +32,7 @@
 
 {% block body %}
     
-    <form method="post" action="{% url 'ter_admin_reports' user_id %}">
+    <form method="post" action="{% url 'ter_admin_reports' user_id %}" id="filter-form">
         <h2>Фильтр отчётов</h2>
         <div class="filter">
             <div class="form mb-3" style="grid-column-start: 1; grid-column-end: 3; grid-row: 1;">
@@ -66,43 +66,58 @@
             {% if filter is not None %}<a style="width: 150px" href="{% url 'ter_admin_reports' user_id %}?reset=1" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
         </div>
     </form>
-    <div id="reports">
+
+    <form id="reports" action="{% url 'ter_admin_reports' user_id %}" method="post">
         <h2>Отчёты</h2>
+        <button type="submit" class="btn btn-sm btn-outline-primary" id="SendReports" name="send-reports" disabled>Отправить в МинОбр (<span class="selected-row-count">0</span>)</button>
         
         <table class="table">
             <tr class="">
+                <th scope="col" id="CheckAll">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="">
+                    </div>
+                </th>
                 <th scope="row">Школа</th>
                 <th scope="row">Название отчёта</th>
+                <th scope="row" class="th-center">Год</th>
                 <th scope="row" class="th-center">Статус</th>
                 <th scope="row" class="th-center">Заполнено</th>
                 <th scope="row" class="th-center">Баллы (Зона)</th>
             </tr>
             {% for report in reports %}
                 <tr>
+                    <td scope="row" class="check-td">
+                        <div class="form-check">
+                            <input class="form-check-input center-checkbox" type="checkbox" name="report_ids" value="{{ report.id }}" 
+                            {% if report.status != 'A' %}disabled{% endif %}>
+                        </div>
+                    </td>
                     <td scope="row"><a href="{% url 'ter_admin_report' ter_admin.id report.id %}">{{ report.school }}</a></td>
-                    <td scope="row">{{ report.report.name }} ({{ report.report.year }})</td>
+                    <td scope="row">{{ report.report.name }}</td>
+                    <td scope="row" class="td-center">{{ report.report.year }}</td>
                     <td scope="row" class="td-center">{{ report.get_status_display }}</td>
                     <td scope="row" class="td-center">
                         <div class="progress" style="height: 30px;">
-                            <div class="progress-bar {% if report|get_completion_percent < 100 %}bg-warning{% else %}bg-success{% endif %}" 
+                            <div class="progress-bar {% if report|get_completion_percent|first < 100 %}bg-warning{% else %}bg-success{% endif %}" 
                                  role="progressbar" 
-                                 style="width: {{ report|get_completion_percent }}%"
-                                 aria-valuenow="{{ report|get_completion_percent }}" 
+                                 style="width: {{ report|get_completion_percent|first }}%"
+                                 aria-valuenow="{{ report|get_completion_percent|first }}" 
                                  aria-valuemin="0" 
                                  aria-valuemax="100">
-                                {{ report|get_completion_percent }}%
+                                {{ report|get_completion_percent_str }}
                             </div>
                         </div>
                     </td>
-                    <td scope="row" style="text-align: center; ">
+                    <td scope="row" class="td-center">
                         <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
                             <div style="background-color: {% if report.report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div>
-                            <div>{{ report.points|format_point }}</div>
+                            <div>{{ report.points|format_point }}/{{ report.report.points|format_point }}</div>
                         </div>
                     </td>
                 </tr>
             {% empty %}
-                <tr><td colspan="5" class="zero-reports">Нет отчётов</td></tr>
+                <tr><td colspan="7" class="zero-reports">Нет отчётов</td></tr>
             {% endfor %}
         </table>
         
@@ -172,5 +187,5 @@
             </div>
         </div>
         {% endif %}
-    </div> 
+    </form>
 {% endblock %}

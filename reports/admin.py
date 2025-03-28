@@ -36,7 +36,7 @@ class SectionInline(admin.StackedInline):
 @admin.register(Report)
 @add_custom_admin_css
 class ReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
-    list_display = ['id', 'year', 'closter', 'ed_level', 'name', 'points', 'is_published']
+    list_display = ['id', 'year', 'closter_name', 'ed_level', 'name', 'points', 'is_published']
     list_filter = [
         ('year', DropdownFilter),
         ('closter', RelatedDropdownFilter),
@@ -50,12 +50,18 @@ class ReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
     column_width_settings = {
         'id': 'column-width-xs column-align-center',
         'year': 'column-width-xs column-align-center',
-        'closter': 'column-width-md',
+        'closter_name': 'column-width-md',
         'ed_level': 'column-width-sm column-align-center',
         'name': 'column-width-lg column-truncate',
         'points': 'column-width-xs column-align-center',
         'is_published': 'column-width-sm column-align-center',
     }
+    def closter_name(self, obj):
+        """Получает название кластера отчета"""
+        if obj.closter:
+            return obj.closter.name
+        return "—"
+    closter_name.short_description = "Кластер"
 
     class Media:
         js = ('admin/js/column_width.js',)
@@ -88,6 +94,18 @@ class ReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
                 new_section.fields.set(section.fields.all())
 
     duplicate_report.short_description = "Создать копию выбранных отчетов"
+
+    def has_change_permission(self, request, obj=None):
+        # Check if the year's status is 'completed'
+        if obj and obj.year.status == 'completed':
+            return False
+        return super().has_change_permission(request, obj)
+        
+    def has_delete_permission(self, request, obj=None):
+        # Check if the year's status is 'completed'
+        if obj and obj.year.status == 'completed':
+            return False
+        return super().has_delete_permission(request, obj)
 
 
 # @admin.register(ReportFile)
@@ -148,7 +166,7 @@ class CombinationInline(admin.TabularInline):
 @admin.register(Field)
 @add_custom_admin_css
 class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
-    list_display = ['id', 'number', 'name', 'answer_type', 'points', 'yellow_zone_min', 'green_zone_min']
+    list_display = ['id', 'number', 'name', 'answer_type', 'points',]
     search_fields = ['number', 'name', 'id']
     readonly_fields = ['points',]
     fieldsets = [
@@ -168,7 +186,7 @@ class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
         'id': 'column-width-xs column-align-center',
         'number': 'column-width-sm column-align-center',
         'name': 'column-width-xl column-truncate',
-        'answer_type': 'column-width-md column-align-center',
+        'answer_type': 'column-width-xl column-align-center',
         'points': 'column-width-xs column-align-center',
         'yellow_zone_min': 'column-width-md column-align-center',
         'green_zone_min': 'column-width-md column-align-center',
@@ -291,6 +309,21 @@ class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
     class Media:
         js = ["../static/admin/js/question_change.js", 'admin/js/column_width.js']
 
+    def has_change_permission(self, request, obj=None):
+        # For fields we need to check if any associated section's report year is completed
+        if obj:
+            for section in obj.sections.all():
+                if section.report.year.status == 'completed':
+                    return False
+        return super().has_change_permission(request, obj)
+        
+    def has_delete_permission(self, request, obj=None):
+        # For fields we need to check if any associated section's report year is completed
+        if obj:
+            for section in obj.sections.all():
+                if section.report.year.status == 'completed':
+                    return False
+        return super().has_delete_permission(request, obj)
 
 
 class ReportFileInline(admin.TabularInline):
@@ -308,7 +341,7 @@ logger = logging.getLogger(__name__)
 @admin.register(SchoolReport)
 @add_custom_admin_css
 class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
-    list_display = ['id', 'school', 'report', 'report_closter', 'report_ed_level', 'status', 'points', 'zone', 'is_marked_for_deletion', 'deletion_date']
+    list_display = ['id', 'school', 'report_name', 'report_closter', 'report_ed_level', 'status', 'points', 'zone', 'is_marked_for_deletion', 'deletion_date']
     list_filter = [
         'status', 
         'zone', 
@@ -325,7 +358,7 @@ class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
     column_width_settings = {
         'id': 'column-width-xs column-align-center',
         'school': 'column-width-lg column-truncate',
-        'report': 'column-width-lg column-truncate',
+        'report_name': 'column-width-lg column-truncate',
         'report_closter': 'column-width-md column-truncate',
         'report_ed_level': 'column-width-sm column-align-center',
         'status': 'column-width-sm column-align-center',
@@ -341,6 +374,13 @@ class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
     def get_queryset(self, request):
         """Переопределяем метод, чтобы использовать all_objects вместо objects"""
         return SchoolReport.all_objects.all()
+
+    def report_name(self, obj):
+        """Получает название отчета"""
+        if obj.report:
+            return obj.report.name
+        return "—"
+    report_name.short_description = "Название отчета"
 
     def report_closter(self, obj):
         """Получает кластер школы для отчета"""
@@ -550,5 +590,30 @@ class YearAdmin(ColumnWidthMixin, admin.ModelAdmin):
         css = {
             'all': ('admin/css/admin.css',)
         }
+
+
+class SectionAdmin(ColumnWidthMixin, admin.ModelAdmin):
+    list_display = ('number', 'name', 'report', 'points')
+    list_filter = ['report__year', 'report']
+    search_fields = ['number', 'name']
+    filter_horizontal = ('fields',)
+    
+    class Media:
+        js = ['admin/js/column_width.js']
+    
+    def has_change_permission(self, request, obj=None):
+        # Check if the section's report year status is 'completed'
+        if obj and obj.report.year.status == 'completed':
+            return False
+        return super().has_change_permission(request, obj)
+        
+    def has_delete_permission(self, request, obj=None):
+        # Check if the section's report year status is 'completed'
+        if obj and obj.report.year.status == 'completed':
+            return False
+        return super().has_delete_permission(request, obj)
+
+
+admin.site.register(Section, SectionAdmin)
 
 

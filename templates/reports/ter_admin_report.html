@@ -93,8 +93,8 @@
 
 
     <h1>{{ report.report }}</h1>
-    <h2 id="report-school"><span style="font-weight: 500;padding-right: 5px;">Учебное заведение:</span> {{ school }}</h2>
-    <h2 id="report-status"><span style="font-weight: 500;padding-right: 5px;">Статус:</span> {{ report.get_status_display }}</h2>
+    <h2><span style="font-weight: 500; padding-right: 5px;">Школа:</span>  {{ school }} </h2>
+    <h2 id="report-status"><span style="font-weight: 500; padding-right: 5px;">Статус:</span>  {{ report.get_status_display }}</h2>
     <h2 id="report-points-zone"><div id="report-zone" style="background-color: {% if report.report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div><span style="font-weight: 500; padding-right: 5px;">Баллы:</span> <span id="report-points">{{ report.points|format_point }}</span>/{{ report.report.points|format_point }} </h2>
     
     {% if message == 'SendToMinObr' %}
@@ -102,12 +102,18 @@
             <div>Отчёт успешно отправлен на проверку в министертсво образования. Следите за изменением статус отчёта в Вашем личном кабинете.</div>
         </div>
     {% endif %}
+    
+    {% if is_readonly %}
+        <div class="alert alert-info" role="alert" style="margin-top: 10px; text-align: center;">
+            <div>Отчёт доступен только для чтения. Редактирование закрыто, так как текущий год имеет статус "Завершено".</div>
+        </div>
+    {% endif %}
     <div class="control-panel">
         <a href="{% url 'ter_admin_reports' request.user.id %}" style="width: 250px" class="btn btn-outline-primary" type="submit">Вернуться к отчётам</a>
-        {% if report.status == 'A' %}
-            <button type="button" id='send-button' class="btn {% if report.is_ready %}btn-success{% else %}btn-secondary disabled{% endif %}" data-bs-toggle="modal" data-bs-target="#SaveModal">
-                Отправить в МинОбр
-            </button>
+        {% if report.status == 'A' and not is_readonly %}
+            <form method="post" action="{% url 'ter_admin_report' ter_admin.id report.id %}">
+                <button style="width: 250px" name="send-report" class="btn btn-success send-report" type="submit">Отправить в МинОбр</button>
+            </form>
         {% endif %}
     </div>
     {% for section in report.report.sections.all|dictsort:"id" %}
@@ -136,7 +142,7 @@
                             {% if field.answer_type == 'LST' %}
                                 <div class="mb-3 field filed-select">
                                     <label for="{{ question.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
-                                    <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ field.id }}" name="{{ field.id }}" {% if report.status != 'A' and not request.user.is_superuser  %}disabled{% endif%}>
+                                    <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ field.id }}" name="{{ field.id }}" {% if is_readonly %}disabled{% endif%}>
                                         <option data-points="0" value="">Не заполнено</option>
                                         {% for option in field.options.all %}
                                             <option value="{{ option.id }}"  data-points="{{option.points}}" {% if answers|find_answer:field == option.id %}selected{% endif %}>
@@ -154,12 +160,12 @@
                                             <span class="input-group-text">%</span>
                                         </div>
                                     {% endif %}
-                                    <input type="number" maxlength="4" class="form-control number-input" id="{{ field.id }}" data-points="{{ answers|get_points:field }}" value="{{answers|find_answer:field}}"  name="{{ field.id }}" placeholder="" {% if report.status != 'A' and not request.user.is_superuser  %}disabled{% endif%}>
+                                    <input type="number" maxlength="4" class="form-control number-input" id="{{ field.id }}" data-points="{{ answers|get_points:field }}" value="{{answers|find_answer:field}}"  name="{{ field.id }}" placeholder="" {% if is_readonly %}disabled{% endif%}>
                                 </div>
                                 {% if answers|is_answer_changed_by_mo:field %}<br><span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
                             {% elif field.answer_type == 'BL' %}
                                 <div class="form-check field">
-                                    <input class="form-check-input" type="checkbox" data-points="{{field.bool_points}}" name="{{ field.id }}" id="{{ field.id }}" {% if answers|find_answer:field %}checked{% endif %} {% if report.status != 'A' and not request.user.is_superuser  %}disabled{% endif%}>
+                                    <input class="form-check-input" type="checkbox" data-points="{{field.bool_points}}" name="{{ field.id }}" id="{{ field.id }}" {% if answers|find_answer:field %}checked{% endif %} {% if is_readonly %}disabled{% endif%}>
                                     <label class="form-check-label" for="{{ field.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
                                 </div>
                                 {% if answers|is_answer_changed_by_mo:field %}<br><span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
@@ -177,7 +183,7 @@
                                                        id="mult_{{ field.id }}_{{ option.id }}" 
                                                        value="{{ option.id }}"
                                                        {% if option.id in answers|find_answer:field %}checked{% endif %} 
-                                                       {% if report.status != 'A' and not request.user.is_superuser %}disabled{% endif %}>
+                                                       {% if is_readonly %}disabled{% endif %}>
                                                 <label class="form-check-label" for="mult_{{ field.id }}_{{ option.id }}">
                                                     {{ option.name }}
                                                 </label>

@@ -8,6 +8,7 @@ from django.contrib.admin import SimpleListFilter
 
 from users.models import User
 from reports.admin_utils import ColumnWidthMixin, add_custom_admin_css
+from reports.models import Year
 
 from .models import TerAdmin, SchoolType, School, SchoolCloster, QuestionCategory, Question
 
@@ -221,8 +222,6 @@ class SchoolAdmin(ColumnWidthMixin, admin.ModelAdmin):
         'ed_level',
         'ter_admin', 
         'principal',
-        'principal_phone',
-        # 'principal_email',
         'is_archived',
     ]
 
@@ -231,13 +230,13 @@ class SchoolAdmin(ColumnWidthMixin, admin.ModelAdmin):
     reports_page_link.short_description = "Личный кабинет"
 
     def principal_phone(self, obj):
-        if obj.principal.phone_number is None:
+        if not obj.principal or obj.principal.phone_number is None:
             return "-"
         return obj.principal.phone_number
     principal_phone.short_description = "Телефон директора"
 
     def principal_email(self, obj):
-        if obj.principal.email is None:
+        if not obj.principal or obj.principal.email is None:
             return "-"
         return obj.principal.email
     principal_email.short_description = "Email директора"
@@ -259,15 +258,50 @@ class SchoolAdmin(ColumnWidthMixin, admin.ModelAdmin):
         ('closter', RelatedDropdownFilter),
         ArchivedFilter,
     ]
-    readonly_fields = ['ais_id', 'principal_phone', 'principal_email']
+    readonly_fields = ['ais_id']
     def get_readonly_fields(self, request, obj=None):
-        if obj and request.user.groups.filter(name='Представитель ТУ/ДО').exists():
-            return self.readonly_fields + [
-                'name', 'short_name', 'email', 'city', 'number',
-                'school_type', 'ter_admin', 'principal', 
-            ]
-        return self.readonly_fields
+        readonly_fields = super().get_readonly_fields(request, obj)
+        
+        # If user is TerAdmin representative
+        if not request.user.is_superuser and hasattr(request.user, 'ter_admin') and request.user.ter_admin.exists():
+            # ТУ/ДО может редактировать только кластер и уровень образования
+            # Все остальные поля всегда readonly для ТУ/ДО
+            editable_fields = ['closter', 'ed_level']
+            
+            # Создаем список всех полей модели кроме editable_fields
+            readonly_fields_for_teradmin = [field.name for field in self.model._meta.fields 
+                                         if field.name not in editable_fields]
+                
+            # Check current year status
+            try:
+                current_year = Year.objects.get(is_current=True)
+                if current_year.status != 'updating':
+                    # Если статус года не 'updating', то все поля readonly
+                    return [field.name for field in self.model._meta.fields]
+                else:
+                    # Если статус года 'updating', то всё кроме кластера и уровня образования readonly
+                    return readonly_fields_for_teradmin
+            except Year.DoesNotExist:
+                # If no current year, default to not editable
+                return [field.name for field in self.model._meta.fields]
+                
+        return readonly_fields
     
+    def has_change_permission(self, request, obj=None):
+        # Superusers can always change
+        if request.user.is_superuser:
+            return True
+            
+        # TerAdmin representatives can only change if current year status is 'updating'
+        if hasattr(request.user, 'ter_admin') and request.user.ter_admin.exists():
+            try:
+                current_year = Year.objects.get(is_current=True)
+                return current_year.status == 'updating'
+            except Year.DoesNotExist:
+                return False
+        
+        return super().has_change_permission(request, obj)
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         
