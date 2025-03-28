@@ -209,7 +209,7 @@
                                 <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
                                     Ссылка прикреплена успешно!
                                 </div>
-                                {% if report.status == 'B' and request.user.is_superuser  %}
+                                {% if report.status == 'B' and request.user.is_superuser and not is_readonly %}
                                     <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
                                 {% endif %}
                             </div>
@@ -231,7 +231,7 @@
                                             </div>
                                         {% endfor %}
                                     </div>
-                                    {% if report.status == 'B' and request.user.is_superuser  %}
+                                    {% if report.status == 'B' and request.user.is_superuser and not is_readonly %}
                                         <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}">
                                     {% endif %}
                                 </div>
@@ -264,7 +264,7 @@
                                                 </div>
                                             {% endfor %}
                                         </div>
-                                        {% if report.status == 'B' or request.user.is_superuser  %}
+                                        {% if report.status == 'B' or request.user.is_superuser and not is_readonly %}
                                         <input type="file" name="{{field.id}}" class="form-control" id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" >
                                         <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
                                         {% endif %}
@@ -292,7 +292,7 @@
                     {% if attachment.attachment_type == 'LNK' %}
                         <div class="mb-3 field">
                             <label for="Att{{ attachment.id }}">{{attachment.name}}</label>
-                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}">
+                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if is_readonly %}disabled{% endif%}>
                         </div>
                     {% elif attachment.attachment_type == 'DC' %}
                         <div class="mb-3">
@@ -301,7 +301,7 @@
                                 Документ загружен успешно!
                             </div>
                             <div class="get-attachment">
-                                <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}">
+                                <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" {% if is_readonly %}disabled{% endif%}>
                                 <a {% if attachment|get_file_link != None %}href="{{ attachment|get_file_link }}"{% else %}style="display: none;"{% endif %} target="_blank">
                                     <button class="btn btn-outline-success">Скачать прикреплённый файл</button>
                                 </a>

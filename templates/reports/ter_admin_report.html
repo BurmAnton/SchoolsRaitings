@@ -92,7 +92,7 @@
     </div>
 
 
-    <h1>{{ report.report }}</h1>
+    <h1>{{ report.report }} {{ is_readonly }}</h1>
     <h2><span style="font-weight: 500; padding-right: 5px;">Школа:</span>  {{ school }} </h2>
     <h2 id="report-status"><span style="font-weight: 500; padding-right: 5px;">Статус:</span>  {{ report.get_status_display }}</h2>
     <h2 id="report-points-zone"><div id="report-zone" style="background-color: {% if report.report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div><span style="font-weight: 500; padding-right: 5px;">Баллы:</span> <span id="report-points">{{ report.points|format_point }}</span>/{{ report.report.points|format_point }} </h2>
@@ -231,14 +231,14 @@
                                                         <a class='attachment{{field.id}}' href="{{ file.file.url }}"  style="width: 100%;" target="_blank">
                                                             {% if file.file %}<button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>{% else %}{% endif %}
                                                         </a>
-                                                        {% if report.status == 'A' or request.user.is_superuser %}
+                                                        {% if report.status == 'A' and not is_readonly or request.user.is_superuser and not is_readonly %}
                                                             <button style="width: 50px; height: 100%;" class="btn btn-danger delete-file" data-fileid="{{file.id}}" name="delete-file">—</button>
                                                         {% endif %}
                                                     </div>
                                                 {% endif %}
                                             {% endfor %}
                                         </div>
-                                        {% if report.status == 'A' or request.user.is_superuser %}
+                                        {% if report.status == 'A' and not is_readonly or request.user.is_superuser and not is_readonly %}
                                             <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" >
                                         {% endif %}
                                     </div>
@@ -260,26 +260,26 @@
                                                         <a class='attachment{{field.id}}' href="{{ file.file.url }}"  style="width: 100%;" target="_blank">
                                                             {% if file.file %}<button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>{% else %}{% endif %}
                                                         </a>
-                                                        {% if report.status == 'A' or request.user.is_superuser %}
+                                                        {% if report.status == 'A' and not is_readonly or request.user.is_superuser and not is_readonly %}
                                                             <button style="width: 50px; height: 100%;" class="btn btn-danger delete-file" data-fileid="{{file.id}}" name="delete-file">—</button>
                                                         {% endif %}
                                                     </div>
                                                 {% endfor %}
                                             </div>
-                                            {% if report.status == 'A' or request.user.is_superuser %}
+                                            {% if report.status == 'A' and not is_readonly or request.user.is_superuser and not is_readonly %}
                                                 <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" >
                                             {% endif %}
                                             <div class="files{{field.id}}" style="display: flex; gap: 5px; flex-direction: column;">
                                                 {% for link in answers|get_links:field %}
                                                     <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
                                                         <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ link.link}}"  style="width: 100%;"target="_blank" rel="noopener noreferrer">{{ link.link}}</a>
-                                                        {% if report.status == 'A' or request.user.is_superuser %}
+                                                        {% if report.status == 'A' and not is_readonly or request.user.is_superuser and not is_readonly %}
                                                             <button style="width: 50px; height: 100%;" class="btn btn-danger delete-link" data-linkid="{{link.id}}" name="delete-link">—</button>
                                                         {% endif %}
                                                     </div>
                                                 {% endfor %}
                                             </div>
-                                            {% if report.status == 'A' or request.user.is_superuser %}
+                                            {% if report.status == 'A' and not is_readonly or request.user.is_superuser and not is_readonly %}
                                                 <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка">
                                             {% endif %}
                                         </div>
@@ -307,7 +307,7 @@
                     {% if attachment.attachment_type == 'LNK' %}
                         <div class="mb-3 field">
                             <label for="Att{{ attachment.id }}">{{attachment.name}}</label>
-                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if report.status != 'A' or not request.user.is_superuser  %}disabled{% endif%}>
+                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if report.status != 'A' or not request.user.is_superuser or is_readonly %}disabled{% endif%}>
                         </div>
                     {% elif attachment.attachment_type == 'DC' %}
                         <div class="mb-3">
@@ -316,7 +316,7 @@
                                 Документ загружен успешно!
                             </div>
                             <div class="get-attachment">
-                                <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" {% if report.status != 'A' or not request.user.is_superuser  %}disabled{% endif%}>
+                                <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" {% if report.status != 'A' or not request.user.is_superuser or is_readonly %}disabled{% endif%}>
                                 <a {% if attachment|get_file_link != None %}href="{{ attachment|get_file_link }}"{% else %}style="display: none;"{% endif %} target="_blank">
                                     <button class="btn btn-outline-success">Скачать прикреплённый файл</button>
                                 </a>

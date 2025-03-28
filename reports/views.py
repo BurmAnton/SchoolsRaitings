@@ -100,6 +100,13 @@ def report(request, report_id, school_id):
             'report': report,
             'message': "Отчет в стадии формирования и пока недоступен для заполнения."
         })
+    
+    # If year status is 'completed', make the report read-only
+    is_readonly = report.year.status == 'completed'
+    
+    # If year status is 'completed', show a read-only notification
+    if is_readonly:
+        message = "ReadOnly"
         
     current_section = request.GET.get('current_section', '')
     if current_section == "":
@@ -109,9 +116,6 @@ def report(request, report_id, school_id):
     s_report, is_new_report = SchoolReport.objects.get_or_create(
         report=report, school=school, 
     )
-    
-    # If year status is 'completed', make the report read-only
-    is_readonly = report.year.status == 'completed'
     
     sections = report.sections.all()
     for question in Field.objects.filter(sections__in=sections):
@@ -129,7 +133,7 @@ def report(request, report_id, school_id):
 
     answers = Answer.objects.filter(s_report=s_report)
     
-    if request.method == 'POST':
+    if request.method == 'POST' and not is_readonly:
         if 'send-report' in request.POST:
             if s_report.status == 'C':
                 s_report.status = 'A'
@@ -166,6 +170,11 @@ def report(request, report_id, school_id):
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
+            
+            # Блокируем все изменения через AJAX, если год завершен (is_readonly=True)
+            if is_readonly:
+                return JsonResponse({"error": "Редактирование недоступно. Год закрыт."}, status=403)
+                
             if 'file_id' in data:
                 file_id = data['file_id']
                 ReportFile.objects.get(id=file_id).delete()
@@ -495,6 +504,10 @@ def mo_report(request, s_report_id):
     # If year status is 'completed', make the report read-only
     is_readonly = s_report.report.year.status == 'completed'
     
+    # If year status is 'completed', show a read-only notification
+    if is_readonly:
+        message = "ReadOnly"
+    
     current_section = request.GET.get('current_section', '')
     if current_section == "":
         current_section = s_report.report.sections.all().first().id
@@ -502,24 +515,43 @@ def mo_report(request, s_report_id):
 
     if request.method == 'POST' and not is_readonly:
         if 'send-report' in request.POST:
-            s_report.status = 'D'
+            s_report.status = 'A'
             s_report.save()
-            message = "Approved"
+            message = "SendToTerAdmin"
         elif request.FILES.get("file") is not None:
             file = request.FILES.get("file")
             id = request.POST.dict()['id']
 
             question = Field.objects.get(id=id)
             answer = Answer.objects.filter(question=question, s_report=s_report).first()
-            answer.file = file
-            answer.save()
+            file = ReportFile.objects.create(
+                s_report=answer.s_report,
+                answer=answer,
+                file=file
+            )
             return JsonResponse({
                 "message": "File updated/saved successfully.",
                 "question_id": question.id,
-                "file_link": answer.file.url
+                "file_link": file.file.url,
+                "filename": file.file.name,
+                "file_id": file.id
             }, status=201)
         else:
             data = json.loads(request.body.decode("utf-8"))
+            
+            # Блокируем все изменения через AJAX, если год завершен (is_readonly=True)
+            if is_readonly:
+                return JsonResponse({"error": "Редактирование недоступно. Год закрыт."}, status=403)
+                
+            if 'file_id' in data:
+                file_id = data['file_id']
+                ReportFile.objects.get(id=file_id).delete()
+                return JsonResponse({"message": "File deleted successfully.",}, status=201)
+            elif 'link_id' in data:
+                link_id = data['link_id']
+                ReportLink.objects.get(id=link_id).delete()
+                return JsonResponse({"message": "Link deleted successfully.",}, status=201)
+            
             question = Field.objects.get(id=data['id'])
             answer = Answer.objects.filter(question=question, s_report=s_report).first()
             if question.answer_type == "LST":
@@ -661,6 +693,10 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
     # If year status is 'completed', make the report read-only
     is_readonly = s_report.report.year.status == 'completed'
 
+    # If year status is 'completed', show a read-only notification
+    if is_readonly:
+        message = "ReadOnly"
+
     current_section = request.GET.get('current_section', '')
     if current_section == "":
         current_section = s_report.report.sections.all().first().id
@@ -699,6 +735,10 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
                 link_id = data['link_id']
                 ReportLink.objects.get(id=link_id).delete()
                 return JsonResponse({"message": "Link deleted successfully.",}, status=201)
+            
+            # Блокируем все изменения через AJAX, если год завершен (is_readonly=True)
+            if is_readonly:
+                return JsonResponse({"error": "Редактирование недоступно. Год закрыт."}, status=403)
             
             question = Field.objects.get(id=data['id'])
             answer = Answer.objects.filter(question=question, s_report=s_report).first()
