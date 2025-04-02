@@ -721,6 +721,142 @@ def answers_distribution_report(request):
     
     if cluster_stats:
         context['cluster_stats'] = cluster_stats
+        
+    # Генерируем статистику по индикаторам (показателям)
+    if selected_years:
+        # Собираем статистику по показателям для каждого раздела
+        indicator_stats = []
+        
+        # Получаем все разделы для выбранных годов, сгруппированные по имени
+        section_names = Section.objects.filter(
+            report__year__in=selected_years
+        ).values_list('name', 'number').distinct()
+        
+        # Создаем словарь для быстрого доступа
+        section_dict = {name: number for name, number in section_names}
+        
+        # Получаем все принятые отчеты школ для выбранных годов
+        all_school_reports = SchoolReport.objects.filter(
+            report__year__in=selected_years,
+            status='D'
+        ).exclude(
+            school=None
+        ).exclude(
+            school__is_archived=True
+        ).select_related('school__ter_admin')
+        
+        # Для каждого раздела собираем данные по показателям
+        for section_name, section_number in section_names:
+            # Находим все разделы с указанным именем
+            same_name_sections = Section.objects.filter(
+                name=section_name,
+                report__year__in=selected_years
+            )
+            
+            # Получаем все поля (показатели) для текущего раздела
+            fields = Field.objects.filter(
+                sections__in=same_name_sections
+            ).distinct().values('id', 'name', 'number')
+            
+            section_indicators = []
+            
+            # Для каждого поля (показателя) собираем статистику по ТУ/ДО
+            for field in fields:
+                field_id = field['id']
+                
+                # Словарь для сбора статистики по ТУ/ДО
+                ter_admin_stats = {}
+                
+                # Получаем все ответы по этому показателю
+                answers = Answer.objects.filter(
+                    question_id=field_id,
+                    s_report__in=all_school_reports
+                ).select_related('s_report__school__ter_admin')
+                
+                # Создаем уникальный набор комбинаций [отчет, ТУ/ДО] для избежания дублей
+                processed_reports = set()
+                
+                # Собираем статистику по зонам для каждого ТУ/ДО
+                for answer in answers:
+                    s_report = answer.s_report
+                    school = s_report.school
+                    
+                    if not school or not school.ter_admin:
+                        continue
+                    
+                    # Создаем уникальный ключ для комбинации отчета и ТУ/ДО
+                    key = (s_report.id, school.ter_admin.id)
+                    
+                    # Пропускаем, если уже обработали этот отчет для этого ТУ/ДО
+                    if key in processed_reports:
+                        continue
+                    
+                    processed_reports.add(key)
+                    
+                    ter_admin_name = school.ter_admin.name
+                    
+                    # Инициализируем счетчики для ТУ/ДО, если их еще нет
+                    if ter_admin_name not in ter_admin_stats:
+                        ter_admin_stats[ter_admin_name] = {
+                            'ter_admin_name': ter_admin_name,
+                            'red_zone': 0,
+                            'yellow_zone': 0,
+                            'green_zone': 0,
+                            'total': 0
+                        }
+                    
+                    # Увеличиваем счетчик для соответствующей зоны
+                    if answer.zone == 'R':
+                        ter_admin_stats[ter_admin_name]['red_zone'] += 1
+                    elif answer.zone == 'Y':
+                        ter_admin_stats[ter_admin_name]['yellow_zone'] += 1
+                    elif answer.zone == 'G':
+                        ter_admin_stats[ter_admin_name]['green_zone'] += 1
+                    
+                    # Увеличиваем общий счетчик
+                    ter_admin_stats[ter_admin_name]['total'] += 1
+                
+                # Рассчитываем проценты для каждого ТУ/ДО
+                for ter_admin_name in ter_admin_stats:
+                    item = ter_admin_stats[ter_admin_name]
+                    if item['total'] > 0:
+                        item['red_percent'] = f"{(item['red_zone'] / item['total']) * 100:.1f}".replace(',', '.')
+                        item['yellow_percent'] = f"{(item['yellow_zone'] / item['total']) * 100:.1f}".replace(',', '.')
+                        item['green_percent'] = f"{(item['green_zone'] / item['total']) * 100:.1f}".replace(',', '.')
+                    else:
+                        item['red_percent'] = "0.0"
+                        item['yellow_percent'] = "0.0"
+                        item['green_percent'] = "0.0"
+                
+                # Преобразуем в список и сортируем по имени ТУ/ДО
+                ter_admin_list = list(ter_admin_stats.values())
+                ter_admin_list.sort(key=lambda x: x['ter_admin_name'])
+                
+                # Если есть данные для этого поля, добавляем его в список
+                if ter_admin_list:
+                    section_indicators.append({
+                        'field_id': field_id,
+                        'field_name': field['name'],
+                        'field_number': field['number'],
+                        'ter_admin_stats': ter_admin_list
+                    })
+            
+            # Сортируем показатели по номеру
+            section_indicators.sort(key=lambda x: float(x['field_number']) if x['field_number'] and x['field_number'].replace('.', '', 1).isdigit() else float('inf'))
+            
+            # Если есть показатели для этого раздела, добавляем его в список
+            if section_indicators:
+                indicator_stats.append({
+                    'section_number': section_number,
+                    'section_name': section_name,
+                    'indicators': section_indicators
+                })
+        
+        # Сортируем разделы по номеру
+        indicator_stats.sort(key=lambda x: float(x['section_number']) if x['section_number'] and x['section_number'].replace('.', '', 1).isdigit() else float('inf'))
+        
+        # Добавляем данные в контекст
+        context['indicator_stats'] = indicator_stats
     
     # Обрабатываем запрос на скачивание Excel-файла
     if request.method == 'POST' and 'download' in request.POST:
