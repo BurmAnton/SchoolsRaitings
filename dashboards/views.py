@@ -6,6 +6,7 @@ from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from django.db.models import Sum, Max
 from django.conf import settings
+from django.contrib import messages
 import hashlib
 import json
 from django.http import JsonResponse, Http404, HttpResponse
@@ -381,7 +382,8 @@ def closters_report(request, year=2024):
     # Get initial year
     try:
         current_year = years[0]
-    except:
+    except IndexError as e:
+        print(f"Ошибка при получении текущего года: {str(e)}")
         current_year = Year.objects.get(is_current=True)
         
     if request.method == 'POST':
@@ -490,12 +492,19 @@ def answers_distribution_report(request):
     cluster_stats = []
     indicator_stats = []
     
+    # --- DEBUG START ---
+    print(f"Request method: {request.method}")
+    print(f"Session selected_year_ids before processing: {request.session.get('selected_year_ids')}")
+    if request.method == 'POST':
+        print(f"POST data years: {request.POST.getlist('years')}")
+    # --- DEBUG END ---
+
     # Обработка запроса с фильтрами или установка всех годов по умолчанию
     if request.method == 'POST':
         # Получаем выбранные годы из POST-запроса
         year_ids = request.POST.getlist('years')
         if year_ids:
-            selected_years = Year.objects.filter(id__in=year_ids)
+            selected_years = Year.objects.filter(id__in=year_ids).order_by('-year')
             # Показываем столбец "Год" только если выбрано больше одного года
             show_year_column = len(selected_years) > 1
             # Сохраняем выбранные годы в сессию
@@ -507,29 +516,34 @@ def answers_distribution_report(request):
             # Очищаем сессию
             if 'selected_year_ids' in request.session:
                 del request.session['selected_year_ids']
-    else:
+    else: # Обработка GET-запроса
         # Проверяем, есть ли сохраненные годы в сессии
         if 'selected_year_ids' in request.session:
             year_ids = request.session.get('selected_year_ids')
-            selected_years = Year.objects.filter(id__in=year_ids)
+            selected_years = Year.objects.filter(id__in=year_ids).order_by('-year')
             show_year_column = len(selected_years) > 1
         else:
             # По умолчанию используем все годы без столбца "Год"
             selected_years = years
             show_year_column = False
     
+    # --- DEBUG START ---
+    print(f"Final selected_years: {[y.year for y in selected_years]}")
+    print(f"Final show_year_column: {show_year_column}")
+    print(f"Session selected_year_ids after processing: {request.session.get('selected_year_ids')}")
+    # --- DEBUG END ---
+    
     # Если есть выбранные годы, рассчитываем статистику
     if selected_years:
         # Если не нужно показывать столбец "Год", агрегируем данные по всем годам
         if not show_year_column:
-            # Словарь для агрегации данных по ТУ/ДО
-            ter_admin_stats = {}
+            # Рассчитываем статистику для всех лет вместе
+            ter_admin_stats = {} # Словарь для агрегации данных по ТУ/ДО
             
-            for year in selected_years:
-                # Получаем отчеты для выбранного года
-                reports = Report.objects.filter(year=year, is_published=True)
-                
-                # Получаем отчеты школ, которые были приняты (статус 'D')
+            # Получаем отчеты для всех выбранных годов
+            reports = Report.objects.filter(year__in=selected_years, is_published=True)
+            
+            # Получаем отчеты школ, которые были приняты (статус 'D')
             schools_reports = SchoolReport.objects.filter(
                 report__in=reports,
                 status='D'  # Только принятые отчеты
@@ -565,80 +579,103 @@ def answers_distribution_report(request):
                 
                 # Увеличиваем общий счетчик отчетов для ТУ/ДО
                 ter_admin_stats[ter_admin_id]['total'] += 1
-            
-            # Преобразуем словарь в список
+                
+            # Рассчитываем проценты для каждого ТУ/ДО
+            for ter_admin_id in ter_admin_stats:
+                item = ter_admin_stats[ter_admin_id]
+                if item['total'] > 0:
+                    item['red_percent'] = f"{(item['red_zone'] / item['total']) * 100:.1f}".replace(',', '.')
+                    item['yellow_percent'] = f"{(item['yellow_zone'] / item['total']) * 100:.1f}".replace(',', '.')
+                    item['green_percent'] = f"{(item['green_zone'] / item['total']) * 100:.1f}".replace(',', '.')
+                else:
+                    item['red_percent'] = "0.0"
+                    item['yellow_percent'] = "0.0"
+                    item['green_percent'] = "0.0"
+                    
+            # Преобразуем словарь в список и сортируем по имени ТУ/ДО
             stats = list(ter_admin_stats.values())
-            # Сортируем статистику по имени ТУ/ДО
             stats.sort(key=lambda x: x['ter_admin_name'])
-    else:
-        # Если нужно показывать столбец "Год", собираем данные по годам
-        stats = []
-        for year in selected_years:
-            # Получаем отчеты для выбранного года
-            reports = Report.objects.filter(year=year, is_published=True)
             
-            # Получаем отчеты школ, которые были приняты (статус 'D')
-            schools_reports = SchoolReport.objects.filter(
-                report__in=reports,
-                status='D'  # Только принятые отчеты
-            )
+            # Для отладки
+            print(f"DEBUG - One year or all years: {len(stats)} items in stats")
             
-            # Словарь для текущего года
-            year_stats = {}
-            
-            # Подсчитываем отчеты по зонам для каждого ТУ/ДО
-            for report in schools_reports:
-                # Пропускаем отчеты без школы или с архивной школой
-                if not report.school or report.school.is_archived:
-                    continue
-                
-                ter_admin_id = report.school.ter_admin_id
-                
-                # Инициализируем словарь для ТУ/ДО, если его еще нет
-                if ter_admin_id not in year_stats:
-                    ter_admin = TerAdmin.objects.get(id=ter_admin_id)
-                    year_stats[ter_admin_id] = {
-                        'year': year.year,
-                        'ter_admin_id': ter_admin_id,
-                        'ter_admin_name': ter_admin.name,
-                        'red_zone': 0,
-                        'yellow_zone': 0,
-                        'green_zone': 0,
-                        'total': 0
-                    }
-                
-                # Увеличиваем счетчик для соответствующей зоны
-                if report.zone == 'R':
-                    year_stats[ter_admin_id]['red_zone'] += 1
-                elif report.zone == 'Y':
-                    year_stats[ter_admin_id]['yellow_zone'] += 1
-                elif report.zone == 'G':
-                    year_stats[ter_admin_id]['green_zone'] += 1
-                
-                # Увеличиваем общий счетчик отчетов для ТУ/ДО
-                year_stats[ter_admin_id]['total'] += 1
-            
-            # Добавляем статистику за текущий год в общий список
-            year_stats_list = list(year_stats.values())
-            # Сортируем по имени ТУ/ДО перед добавлением
-            year_stats_list.sort(key=lambda x: x['ter_admin_name'])
-            stats.extend(year_stats_list)
-        
-        # Добавляем рассчитанные проценты для каждого элемента статистики
-        for item in stats:
-            if item['total'] > 0:
-                item['red_percent'] = f"{(item['red_zone'] / item['total']) * 100:.1f}".replace(',', '.')
-                item['yellow_percent'] = f"{(item['yellow_zone'] / item['total']) * 100:.1f}".replace(',', '.')
-                item['green_percent'] = f"{(item['green_zone'] / item['total']) * 100:.1f}".replace(',', '.')
         else:
-                item['red_percent'] = "0.0"
-                item['yellow_percent'] = "0.0"
-                item['green_percent'] = "0.0"
-        
-        # Группируем данные по ТУ/ДО, если выбрано несколько лет
-        if show_year_column:
+            # Если нужно показывать столбец "Год", собираем данные по каждому году отдельно
+            year_stats_list = []
+            
+            for year in selected_years:
+                # Получаем отчеты для выбранного года
+                reports = Report.objects.filter(year=year, is_published=True)
+                
+                # Получаем отчеты школ, которые были приняты (статус 'D')
+                schools_reports = SchoolReport.objects.filter(
+                    report__in=reports,
+                    status='D'  # Только принятые отчеты
+                )
+                
+                # Словарь для текущего года
+                year_stats = {}
+                
+                # Подсчитываем отчеты по зонам для каждого ТУ/ДО
+                for report in schools_reports:
+                    # Пропускаем отчеты без школы или с архивной школой
+                    if not report.school or report.school.is_archived:
+                        continue
+                    
+                    ter_admin_id = report.school.ter_admin_id
+                    
+                    # Инициализируем словарь для ТУ/ДО, если его еще нет
+                    if ter_admin_id not in year_stats:
+                        ter_admin = TerAdmin.objects.get(id=ter_admin_id)
+                        year_stats[ter_admin_id] = {
+                            'year': year.year,
+                            'ter_admin_id': ter_admin_id,
+                            'ter_admin_name': ter_admin.name,
+                            'red_zone': 0,
+                            'yellow_zone': 0,
+                            'green_zone': 0,
+                            'total': 0
+                        }
+                    
+                    # Увеличиваем счетчик для соответствующей зоны
+                    if report.zone == 'R':
+                        year_stats[ter_admin_id]['red_zone'] += 1
+                    elif report.zone == 'Y':
+                        year_stats[ter_admin_id]['yellow_zone'] += 1
+                    elif report.zone == 'G':
+                        year_stats[ter_admin_id]['green_zone'] += 1
+                    
+                    # Увеличиваем общий счетчик отчетов для ТУ/ДО
+                    year_stats[ter_admin_id]['total'] += 1
+                
+                # Рассчитываем проценты для каждого ТУ/ДО за текущий год
+                for ter_admin_id in year_stats:
+                    item = year_stats[ter_admin_id]
+                    if item['total'] > 0:
+                        item['red_percent'] = f"{(item['red_zone'] / item['total']) * 100:.1f}".replace(',', '.')
+                        item['yellow_percent'] = f"{(item['yellow_zone'] / item['total']) * 100:.1f}".replace(',', '.')
+                        item['green_percent'] = f"{(item['green_zone'] / item['total']) * 100:.1f}".replace(',', '.')
+                    else:
+                        item['red_percent'] = "0.0"
+                        item['yellow_percent'] = "0.0"
+                        item['green_percent'] = "0.0"
+                
+                # Преобразуем словарь в список и сортируем по имени ТУ/ДО
+                current_year_stats = list(year_stats.values())
+                current_year_stats.sort(key=lambda x: x['ter_admin_name'])
+                
+                # Добавляем статистику за текущий год в общий список
+                year_stats_list.extend(current_year_stats)
+            
+            # Для отладки
+            print(f"DEBUG - Multiple years: {len(year_stats_list)} total items across years")
+            
+            # Сохраняем несгруппированную статистику для использования в Excel
+            stats_for_excel = year_stats_list
+            
+            # Группируем данные по ТУ/ДО для отображения в шаблоне
             grouped_stats = {}
-            for item in stats:
+            for item in year_stats_list:
                 ter_admin_name = item['ter_admin_name']
                 if ter_admin_name not in grouped_stats:
                     grouped_stats[ter_admin_name] = []
@@ -646,58 +683,30 @@ def answers_distribution_report(request):
             
             # Преобразуем сгруппированные данные в формат для шаблона
             stats_grouped = []
-            # Используем отсортированный список имен ТУ/ДО
             for ter_admin_name in sorted(grouped_stats.keys()):
-                items = grouped_stats[ter_admin_name]
+                # Сортируем элементы группы по году (по убыванию)
+                items = sorted(grouped_stats[ter_admin_name], key=lambda x: x.get('year', 0), reverse=True)
                 stats_grouped.append({
                     'ter_admin_name': ter_admin_name,
                     'years': items,
                     'rowspan': len(items)
                 })
             
-            # Заменяем обычный список на сгруппированный
+            # Используем сгруппированную статистику для отображения
             stats = stats_grouped
-        
-        # Если запрос на скачивание файла
-        if request.method == 'POST' and 'download' in request.POST:
-            # Проверяем и вычисляем section_stats и cluster_stats
-            if 'section_stats' not in locals() or not section_stats:
-                # Пересчитываем статистику по разделам
-                section_stats = calculate_section_stats(selected_years, show_year_column)
-            
-            if 'cluster_stats' not in locals() or not cluster_stats:
-                # Пересчитываем статистику по кластерам
-                cluster_stats = calculate_cluster_stats(selected_years, show_year_column)
             
             # Для отладки
-            print(f"DEBUG - Before Excel call, section_stats: {len(section_stats) if section_stats else 0} items")
-            print(f"DEBUG - Before Excel call, cluster_stats: {len(cluster_stats) if cluster_stats else 0} items")
-            
-            # Для выгрузки используем несгруппированные данные
-            if show_year_column and 'stats_grouped' in locals():
-                # Разгруппируем данные обратно для Excel
-                flat_stats = []
-                for group in stats:
-                    flat_stats.extend(group['years'])
-                return generate_zone_distribution_excel(
-                    selected_years, 
-                    flat_stats, 
-                    show_year_column,
-                    section_stats,
-                    cluster_stats,
-                    indicator_stats
-                )
-            else:
-                return generate_zone_distribution_excel(
-                    selected_years, 
-                    stats, 
-                    show_year_column,
-                    section_stats,
-                    cluster_stats,
-                    indicator_stats
-                )
-
-    # Собираем контекст для шаблона
+            print(f"DEBUG - After grouping: {len(stats)} ТУ/ДО groups")
+    
+    # Получаем статистику по разделам и кластерам
+    section_stats = calculate_section_stats(selected_years, show_year_column)
+    cluster_stats = calculate_cluster_stats(selected_years, show_year_column)
+    
+    # Для отладки
+    print(f"DEBUG - section_stats: {len(section_stats) if section_stats else 0} items")
+    print(f"DEBUG - cluster_stats: {len(cluster_stats) if cluster_stats else 0} items")
+    
+    # Подготавливаем контекст для шаблона
     context = {
         'filter': filter_context,
         'stats': stats,
@@ -706,409 +715,67 @@ def answers_distribution_report(request):
         'show_year_column': show_year_column  # Флаг, показывающий, нужен ли столбец с годом
     }
     
-    # Если есть данные, рассчитываем статистику по разделам и кластерам
-    if stats:
-        # Статистика по разделам
-        section_stats = []
-        section_stats_by_year = []
-        
-        # Получаем все разделы для выбранных годов, сгруппированные по имени
-        section_names = Section.objects.filter(
-            report__year__in=selected_years
-        ).values_list('name', flat=True).distinct()
-        
-        for section_name in section_names:
-            if not show_year_column:
-                # Находим все разделы с указанным именем
-                same_name_sections = Section.objects.filter(
-                    name=section_name,
-                    report__year__in=selected_years
-                ).values_list('id', flat=True)
-                
-                # Агрегированная статистика по разделам для всех годов
-                school_reports = SchoolReport.objects.filter(
-                    report__year__in=selected_years, 
-                    report__is_published=True,
-                    status='D'
-                ).select_related('school')
-                
-                # Подсчитываем количество отчетов в каждой зоне для текущего раздела
-                red_zone = 0
-                yellow_zone = 0
-                green_zone = 0
-                total = 0
-                
-                # Для каждого отчета школы определяем зону данного раздела
-                for sr in school_reports:
-                    # Пропускаем отчеты без школы или с архивной школой
-                    if not sr.school or sr.school.is_archived:
-                        continue
-                    
-                    # Находим секцию отчета, соответствующую любому из разделов с тем же именем
-                    report_sections = sr.sections.filter(section__id__in=same_name_sections)
-                    
-                    # Проверяем только одну секцию для каждого отчета (первую найденную)
-                    if report_sections.exists():
-                        report_section = report_sections.first()
-                        if report_section.zone == 'R':
-                            red_zone += 1
-                        elif report_section.zone == 'Y':
-                            yellow_zone += 1
-                        elif report_section.zone == 'G':
-                            green_zone += 1
-                        total += 1
-                
-                if total > 0:
-                    section_stats.append({
-                        'section_name': section_name,
-                        'red_zone': red_zone,
-                        'yellow_zone': yellow_zone,
-                        'green_zone': green_zone,
-                        'total': total,
-                        'red_percent': f"{(red_zone / total) * 100:.1f}".replace(',', '.'),
-                        'yellow_percent': f"{(yellow_zone / total) * 100:.1f}".replace(',', '.'),
-                        'green_percent': f"{(green_zone / total) * 100:.1f}".replace(',', '.')
-                    })
-            else:
-                # Статистика по разделам с разбивкой по годам
-                section_years_stats = []
-                
-                for year in selected_years:
-                    # Находим все разделы с тем же именем для текущего года
-                    same_name_sections = Section.objects.filter(
-                        name=section_name,
-                        report__year=year
-                    ).values_list('id', flat=True)
-                    
-                    # Если нет разделов с таким именем для этого года, пропускаем
-                    if not same_name_sections.exists():
-                        continue
-                    
-                    school_reports = SchoolReport.objects.filter(
-                        report__year=year, 
-                        report__is_published=True,
-                        status='D'
-                    ).select_related('school')
-                    
-                    # Подсчитываем количество отчетов в каждой зоне для текущего раздела и года
-                    red_zone = 0
-                    yellow_zone = 0
-                    green_zone = 0
-                    total = 0
-                    
-                    # Для каждого отчета школы определяем зону данного раздела
-                    for sr in school_reports:
-                        # Пропускаем отчеты без школы или с архивной школой
-                        if not sr.school or sr.school.is_archived:
-                            continue
-                        
-                        # Находим секцию отчета, соответствующую любому из разделов с тем же именем
-                        report_sections = sr.sections.filter(section__id__in=same_name_sections)
-                        
-                        # Проверяем только одну секцию для каждого отчета (первую найденную)
-                        if report_sections.exists():
-                            report_section = report_sections.first()
-                            if report_section.zone == 'R':
-                                red_zone += 1
-                            elif report_section.zone == 'Y':
-                                yellow_zone += 1
-                            elif report_section.zone == 'G':
-                                green_zone += 1
-                            total += 1
-                    
-                    if total > 0:
-                        # Данные по годам добавляем в отдельную структуру
-                        section_years_stats.append({
-                            'year': year.year,
-                            'red_zone': red_zone,
-                            'yellow_zone': yellow_zone,
-                            'green_zone': green_zone,
-                            'total': total,
-                            'red_percent': f"{(red_zone / total) * 100:.1f}".replace(',', '.'),
-                            'yellow_percent': f"{(yellow_zone / total) * 100:.1f}".replace(',', '.'),
-                            'green_percent': f"{(green_zone / total) * 100:.1f}".replace(',', '.')
-                        })
-                
-                if section_years_stats:
-                    # Группируем данные по разделам
-                    section_stats_by_year.append({
-                        'section_name': section_name,
-                        'years': section_years_stats,
-                        'rowspan': len(section_years_stats)
-                    })
-        
-        # Выбираем правильную структуру данных в зависимости от режима отображения
-        if show_year_column:
-            section_stats = section_stats_by_year
-        
-        # Статистика по кластерам
-        cluster_stats = []
-        
-        # Получаем все кластеры
-        clusters = SchoolCloster.objects.all()
-        
-        for cluster in clusters:
-            if not show_year_column:
-                # Агрегированная статистика по кластерам для всех годов
-                school_reports = SchoolReport.objects.filter(
-                    report__year__in=selected_years, 
-                    report__is_published=True,
-                    status='D',
-                    school__closter=cluster
-                ).select_related('school')
-                
-                # Подсчитываем количество отчетов в каждой зоне для текущего кластера
-                red_zone = 0
-                yellow_zone = 0
-                green_zone = 0
-                total = 0
-                
-                # Для каждого отчета школы определяем общую зону отчета
-                for sr in school_reports:
-                    # Пропускаем отчеты без школы или с архивной школой
-                    if not sr.school or sr.school.is_archived:
-                        continue
-                    
-                    if sr.zone == 'R':
-                        red_zone += 1
-                    elif sr.zone == 'Y':
-                        yellow_zone += 1
-                    elif sr.zone == 'G':
-                        green_zone += 1
-                    total += 1
-                
-                if total > 0:
-                    cluster_stats.append({
-                        'cluster_name': cluster.name,
-                        'red_zone': red_zone,
-                        'yellow_zone': yellow_zone,
-                        'green_zone': green_zone,
-                        'total': total,
-                        'red_percent': f"{(red_zone / total) * 100:.1f}".replace(',', '.'),
-                        'yellow_percent': f"{(yellow_zone / total) * 100:.1f}".replace(',', '.'),
-                        'green_percent': f"{(green_zone / total) * 100:.1f}".replace(',', '.')
-                    })
-            else:
-                # Статистика по кластерам с разбивкой по годам
-                cluster_years_stats = []
-                
-                for year in selected_years:
-                    school_reports = SchoolReport.objects.filter(
-                        report__year=year, 
-                        report__is_published=True,
-                        status='D',
-                        school__closter=cluster
-                    ).select_related('school')
-                    
-                    # Подсчитываем количество отчетов в каждой зоне для текущего кластера и года
-                    red_zone = 0
-                    yellow_zone = 0
-                    green_zone = 0
-                    total = 0
-                    
-                    # Для каждого отчета школы определяем общую зону отчета
-                    for sr in school_reports:
-                        # Пропускаем отчеты без школы или с архивной школой
-                        if not sr.school or sr.school.is_archived:
-                            continue
-                        
-                        if sr.zone == 'R':
-                            red_zone += 1
-                        elif sr.zone == 'Y':
-                            yellow_zone += 1
-                        elif sr.zone == 'G':
-                            green_zone += 1
-                        total += 1
-                    
-                    if total > 0:
-                        cluster_years_stats.append({
-                            'year': year.year,
-                            'red_zone': red_zone,
-                            'yellow_zone': yellow_zone,
-                            'green_zone': green_zone,
-                            'total': total,
-                            'red_percent': f"{(red_zone / total) * 100:.1f}".replace(',', '.'),
-                            'yellow_percent': f"{(yellow_zone / total) * 100:.1f}".replace(',', '.'),
-                            'green_percent': f"{(green_zone / total) * 100:.1f}".replace(',', '.')
-                        })
-                
-                if cluster_years_stats:
-                    # Группируем данные по кластерам
-                    cluster_stats.append({
-                        'cluster_name': cluster.name,
-                        'years': cluster_years_stats,
-                        'rowspan': len(cluster_years_stats)
-                    })
-        
-        # Добавляем статистику в контекст
+    # Добавляем статистику по разделам и кластерам
+    if section_stats:
         context['section_stats'] = section_stats
-        context['cluster_stats'] = cluster_stats
-        
-        # Собираем статистику по показателям для каждого раздела
-        indicator_stats = {}
-        
-        # Получаем все разделы для выбранных годов, сгруппированные по имени
-        section_names = Section.objects.filter(
-            report__year__in=selected_years
-        ).values_list('name', flat=True).distinct()
-        
-        # Получаем все принятые отчеты школ для выбранных годов
-        all_school_reports = SchoolReport.objects.filter(
-            report__year__in=selected_years,
-            status='D'
-        ).exclude(
-            school=None
-        ).exclude(
-            school__is_archived=True
-        ).select_related('school__ter_admin')
-        
-        # Создаем словарь для подсчета общего количества отчетов по ТУ/ДО
-        ter_admin_report_counts = {}
-        for sr in all_school_reports:
-            ter_admin_name = sr.school.ter_admin.name
-            if ter_admin_name not in ter_admin_report_counts:
-                ter_admin_report_counts[ter_admin_name] = 0
-            ter_admin_report_counts[ter_admin_name] += 1
-        
-        # Для каждого раздела собираем данные по показателям
-        for section_name in section_names:
-            # Находим все разделы с указанным именем
-            same_name_sections = Section.objects.filter(
-                name=section_name,
-                report__year__in=selected_years
-            )
-            
-            # Получаем первый раздел для определения номера раздела
-            first_section = same_name_sections.first()
-            if not first_section:
-                continue
-                
-            section_number = first_section.number
-            
-            # Получаем все показатели для текущего раздела
-            fields = Field.objects.filter(
-                sections__in=same_name_sections
-            ).distinct().values('id', 'name', 'number')
-            
-            if fields.exists():
-                if section_name not in indicator_stats:
-                    indicator_stats[section_name] = {
-                        'section_number': section_number,
-                        'section_name': section_name,
-                        'indicators': {}
-                    }
-                
-                # Для каждого показателя собираем статистику по ТУ/ДО
-                for field in fields:
-                    field_id = field['id']
-                    field_name = field['name']
-                    field_number = field['number']
-                    
-                    if field_number not in indicator_stats[section_name]['indicators']:
-                        indicator_stats[section_name]['indicators'][field_number] = {
-                            'field_id': field_id,
-                            'field_name': field_name,
-                            'field_number': field_number,
-                            'ter_admin_stats': {}
-                        }
-                    
-                    # Инициализируем статистику по ТУ/ДО с нулевыми значениями
-                    for ter_admin_name, count in ter_admin_report_counts.items():
-                        indicator_stats[section_name]['indicators'][field_number]['ter_admin_stats'][ter_admin_name] = {
-                            'red_zone': 0,
-                            'yellow_zone': 0,
-                            'green_zone': 0,
-                            'total': 0
-                        }
-                    
-                    # Получаем ответы по данному показателю
-                    # Группируем ответы по территориальным управлениям и школьным отчетам
-                    # для избежания дублирования
-                    answer_counts = {}
-                    answers = Answer.objects.filter(
-                        question_id=field_id,
-                        s_report__in=all_school_reports
-                    ).select_related('s_report__school__ter_admin')
-                    
-                    for answer in answers:
-                        ter_admin_name = answer.s_report.school.ter_admin.name
-                        s_report_id = answer.s_report_id
-                        
-                        # Создаем ключ для уникальной комбинации ТУ/ДО и отчета
-                        key = (ter_admin_name, s_report_id)
-                        
-                        # Учитываем только один ответ для каждой комбинации ТУ/ДО и отчета
-                        if key not in answer_counts:
-                            answer_counts[key] = answer.zone
-                    
-                    # Подсчитываем статистику на основе уникальных ответов
-                    for (ter_admin_name, _), zone in answer_counts.items():
-                        if ter_admin_name in indicator_stats[section_name]['indicators'][field_number]['ter_admin_stats']:
-                            if zone == 'R':
-                                indicator_stats[section_name]['indicators'][field_number]['ter_admin_stats'][ter_admin_name]['red_zone'] += 1
-                            elif zone == 'Y':
-                                indicator_stats[section_name]['indicators'][field_number]['ter_admin_stats'][ter_admin_name]['yellow_zone'] += 1
-                            elif zone == 'G':
-                                indicator_stats[section_name]['indicators'][field_number]['ter_admin_stats'][ter_admin_name]['green_zone'] += 1
-                            
-                            indicator_stats[section_name]['indicators'][field_number]['ter_admin_stats'][ter_admin_name]['total'] += 1
-        
-        # Преобразуем словарь в формат, удобный для шаблона
-        formatted_indicator_stats = []
-        for section_name, section_data in indicator_stats.items():
-            formatted_indicators = []
-            
-            # Сортируем показатели по их числовому номеру
-            sorted_field_numbers = sorted(section_data['indicators'].keys(), key=lambda x: float(x) if x.replace('.', '', 1).isdigit() else float('inf'))
-            
-            for field_number in sorted_field_numbers:
-                field_data = section_data['indicators'][field_number]
-                # Преобразуем словарь статистики по ТУ/ДО в список
-                ter_admin_list = []
-                
-                # Получаем отсортированный список имен ТУ/ДО
-                sorted_ter_admin_names = sorted(field_data['ter_admin_stats'].keys())
-                
-                for ter_admin_name in sorted_ter_admin_names:
-                    ter_admin_stats = field_data['ter_admin_stats'][ter_admin_name]
-                    if ter_admin_stats['total'] > 0:
-                        # Рассчитываем проценты для каждой зоны
-                        red_percent = (ter_admin_stats['red_zone'] / ter_admin_stats['total']) * 100
-                        yellow_percent = (ter_admin_stats['yellow_zone'] / ter_admin_stats['total']) * 100
-                        green_percent = (ter_admin_stats['green_zone'] / ter_admin_stats['total']) * 100
-                        
-                        ter_admin_list.append({
-                            'ter_admin_name': ter_admin_name,
-                            'red_zone': ter_admin_stats['red_zone'],
-                            'yellow_zone': ter_admin_stats['yellow_zone'],
-                            'green_zone': ter_admin_stats['green_zone'],
-                            'total': ter_admin_stats['total'],
-                            'red_percent': f"{red_percent:.1f}".replace(',', '.'),
-                            'yellow_percent': f"{yellow_percent:.1f}".replace(',', '.'),
-                            'green_percent': f"{green_percent:.1f}".replace(',', '.')
-                        })
-                
-                if ter_admin_list:
-                    formatted_indicators.append({
-                        'field_id': field_data['field_id'],
-                        'field_name': field_data['field_name'],
-                        'field_number': field_data['field_number'],
-                        'ter_admin_stats': ter_admin_list
-                    })
-            
-            if formatted_indicators:
-                formatted_indicator_stats.append({
-                    'section_number': section_data['section_number'],
-                    'section_name': section_name,
-                    'indicators': formatted_indicators
-                })
-        
-        # Сортируем разделы по номеру раздела
-        formatted_indicator_stats.sort(key=lambda x: float(x['section_number']) if x['section_number'] and x['section_number'].replace('.', '', 1).isdigit() else float('inf'))
-        
-        # Добавляем данные в контекст
-        context['indicator_stats'] = formatted_indicator_stats
     
+    if cluster_stats:
+        context['cluster_stats'] = cluster_stats
+    
+    # Обрабатываем запрос на скачивание Excel-файла
+    if request.method == 'POST' and 'download' in request.POST:
+        try:
+            # Для выгрузки в Excel используем подходящие данные
+            if show_year_column:
+                # Для нескольких лет используем несгруппированный список
+                if 'stats_for_excel' in locals():
+                    excel_data = stats_for_excel
+                else:
+                    # Если stats_for_excel не определен, но stats сгруппирован
+                    if stats and isinstance(stats, list) and stats and isinstance(stats[0], dict) and 'years' in stats[0]:
+                        # Разгруппировываем данные
+                        flat_stats = []
+                        for group in stats:
+                            flat_stats.extend(group.get('years', []))
+                        excel_data = flat_stats
+                    else:
+                        # Если статистика не сгруппирована
+                        excel_data = stats
+            else:
+                # Для одного года просто используем stats
+                excel_data = stats
+            
+            # Убедимся, что excel_data не пустой
+            if not excel_data:
+                excel_data = []
+                print("WARNING: Empty excel_data!")
+            
+            # Дополнительная проверка структуры excel_data для отладки
+            print(f"DEBUG - excel_data type: {type(excel_data)}")
+            if excel_data and isinstance(excel_data, list):
+                print(f"DEBUG - First item in excel_data: {excel_data[0].keys() if isinstance(excel_data[0], dict) else 'Not a dict'}")
+            
+            # Создаем Excel-файл
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = 'attachment; filename="report_distribution.xlsx"'
+            
+            # Генерируем Excel с распределением зон
+            print(f"DEBUG - Before generate_zone_distribution_excel")
+            wb = generate_zone_distribution_excel(selected_years, excel_data, show_year_column, section_stats, cluster_stats, indicator_stats)
+            print(f"DEBUG - After generate_zone_distribution_excel")
+            return wb
+        except Exception as e:
+            # Логируем ошибку
+            print(f"ERROR when generating Excel: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            
+            # Возвращаем сообщение об ошибке
+            messages.error(request, f"Ошибка при формировании Excel-отчета: {str(e)}")
+            # Возвращаем страницу без скачивания файла
+            return render(request, 'dashboards/answers_distribution_report.html', context)
+
+    # Возвращаем шаблон с контекстом
     return render(request, 'dashboards/answers_distribution_report.html', context)
 
 def generate_zone_distribution_excel(years, stats, show_year_column=False, section_stats=None, cluster_stats=None, indicator_stats=None):
@@ -1117,9 +784,30 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
     а также с детальной информацией по школам и показателям
     """
     # Отладочные сообщения для проверки входных данных
+    print(f"DEBUG - Generating Excel, stats: {len(stats) if stats else 0} items")
+    print(f"DEBUG - Generating Excel, show_year_column: {show_year_column}")
     print(f"DEBUG - Generating Excel, section_stats: {len(section_stats) if section_stats else 0} items")
     print(f"DEBUG - Generating Excel, cluster_stats: {len(cluster_stats) if cluster_stats else 0} items")
     
+    # Проверяем и исправляем входные данные
+    if not stats:
+        stats = []
+    
+    if not section_stats:
+        section_stats = []
+    
+    if not cluster_stats:
+        cluster_stats = []
+    
+    # Если stats - это список словарей с ключом 'years', разгруппируем его
+    if show_year_column and stats and isinstance(stats, list) and stats and isinstance(stats[0], dict) and 'years' in stats[0]:
+        print("DEBUG - Stats is grouped, flattening it")
+        flat_stats = []
+        for group in stats:
+            flat_stats.extend(group.get('years', []))
+        stats = flat_stats
+    
+    # Создаем Excel-файл
     output = BytesIO()
     workbook = Workbook()
     
@@ -1153,39 +841,98 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
         cell.font = bold_font
     row_num += 1
     
-    # Если выбрано несколько лет, группируем данные по ТУ/ДО
-    if show_year_column:
-        # Группируем данные по ter_admin_name
-        ter_admin_groups = {}
-        for item in stats:
-            ter_admin_name = item['ter_admin_name']
-            if ter_admin_name not in ter_admin_groups:
-                ter_admin_groups[ter_admin_name] = []
-            ter_admin_groups[ter_admin_name].append(item)
-        
-        # Отображаем данные по группам с объединением ячеек
-        for ter_admin_name in sorted(ter_admin_groups.keys()):
-            group_items = ter_admin_groups[ter_admin_name]
-            start_row = row_num
-            
-            # Сортируем элементы группы по году
-            group_items.sort(key=lambda x: x.get('year', 0))
-            
-            # Проходим по всем годам для текущего ТУ/ДО
-            for item in group_items:
+    try:
+        # Защитный блок для отлова ошибок при работе с данными
+        if not stats:
+            # Если нет данных, выводим сообщение
+            visualization_sheet.cell(row=row_num, column=1, value="Нет данных для отображения")
+            row_num += 1
+        # Если выбрано несколько лет, группируем данные по ТУ/ДО
+        elif show_year_column:
+            # Проверяем структуру данных
+            if not all(isinstance(item, dict) and 'ter_admin_name' in item for item in stats):
+                visualization_sheet.cell(row=row_num, column=1, value="Ошибка в структуре данных")
+                row_num += 1
+            else:
+                # Группируем данные по ter_admin_name
+                ter_admin_groups = {}
+                for item in stats:
+                    ter_admin_name = item.get('ter_admin_name', 'Неизвестно')
+                    if ter_admin_name not in ter_admin_groups:
+                        ter_admin_groups[ter_admin_name] = []
+                    ter_admin_groups[ter_admin_name].append(item)
+                
+                # Отображаем данные по группам с объединением ячеек
+                for ter_admin_name in sorted(ter_admin_groups.keys()):
+                    group_items = ter_admin_groups[ter_admin_name]
+                    start_row = row_num
+                    
+                    # Сортируем элементы группы по году
+                    group_items.sort(key=lambda x: x.get('year', 0), reverse=True)
+                    
+                    # Проходим по всем годам для текущего ТУ/ДО
+                    for item in group_items:
+                        col = 1
+                        
+                        # Название ТУ/ДО (добавляем только в первую строку группы)
+                        if row_num == start_row:
+                            visualization_sheet.cell(row=row_num, column=col, value=ter_admin_name)
+                        col += 1
+                        
+                        # Год
+                        visualization_sheet.cell(row=row_num, column=col, value=item.get('year', ''))
+                        col += 1
+                        
+                        # Красная зона (прочерк, если 0)
+                        red_zone_value = item.get('red_zone', 0)
+                        cell_value = "-" if red_zone_value == 0 else red_zone_value
+                        cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
+                        if red_zone_value > 0:
+                            cell.fill = red_fill
+                        col += 1
+                        
+                        # Жёлтая зона (прочерк, если 0)
+                        yellow_zone_value = item.get('yellow_zone', 0)
+                        cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
+                        cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
+                        if yellow_zone_value > 0:
+                            cell.fill = yellow_fill
+                        col += 1
+                        
+                        # Зелёная зона (прочерк, если 0)
+                        green_zone_value = item.get('green_zone', 0)
+                        cell_value = "-" if green_zone_value == 0 else green_zone_value
+                        cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
+                        if green_zone_value > 0:
+                            cell.fill = green_fill
+                        col += 1
+                        
+                        # Всего отчетов (прочерк, если 0)
+                        total_value = item.get('total', 0)
+                        cell_value = "-" if total_value == 0 else total_value
+                        visualization_sheet.cell(row=row_num, column=col, value=cell_value)
+                        
+                        row_num += 1
+                    
+                    # Объединяем ячейки с названием ТУ/ДО, если группа содержит более одной записи
+                    if len(group_items) > 1:
+                        try:
+                            visualization_sheet.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
+                        except Exception as e:
+                            print(f"DEBUG - Error merging cells: {str(e)}")
+        else:
+            # Если выбран один год, используем исходную логику
+            # Сортируем статистику по имени ТУ/ДО
+            sorted_stats = sorted(stats, key=lambda x: x.get('ter_admin_name', ''))
+            for item in sorted_stats:
                 col = 1
                 
-                # Название ТУ/ДО (добавляем только в первую строку группы)
-                if row_num == start_row:
-                    visualization_sheet.cell(row=row_num, column=col, value=ter_admin_name)
-                col += 1
-                
-                # Год
-                visualization_sheet.cell(row=row_num, column=col, value=item.get('year', ''))
+                # Название ТУ/ДО
+                visualization_sheet.cell(row=row_num, column=col, value=item.get('ter_admin_name', 'Неизвестно'))
                 col += 1
                 
                 # Красная зона (прочерк, если 0)
-                red_zone_value = item['red_zone']
+                red_zone_value = item.get('red_zone', 0)
                 cell_value = "-" if red_zone_value == 0 else red_zone_value
                 cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
                 if red_zone_value > 0:
@@ -1193,7 +940,7 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
                 col += 1
                 
                 # Жёлтая зона (прочерк, если 0)
-                yellow_zone_value = item['yellow_zone']
+                yellow_zone_value = item.get('yellow_zone', 0)
                 cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
                 cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
                 if yellow_zone_value > 0:
@@ -1201,7 +948,7 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
                 col += 1
                 
                 # Зелёная зона (прочерк, если 0)
-                green_zone_value = item['green_zone']
+                green_zone_value = item.get('green_zone', 0)
                 cell_value = "-" if green_zone_value == 0 else green_zone_value
                 cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
                 if green_zone_value > 0:
@@ -1209,56 +956,18 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
                 col += 1
                 
                 # Всего отчетов (прочерк, если 0)
-                total_value = item['total']
+                total_value = item.get('total', 0)
                 cell_value = "-" if total_value == 0 else total_value
                 visualization_sheet.cell(row=row_num, column=col, value=cell_value)
                 
                 row_num += 1
-            
-            # Объединяем ячейки с названием ТУ/ДО, если группа содержит более одной записи
-            if len(group_items) > 1:
-                visualization_sheet.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
-    else:
-        # Если выбран один год, используем исходную логику
-        # Сортируем статистику по имени ТУ/ДО
-        sorted_stats = sorted(stats, key=lambda x: x['ter_admin_name'])
-        for item in sorted_stats:
-            col = 1
-            
-            # Название ТУ/ДО
-            visualization_sheet.cell(row=row_num, column=col, value=item['ter_admin_name'])
-            col += 1
-            
-            # Красная зона (прочерк, если 0)
-            red_zone_value = item['red_zone']
-            cell_value = "-" if red_zone_value == 0 else red_zone_value
-            cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-            if red_zone_value > 0:
-                cell.fill = red_fill
-            col += 1
-            
-            # Жёлтая зона (прочерк, если 0)
-            yellow_zone_value = item['yellow_zone']
-            cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
-            cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-            if yellow_zone_value > 0:
-                cell.fill = yellow_fill
-            col += 1
-            
-            # Зелёная зона (прочерк, если 0)
-            green_zone_value = item['green_zone']
-            cell_value = "-" if green_zone_value == 0 else green_zone_value
-            cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-            if green_zone_value > 0:
-                cell.fill = green_fill
-            col += 1
-            
-            # Всего отчетов (прочерк, если 0)
-            total_value = item['total']
-            cell_value = "-" if total_value == 0 else total_value
-            visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-            
-            row_num += 1
+    except Exception as e:
+        # В случае ошибки выводим сообщение об ошибке в Excel
+        print(f"DEBUG - Error processing stats data: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        visualization_sheet.cell(row=row_num, column=1, value=f"Ошибка обработки данных: {str(e)}")
+        row_num += 1
     
     # Автоподбор ширины столбцов для вкладки "Визуализация"
     for column in visualization_sheet.columns:
@@ -1395,6 +1104,7 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
                 visualization_sheet.cell(row=row_num, column=col, value=cell_value)
                 
                 row_num += 1
+        
 
     # ========== ДОБАВЛЯЕМ ТАБЛИЦУ "РАСПРЕДЕЛЕНИЕ ОТЧЕТОВ ПО КЛАСТЕРАМ" ==========
     if cluster_stats:
