@@ -29,17 +29,6 @@ def ter_admins_reports(request):
         'reports': reports,
     })
 
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://localhost:6379',
-        'OPTIONS': {
-            'db': '2',
-        }
-    }
-}
-
 #@cache_page(None, key_prefix="flow")
 @login_required
 @csrf_exempt
