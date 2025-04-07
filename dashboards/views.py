@@ -473,19 +473,25 @@ def answers_distribution_report(request):
     # Получаем доступные годы и территориальные управления для пользователя
     years = Year.objects.all().order_by('-year')
     ter_admins = TerAdmin.objects.filter(representatives=request.user)
-    if not ter_admins.exists():
+    
+    # Флаг, показывающий, что пользователь - представитель ТУ/ДО
+    is_ter_admin_rep = ter_admins.exists()
+    
+    if not is_ter_admin_rep:
         ter_admins = TerAdmin.objects.all()
     
     # Подготовка контекста для фильтра
     filter_context = {
         'years': years,
         'ter_admins': ter_admins,
+        'is_ter_admin_rep': is_ter_admin_rep
     }
     
     # Статистика по умолчанию (пустая)
     stats = []
     selected_years = []
     show_year_column = False
+    show_ter_status = False  # Добавляем новый параметр для фильтра
     
     # Инициализируем переменные для статистики, используемые в Excel-выгрузке
     section_stats = []
@@ -501,6 +507,11 @@ def answers_distribution_report(request):
 
     # Обработка запроса с фильтрами или установка всех годов по умолчанию
     if request.method == 'POST':
+        # Получаем значение фильтра "Показывать школы на согласовании ТУ/ДО"
+        show_ter_status = 'show_ter_status' in request.POST
+        # Сохраняем в сессию
+        request.session['show_ter_status'] = show_ter_status
+        
         # Получаем выбранные годы из POST-запроса
         year_ids = request.POST.getlist('years')
         if year_ids:
@@ -517,6 +528,9 @@ def answers_distribution_report(request):
             if 'selected_year_ids' in request.session:
                 del request.session['selected_year_ids']
     else: # Обработка GET-запроса
+        # Проверяем, есть ли сохраненный параметр show_ter_status в сессии
+        show_ter_status = request.session.get('show_ter_status', False)
+        
         # Проверяем, есть ли сохраненные годы в сессии
         if 'selected_year_ids' in request.session:
             year_ids = request.session.get('selected_year_ids')
@@ -530,6 +544,7 @@ def answers_distribution_report(request):
     # --- DEBUG START ---
     print(f"Final selected_years: {[y.year for y in selected_years]}")
     print(f"Final show_year_column: {show_year_column}")
+    print(f"Final show_ter_status: {show_ter_status}")
     print(f"Session selected_year_ids after processing: {request.session.get('selected_year_ids')}")
     # --- DEBUG END ---
     
@@ -543,11 +558,19 @@ def answers_distribution_report(request):
             # Получаем отчеты для всех выбранных годов
             reports = Report.objects.filter(year__in=selected_years, is_published=True)
             
-            # Получаем отчеты школ, которые были приняты (статус 'D')
-            schools_reports = SchoolReport.objects.filter(
-                report__in=reports,
-                status='D'  # Только принятые отчеты
-            )
+            # Фильтр школьных отчетов
+            schools_reports_filter = {
+                'report__in': reports,
+                'status__in': ['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании, если включен фильтр
+            }
+            
+            # Если пользователь - представитель ТУ/ДО, добавляем фильтрацию по его ТУ/ДО
+            if is_ter_admin_rep:
+                ter_admin_ids = ter_admins.values_list('id', flat=True)
+                schools_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
+            
+            # Получаем отчеты школ с применением фильтров
+            schools_reports = SchoolReport.objects.filter(**schools_reports_filter)
                 
             # Подсчитываем отчеты по зонам для каждого ТУ/ДО
             for report in schools_reports:
@@ -607,11 +630,19 @@ def answers_distribution_report(request):
                 # Получаем отчеты для выбранного года
                 reports = Report.objects.filter(year=year, is_published=True)
                 
-                # Получаем отчеты школ, которые были приняты (статус 'D')
-                schools_reports = SchoolReport.objects.filter(
-                    report__in=reports,
-                    status='D'  # Только принятые отчеты
-                )
+                # Фильтр школьных отчетов
+                schools_reports_filter = {
+                    'report__in': reports,
+                    'status__in': ['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании, если включен фильтр
+                }
+                
+                # Если пользователь - представитель ТУ/ДО, добавляем фильтрацию по его ТУ/ДО
+                if is_ter_admin_rep:
+                    ter_admin_ids = ter_admins.values_list('id', flat=True)
+                    schools_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
+                
+                # Получаем отчеты школ с применением фильтров
+                schools_reports = SchoolReport.objects.filter(**schools_reports_filter)
                 
                 # Словарь для текущего года
                 year_stats = {}
@@ -698,9 +729,12 @@ def answers_distribution_report(request):
             # Для отладки
             print(f"DEBUG - After grouping: {len(stats)} ТУ/ДО groups")
     
+    # Если пользователь - представитель ТУ/ДО, получаем список идентификаторов его ТУ/ДО
+    ter_admin_ids = ter_admins.values_list('id', flat=True) if is_ter_admin_rep else None
+    
     # Получаем статистику по разделам и кластерам
-    section_stats = calculate_section_stats(selected_years, show_year_column)
-    cluster_stats = calculate_cluster_stats(selected_years, show_year_column)
+    section_stats = calculate_section_stats(selected_years, show_year_column, show_ter_status, ter_admin_ids)
+    cluster_stats = calculate_cluster_stats(selected_years, show_year_column, show_ter_status, ter_admin_ids)
     
     # Для отладки
     print(f"DEBUG - section_stats: {len(section_stats) if section_stats else 0} items")
@@ -712,7 +746,8 @@ def answers_distribution_report(request):
         'stats': stats,
         'selected_years': selected_years,
         'selected_year_ids': [str(year.id) for year in selected_years] if selected_years else [],
-        'show_year_column': show_year_column  # Флаг, показывающий, нужен ли столбец с годом
+        'show_year_column': show_year_column,  # Флаг, показывающий, нужен ли столбец с годом
+        'show_ter_status': show_ter_status  # Флаг, показывающий, нужен ли столбец с статусом ТУ/ДО
     }
     
     # Добавляем статистику по разделам и кластерам
@@ -735,15 +770,29 @@ def answers_distribution_report(request):
         # Создаем словарь для быстрого доступа
         section_dict = {name: number for name, number in section_names}
         
-        # Получаем все принятые отчеты школ для выбранных годов
-        all_school_reports = SchoolReport.objects.filter(
-            report__year__in=selected_years,
-            status='D'
-        ).exclude(
+        # Получаем все отчеты школ для выбранных годов
+        all_school_reports_filter = {
+            'report__year__in': selected_years,
+            'status__in': ['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании
+        }
+        
+        # Если пользователь - представитель ТУ/ДО, добавляем фильтрацию по его ТУ/ДО
+        if is_ter_admin_rep:
+            ter_admin_ids = ter_admins.values_list('id', flat=True)
+            all_school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
+        
+        all_school_reports = SchoolReport.objects.filter(**all_school_reports_filter).exclude(
             school=None
         ).exclude(
             school__is_archived=True
-        ).select_related('school__ter_admin')
+        ).select_related(
+            'school__ter_admin',
+            'school__closter',
+            'report__year'
+        ).prefetch_related(
+            'sections',
+            'answers'
+        )
         
         # Для каждого раздела собираем данные по показателям
         for section_name, section_number in section_names:
@@ -897,7 +946,16 @@ def answers_distribution_report(request):
             
             # Генерируем Excel с распределением зон
             print(f"DEBUG - Before generate_zone_distribution_excel")
-            wb = generate_zone_distribution_excel(selected_years, excel_data, show_year_column, section_stats, cluster_stats, indicator_stats)
+            wb = generate_zone_distribution_excel(
+                selected_years, 
+                excel_data, 
+                show_year_column, 
+                section_stats, 
+                cluster_stats, 
+                indicator_stats,
+                show_ter_status,
+                ter_admin_ids
+            )
             print(f"DEBUG - After generate_zone_distribution_excel")
             return wb
         except Exception as e:
@@ -914,7 +972,7 @@ def answers_distribution_report(request):
     # Возвращаем шаблон с контекстом
     return render(request, 'dashboards/answers_distribution_report.html', context)
 
-def generate_zone_distribution_excel(years, stats, show_year_column=False, section_stats=None, cluster_stats=None, indicator_stats=None):
+def generate_zone_distribution_excel(years, stats, show_year_column=False, section_stats=None, cluster_stats=None, indicator_stats=None, show_ter_status=False, ter_admin_ids=None):
     """
     Генерирует Excel-файл с распределением зон по ТУ/ДО, разделам и кластерам,
     а также с детальной информацией по школам и показателям
@@ -1385,7 +1443,7 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
     # Получаем все отчеты школ для выбранных годов
     all_school_reports = SchoolReport.objects.filter(
         report__year__in=years,
-        status='D'
+        status__in=['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании
     ).exclude(
         school=None
     ).exclude(
@@ -1533,10 +1591,16 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
     }
     
     # Получаем все отчеты школ для выбранных годов
-    all_school_reports = SchoolReport.objects.filter(
-        report__year__in=years,
-        status='D'
-    ).exclude(
+    all_school_reports_section_filter = {
+        'report__year__in': years,
+        'status__in': ['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании
+    }
+    
+    # Если указаны ТУ/ДО, добавляем их в фильтр
+    if ter_admin_ids:
+        all_school_reports_section_filter['school__ter_admin_id__in'] = ter_admin_ids
+    
+    all_school_reports = SchoolReport.objects.filter(**all_school_reports_section_filter).exclude(
         school=None
     ).exclude(
         school__is_archived=True
@@ -1713,7 +1777,7 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
     return response
 
 # Вспомогательные функции для расчета статистики (добавить в конец файла)
-def calculate_section_stats(selected_years, show_year_column=False):
+def calculate_section_stats(selected_years, show_year_column=False, show_ter_status=False, ter_admin_ids=None):
     """
     Рассчитывает статистику по разделам для выбранных годов.
     """
@@ -1733,12 +1797,19 @@ def calculate_section_stats(selected_years, show_year_column=False):
                 report__year__in=selected_years
             ).values_list('id', flat=True)
             
+            # Создаем базовый фильтр для SchoolReport
+            school_reports_filter = {
+                'report__year__in': selected_years, 
+                'report__is_published': True,
+                'status__in': ['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании
+            }
+            
+            # Если указаны ТУ/ДО, добавляем их в фильтр
+            if ter_admin_ids:
+                school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
+                
             # Агрегированная статистика по разделам для всех годов
-            school_reports = SchoolReport.objects.filter(
-                report__year__in=selected_years, 
-                report__is_published=True,
-                status='D'
-            ).select_related('school')
+            school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
             
             # Подсчитываем количество отчетов в каждой зоне для текущего раздела
             red_zone = 0
@@ -1792,11 +1863,18 @@ def calculate_section_stats(selected_years, show_year_column=False):
                 if not same_name_sections.exists():
                     continue
                 
-                school_reports = SchoolReport.objects.filter(
-                    report__year=year, 
-                    report__is_published=True,
-                    status='D'
-                ).select_related('school')
+                # Создаем базовый фильтр для SchoolReport
+                school_reports_filter = {
+                    'report__year': year, 
+                    'report__is_published': True,
+                    'status__in': ['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании
+                }
+                
+                # Если указаны ТУ/ДО, добавляем их в фильтр
+                if ter_admin_ids:
+                    school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
+                
+                school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
                 
                 # Подсчитываем количество отчетов в каждой зоне для текущего раздела и года
                 red_zone = 0
@@ -1850,7 +1928,7 @@ def calculate_section_stats(selected_years, show_year_column=False):
         return section_stats_by_year
     return section_stats
 
-def calculate_cluster_stats(selected_years, show_year_column=False):
+def calculate_cluster_stats(selected_years, show_year_column=False, show_ter_status=False, ter_admin_ids=None):
     """
     Рассчитывает статистику по кластерам для выбранных годов.
     """
@@ -1861,13 +1939,20 @@ def calculate_cluster_stats(selected_years, show_year_column=False):
     
     for cluster in clusters:
         if not show_year_column:
+            # Создаем базовый фильтр для SchoolReport
+            school_reports_filter = {
+                'report__year__in': selected_years, 
+                'report__is_published': True,
+                'status__in': ['A', 'D'] if show_ter_status else ['D'],  # Учитываем отчеты на согласовании
+                'school__closter': cluster
+            }
+            
+            # Если указаны ТУ/ДО, добавляем их в фильтр
+            if ter_admin_ids:
+                school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
+            
             # Агрегированная статистика по кластерам для всех годов
-            school_reports = SchoolReport.objects.filter(
-                report__year__in=selected_years, 
-                report__is_published=True,
-                status='D',
-                school__closter=cluster
-            ).select_related('school')
+            school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
             
             # Подсчитываем количество отчетов в каждой зоне для текущего кластера
             red_zone = 0
@@ -1905,12 +1990,19 @@ def calculate_cluster_stats(selected_years, show_year_column=False):
             cluster_years_stats = []
             
             for year in selected_years:
-                school_reports = SchoolReport.objects.filter(
-                    report__year=year, 
-                    report__is_published=True,
-                    status='D',
-                    school__closter=cluster
-                ).select_related('school')
+                # Создаем базовый фильтр для SchoolReport
+                school_reports_filter = {
+                    'report__year': year, 
+                    'report__is_published': True,
+                    'status__in': ['A', 'D'] if show_ter_status else ['D'],  # Учитываем отчеты на согласовании
+                    'school__closter': cluster
+                }
+                
+                # Если указаны ТУ/ДО, добавляем их в фильтр
+                if ter_admin_ids:
+                    school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
+                
+                school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
                 
                 # Подсчитываем количество отчетов в каждой зоне для текущего кластера и года
                 red_zone = 0

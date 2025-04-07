@@ -289,6 +289,16 @@
                         {% endfor %}
                     </div>
                 {% endif %}
+                
+                <!-- Чекбокс для отображения школ на согласовании ТУ/ДО -->
+                <div class="form-check mt-3 mb-3">
+                    <input class="form-check-input" type="checkbox" name="show_ter_status" id="showTerStatus" {% if show_ter_status %}checked{% endif %}>
+                    <label class="form-check-label" for="showTerStatus">
+                        Показывать школы на согласовании ТУ/ДО
+                    </label>
+                    <small class="form-text text-muted d-block">По умолчанию показываются только отчеты со статусом "Принят"</small>
+                </div>
+                
                 <div class="filter-actions">
                     <button type="submit" name="download" class="btn btn-outline-primary">
                         <i class="bi bi-file-excel me-1"></i> Скачать Excel
