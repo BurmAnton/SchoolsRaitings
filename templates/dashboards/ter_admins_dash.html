@@ -9,10 +9,12 @@
 {% endblock %}
 {% block script %}
     <script src="{% static 'dashboards/js/ter_admins_reports.js' %}" rel="stylesheet"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
 {% endblock %}
 
 {% block body %}
     <form action="{% url 'ter_admins_dash' %}" method="post">
+        <h1>1. Рейтинг общеобразовательных организаций</h1>
         <h2>Фильтр</h2>
         <div class="filter">
             <div class="form mb-3">
@@ -78,6 +80,7 @@
             
         <div id="ReportSchools">
             <h1>Показатели рейтинга общеобразовательных организаций Самарской области</h1>
+            
             <div class="outer-container">
                 <div class="table-container">
                     <table class="table" id="table-overall">
@@ -174,6 +177,98 @@
                     </table>
                 </div>
             </div>
+            
+            <!-- Добавляем график распределения критериев по зонам в разрезе ТУ/ДО -->
+            <div class="chart-container" style="position: relative; height: 400px; margin-bottom: 30px; margin-top: 30px;">
+                <canvas id="terAdminZonesChart"></canvas>
+            </div>
+            
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Собираем данные для графика из данных таблицы
+                    var terAdmins = [];
+                    var greenZones = [];
+                    var yellowZones = [];
+                    var redZones = [];
+                    
+                    {% for s_report in schools_reports %}
+                        if (!terAdmins.includes('{{ s_report.school.ter_admin }}')) {
+                            terAdmins.push('{{ s_report.school.ter_admin }}');
+                            greenZones.push(0);
+                            yellowZones.push(0);
+                            redZones.push(0);
+                        }
+                        
+                        var index = terAdmins.indexOf('{{ s_report.school.ter_admin }}');
+                        greenZones[index] += {{ school_reports_data|get_item:s_report.id|get_item:'green_zone_answers' }};
+                        yellowZones[index] += {{ school_reports_data|get_item:s_report.id|get_item:'yellow_zone_answers' }};
+                        redZones[index] += {{ school_reports_data|get_item:s_report.id|get_item:'red_zone_answers' }};
+                    {% endfor %}
+                    
+                    // Создаем график
+                    var ctx = document.getElementById('terAdminZonesChart').getContext('2d');
+                    var chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: terAdmins,
+                            datasets: [
+                                {
+                                    label: 'Критерии в зеленой зоне',
+                                    backgroundColor: '#C6EFCE',
+                                    borderColor: '#006100',
+                                    borderWidth: 1,
+                                    data: greenZones
+                                },
+                                {
+                                    label: 'Критерии в желтой зоне',
+                                    backgroundColor: '#FFEB9C',
+                                    borderColor: '#9C6500',
+                                    borderWidth: 1,
+                                    data: yellowZones
+                                },
+                                {
+                                    label: 'Критерии в красной зоне',
+                                    backgroundColor: '#FFC7CE',
+                                    borderColor: '#9C0006',
+                                    borderWidth: 1,
+                                    data: redZones
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                xAxes: [{
+                                    stacked: true,
+                                    scaleLabel: {
+                                        display: true,
+                                        labelString: 'Территориальные управления/Департаменты образования'
+                                    }
+                                }],
+                                yAxes: [{
+                                    stacked: true,
+                                    scaleLabel: {
+                                        display: true,
+                                        labelString: 'Количество критериев'
+                                    },
+                                    ticks: {
+                                        beginAtZero: true
+                                    }
+                                }]
+                            },
+                            title: {
+                                display: true,
+                                text: 'Распределение критериев по зонам в разрезе ТУ/ДО'
+                            },
+                            tooltips: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        }
+                    });
+                });
+            </script>
         </div>
         {% for section in sections %}
             <div class="section">

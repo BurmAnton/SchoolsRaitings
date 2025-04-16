@@ -1,9 +1,9 @@
 import os
 import json
 from django import template
-from django.db.models import Max, Sum
+from django.db.models import Max, Sum, Case, When, IntegerField, Count, Q
 
-from reports.models import Field, ReportFile, Section
+from reports.models import Field, ReportFile, Section, Answer
 
 register = template.Library()
 
@@ -264,30 +264,24 @@ def safe_json(value):
 def get_completion_percent(report):
     """Calculates the completion percentage of a report"""
     try:
-        from reports.models import Answer
-        
+        # Получаем общее количество полей
         total_fields = report.report.sections.all().values_list("fields", flat=True).distinct().count()
         if total_fields == 0:
-            return 100, "100%"  # Если нет полей, считаем отчет заполненным
-        
-        # Проверяем заполненность полей
-        filled_fields = 0
-        answers = Answer.objects.filter(s_report=report)
-        
-        for answer in answers:
-            if answer.question.answer_type == 'LST' and answer.option is not None:
-                filled_fields += 1
-            elif answer.question.answer_type == 'BL' and answer.bool_value is not None:
-                filled_fields += 1
-            elif answer.question.answer_type in ['NMBR', 'PRC'] and answer.number_value is not None:
-                filled_fields += 1
-            elif answer.question.answer_type == 'MULT' and answer.selected_options.exists():
-                filled_fields += 1
-        
-        if filled_fields > total_fields:
-            filled_fields = total_fields  # На случай несоответствия в БД
+            return 100, "100%"
             
-        percentage = int((filled_fields / total_fields) * 100)
+        # Подсчитываем заполненные поля одним запросом
+        filled_count = report.answers.annotate(
+            is_filled=Case(
+                When(Q(question__answer_type='LST', option__isnull=False), then=1),
+                When(Q(question__answer_type='BL', bool_value=True), then=1),
+                When(Q(question__answer_type__in=['NMBR', 'PRC'], number_value__isnull=False), then=1),
+                When(Q(question__answer_type='MULT', selected_options__isnull=False), then=1),
+                default=0,
+                output_field=IntegerField(),
+            )
+        ).filter(is_filled=1).count()
+
+        percentage = int((filled_count / total_fields) * 100)
         return percentage, f"{percentage}%"
     except Exception as e:
         return 0, "0%"
@@ -300,3 +294,23 @@ def get_completion_percent_str(report):
         return percentage_str
     except:
         return "0%"
+
+@register.filter
+def get_answer_obj(answers, field):
+    """Получить объект ответа по полю"""
+    return answers.filter(question=field).first()
+
+@register.filter
+def get_check_percentage(s_report):
+    """Возвращает процент проверенных показателей с оптимизированным запросом"""
+    try:
+        # Используем агрегацию для подсчета проверенных ответов
+        checked_count = s_report.answers.filter(is_checked=True).count()
+        
+        total_answers = s_report.answers.count()
+        if total_answers == 0:
+            return 0
+            
+        return int((checked_count / total_answers) * 100)
+    except Exception:
+        return 0

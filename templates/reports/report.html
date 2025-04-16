@@ -93,7 +93,8 @@
 
 
     <h1>{{ report }}</h1>
-    <h2 id="report-status"><span style="font-weight: 500; padding-right: 5px;">Статус:</span>  {{ report.get_status_display }}</h2>
+    <h2>{{ school }}</h2>
+    <h2 id="report-status"><span style="font-weight: 500; padding-right: 5px;">Статус:</span>  {{ s_report.get_status_display }}</h2>
     <h2 id="report-points-zone"><div id="report-zone" style="background-color: {% if report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div><span style="font-weight: 500; padding-right: 5px;">Баллы:</span> <span id="report-points">{{ report.points|format_point }}</span>/{{ report.points|format_point }} </h2>
     {% if message == 'SendToTerAdmin' %}
         <div class="alert alert-success" role="alert" style="margin-top: 10px; text-align: center;">

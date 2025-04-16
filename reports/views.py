@@ -1,15 +1,20 @@
 import json
+import csv
+import io
+import xlsxwriter
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.db.models import Sum, Max
 from django.core.paginator import Paginator
+from django.utils import timezone
 
 from reports.models import Answer, Attachment, Field, Option, Report, ReportFile, ReportLink, SchoolReport, Section, SectionSreport, OptionCombination
 from reports.utils import count_points, select_range_option, count_section_points, count_points_field
+from reports.templatetags.reports_extras import get_completion_percent
 from users.models import Group, Notification, MainPageArticle
 from schools.models import School, SchoolCloster, TerAdmin
 from common.utils import get_cache_key
@@ -73,17 +78,14 @@ def reports(request, school_id):
         notification.save()
         
     for report in filtered_reports:
-        if s_reports.filter(report=report).count() != 0:
-            reports_list.append([report, s_reports.filter(report=report)[0]])
-        else:
-            reports_list.append([report, None])
+        s_report = s_reports.filter(report=report).first()
+        reports_list.append([report, s_report])
 
     return render(request, "reports/reports.html", {
         'school': school,
         'reports': reports_list,
         'notifications': notifications
     })
-
 
     
 @login_required
@@ -185,7 +187,10 @@ def report(request, report_id, school_id):
                 return JsonResponse({"message": "Link deleted successfully.",}, status=201)
             
            
-            question = Field.objects.get(id=data['id'])
+            try:
+                question = Field.objects.get(id=data['id'].replace('check_', ''))
+            except Field.DoesNotExist:
+                return JsonResponse({"error": "Поле не найдено"}, status=404)
             answers = Answer.objects.filter(question=question, s_report=s_report)
             if answers.count() == 0:
                 answer = Answer.objects.create(
@@ -363,8 +368,23 @@ def mo_reports(request):
     schools = School.objects.filter(is_archived=False)
     ter_admins = TerAdmin.objects.all()
     closters = SchoolCloster.objects.filter(schools__in=schools).distinct()
-    s_reports = SchoolReport.objects.filter(school__in=schools, report__is_published=True)
     
+    # Оптимизируем запрос для отчетов, подгружая связанные данные
+    s_reports = SchoolReport.objects.filter(
+        school__in=schools, 
+        report__is_published=True
+    ).select_related(
+        'school',
+        'report',
+        'report__year',
+        'report__closter',
+        'school__ter_admin'
+    ).prefetch_related(
+        'answers',
+        'report__sections',
+        'report__sections__fields'
+    ).order_by('-report__year', 'school__name')  # Добавляем сортировку для пагинации
+
     filter = None
     # Reset filter if requested
     if 'reset' in request.GET:
@@ -383,6 +403,10 @@ def mo_reports(request):
             schools = schools.filter(closter__in=request.POST.getlist('closters'))
             s_reports = s_reports.filter(school__in=schools)
             filter_params['closters'] = request.POST.getlist('closters')
+        if len(request.POST.getlist('ed_levels')) != 0:
+            schools = schools.filter(ed_level__in=request.POST.getlist('ed_levels'))
+            s_reports = s_reports.filter(school__in=schools)
+            filter_params['ed_levels'] = request.POST.getlist('ed_levels')
         if len(request.POST.getlist('status')) != 0:
             s_reports = s_reports.filter(status__in=request.POST.getlist('status'))
             filter_params['status'] = request.POST.getlist('status')
@@ -400,12 +424,21 @@ def mo_reports(request):
         if 'closters' in filter_params and filter_params['closters']:
             schools = schools.filter(closter__in=filter_params['closters'])
             s_reports = s_reports.filter(school__in=schools)
+        if 'ed_levels' in filter_params and filter_params['ed_levels']:
+            schools = schools.filter(ed_level__in=filter_params['ed_levels'])
+            s_reports = s_reports.filter(school__in=schools)
         if 'status' in filter_params and filter_params['status']:
             s_reports = s_reports.filter(status__in=filter_params['status'])
             
     if 'send-reports' in request.POST:
         s_reports.filter(status='B').update(status='D')
         return HttpResponseRedirect(reverse('mo_reports'))
+    
+    # Обработка запроса на экспорт данных о заполнении
+    if 'export_data' in request.POST:
+        # Получаем все отчеты, удовлетворяющие фильтрам (без пагинации)
+        # т.к. мы хотим экспортировать все отчеты, соответствующие фильтрам
+        return export_reports_to_excel(s_reports, 'mo_reports_completion.xlsx')
     
     # Pagination
     paginator = Paginator(s_reports, 20)  # 20 reports per page
@@ -416,6 +449,7 @@ def mo_reports(request):
         'reports': page_obj,
         'ter_admins': ter_admins,
         'closters': closters,
+        'ed_levels': School.SCHOOL_LEVELS,
         'filter': filter,
         'paginator': paginator,
         'page_obj': page_obj
@@ -429,12 +463,26 @@ def ter_admin_reports(request, user_id):
     schools = School.objects.filter(ter_admin=ter_admin, is_archived=False)
     all_schools = schools
     closters = SchoolCloster.objects.filter(schools__in=schools).distinct()
-    s_reports = SchoolReport.objects.filter(school__in=schools, report__is_published=True)
+    
+    # Оптимизируем запрос для отчетов, подгружая связанные данные
+    s_reports = SchoolReport.objects.filter(
+        school__in=schools, 
+        report__is_published=True
+    ).select_related(
+        'school',
+        'report',
+        'report__year',
+        'report__closter'
+    ).prefetch_related(
+        'answers',
+        'report__sections',
+        'report__sections__fields'
+    )
 
     filter = None
     # Reset filter if requested
     if 'reset' in request.GET:
-        if f'ter_admin_reports_filter_{user_id}' in request.session:
+        if 'ter_admin_reports_filter_{user_id}' in request.session:
             del request.session[f'ter_admin_reports_filter_{user_id}']
         return HttpResponseRedirect(reverse('ter_admin_reports', args=[user_id]))
     
@@ -476,6 +524,12 @@ def ter_admin_reports(request, user_id):
             # Обновляем статус выбранных отчетов с 'A' (на согласовании в ТУ/ДО) на 'B' (отправлено в МинОбр)
             SchoolReport.objects.filter(id__in=report_ids, status='A').update(status='B')
         return HttpResponseRedirect(reverse('ter_admin_reports', args=[user_id]))
+    
+    # Обработка запроса на экспорт данных о заполнении
+    if 'export_data' in request.POST:
+        # Получаем все отчеты, удовлетворяющие фильтрам (без пагинации)
+        filename = f'ter_admin_{ter_admin.name}_reports_completion.xlsx'
+        return export_reports_to_excel(s_reports, filename)
     
     # Pagination
     paginator = Paginator(s_reports, 20)  # 20 reports per page
@@ -552,7 +606,7 @@ def mo_report(request, s_report_id):
                 ReportLink.objects.get(id=link_id).delete()
                 return JsonResponse({"message": "Link deleted successfully.",}, status=201)
             
-            question = Field.objects.get(id=data['id'])
+            question = Field.objects.get(id=data['id'].replace('check_', ''))
             answer = Answer.objects.filter(question=question, s_report=s_report).first()
             if question.answer_type == "LST":
                 try:
@@ -735,12 +789,37 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
                 link_id = data['link_id']
                 ReportLink.objects.get(id=link_id).delete()
                 return JsonResponse({"message": "Link deleted successfully.",}, status=201)
+            elif 'check_answer' in data:
+                # Обработка проверки показателя
+                answer_id = data['answer_id']
+                is_checked = data['is_checked']
+
+                try:
+                    answer = Answer.objects.get(id=answer_id)
+                    answer.is_checked = is_checked
+                    if is_checked:
+                        answer.checked_by = request.user
+                        answer.checked_at = timezone.now()
+                    else:
+                        answer.checked_by = None
+                        answer.checked_at = None
+                    answer.save()
+                    return JsonResponse({
+                        "message": "Answer check status updated successfully.",
+                        "checked_by": answer.checked_by.get_full_name() if answer.checked_by else None,
+                        "checked_at": answer.checked_at.strftime("%d.%m.%Y %H:%M") if answer.checked_at else None
+                    }, status=201)
+                except Answer.DoesNotExist:
+                    return JsonResponse({"error": "Ответ не найден"}, status=404)
             
             # Блокируем все изменения через AJAX, если год завершен (is_readonly=True)
             if is_readonly:
                 return JsonResponse({"error": "Редактирование недоступно. Год закрыт."}, status=403)
             
-            question = Field.objects.get(id=data['id'])
+            try:
+                question = Field.objects.get(id=data['id'].replace('check_', ''))
+            except Field.DoesNotExist:
+                return JsonResponse({"error": "Поле не найдено"}, status=404)
             answer = Answer.objects.filter(question=question, s_report=s_report).first()
             if 'link' in data:
                 link = data['value']
@@ -840,7 +919,7 @@ def ter_admin_report(request, ter_admin_id, s_report_id):
                         # Если ничего не выбрано, обнуляем баллы
                         answer.points = 0
                         answer.zone = 'R'
-            answer.is_mod_by_ter = True #####
+            answer.is_mod_by_ter = True
             answer.save()
 
             list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
@@ -927,3 +1006,120 @@ def update_answer(request, answer_id):
             
             return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error'})
+
+def export_reports_to_excel(s_reports, filename='reports_completion.xlsx'):
+    """
+    Функция для экспорта данных о заполнении отчетов в Excel-формат
+    
+    Args:
+        s_reports: QuerySet отчетов SchoolReport
+        filename: Имя файла для загрузки
+    
+    Returns:
+        HttpResponse с Excel-файлом для скачивания
+    """
+    # Создаем файл в памяти
+    output = io.BytesIO()
+    
+    # Создаем рабочую книгу и лист
+    workbook = xlsxwriter.Workbook(output)
+    worksheet = workbook.add_worksheet()
+    
+    # Создаем стили
+    header_format = workbook.add_format({
+        'bold': True,
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#D9EAD3',
+        'border': 1
+    })
+    
+    cell_format = workbook.add_format({
+        'align': 'left',
+        'valign': 'vcenter',
+        'border': 1
+    })
+    
+    percent_format = workbook.add_format({
+        'align': 'center',
+        'valign': 'vcenter',
+        'border': 1,
+        'num_format': '0.00%'
+    })
+    
+    # Задаем ширину столбцов
+    worksheet.set_column(0, 0, 40)  # Школа
+    worksheet.set_column(1, 1, 30)  # Кластер
+    worksheet.set_column(2, 2, 25)  # Уровень образования
+    worksheet.set_column(3, 3, 10)  # Год
+    worksheet.set_column(4, 4, 15)  # Заполнение (%)
+    worksheet.set_column(5, 5, 20)  # Заполнено полей
+    worksheet.set_column(6, 6, 20)  # Всего полей
+    worksheet.set_column(7, 7, 15)  # Баллы
+    
+    # Заголовки столбцов
+    worksheet.write(0, 0, 'Школа', header_format)
+    worksheet.write(0, 1, 'Кластер', header_format)
+    worksheet.write(0, 2, 'Уровень образования', header_format)
+    worksheet.write(0, 3, 'Год', header_format)
+    worksheet.write(0, 4, 'Заполнение (%)', header_format)
+    worksheet.write(0, 5, 'Заполнено полей', header_format)
+    worksheet.write(0, 6, 'Всего полей', header_format)
+    worksheet.write(0, 7, 'Баллы', header_format)
+    
+    # Данные
+    row = 1
+    for report in s_reports:
+        # Получаем процент заполнения
+        completion_data = get_completion_percent(report)
+        completion_percent = completion_data[0] if isinstance(completion_data, tuple) else completion_data
+        
+        # Делим на 100, так как формат Excel требует десятичную дробь
+        completion_fraction = completion_percent / 100.0
+        
+        # Получаем название уровня образования
+        ed_level_display = report.report.get_ed_level_display()
+        
+        # Получаем количество заполненных и общее количество полей
+        all_answers = Answer.objects.filter(s_report=report)
+        total_fields = all_answers.count()
+        
+        # Считаем заполненные поля разных типов
+        empty_lst_fields = all_answers.filter(question__answer_type='LST', option=None).count()
+        empty_bl_fields = all_answers.filter(question__answer_type='BL', bool_value=None).count()
+        empty_nmbr_fields = all_answers.filter(
+            question__answer_type__in=['NMBR', 'PRC'], 
+            number_value=None
+        ).count()
+        # Для MULT считаем ответы без выбранных опций
+        empty_mult_fields = 0
+        for answer in all_answers.filter(question__answer_type='MULT'):
+            if not answer.selected_options.exists():
+                empty_mult_fields += 1
+        
+        # Общее количество незаполненных полей
+        empty_fields = empty_lst_fields + empty_bl_fields + empty_nmbr_fields + empty_mult_fields
+        filled_fields = total_fields - empty_fields
+        
+        worksheet.write(row, 0, report.school.name, cell_format)
+        worksheet.write(row, 1, report.report.closter.name if report.report.closter else '-', cell_format)
+        worksheet.write(row, 2, ed_level_display, cell_format)
+        worksheet.write(row, 3, str(report.report.year), cell_format)
+        worksheet.write(row, 4, completion_fraction, percent_format)
+        worksheet.write(row, 5, filled_fields, cell_format)
+        worksheet.write(row, 6, total_fields, cell_format)
+        worksheet.write(row, 7, report.points, cell_format)
+        row += 1
+    
+    # Закрываем рабочую книгу
+    workbook.close()
+    
+    # Настраиваем ответ
+    output.seek(0)
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response

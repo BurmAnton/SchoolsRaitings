@@ -372,8 +372,8 @@ class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
         js = ('admin/js/column_width.js',)
     
     def get_queryset(self, request):
-        """Переопределяем метод, чтобы использовать all_objects вместо objects"""
-        return SchoolReport.all_objects.all()
+        """Переопределяем метод, чтобы использовать admin_objects вместо objects"""
+        return SchoolReport.admin_objects.all()
 
     def report_name(self, obj):
         """Получает название отчета"""

@@ -555,33 +555,47 @@ class SchoolReport(models.Model):
         "Дата удаления", blank=True, null=True,
         help_text="Дата, когда отчёт будет фактически удален"
     )
+    
+    # Поле для отметки устаревших отчетов
+    is_outdated = models.BooleanField(
+        "Устаревший отчет", default=False,
+        help_text="Отмечается, если кластер или уровень образования школы изменились после создания отчета"
+    )
 
     # Менеджеры модели
     # objects будет возвращать только активные отчеты - это менеджер по умолчанию
     objects = ActiveSchoolReportManager()
     # admin_objects будет возвращать все отчеты, включая помеченные на удаление
     admin_objects = AllSchoolReportManager()
-    # all_objects - явный псевдоним для admin_objects, но более семантически понятный
-    all_objects = AllSchoolReportManager()
-
+    
     class Meta:
-        verbose_name = "Отчёт"
-        verbose_name_plural = "Отчёты"
+        verbose_name = "Отчёт школы"
+        verbose_name_plural = "Отчёты школ"
 
     def __str__(self):
-        return  f'{self.school} ({self.report})'
+        return f"{self.school} ({self.report})"
+    
+    def check_relevance(self):
+        """
+        Проверяет актуальность отчета на основе текущих данных школы.
+        Отчет считается устаревшим, если его кластер или уровень образования не соответствуют текущим данным школы.
+        """
+        report_is_relevant = True
         
-    def mark_for_deletion(self, days=30):
-        """Пометить отчёт на удаление через заданное количество дней"""
-        self.is_marked_for_deletion = True
-        self.deletion_date = timezone.now() + timedelta(days=days)
-        self.save(update_fields=['is_marked_for_deletion', 'deletion_date'])
-        
-    def unmark_deletion(self):
-        """Снять пометку на удаление"""
-        self.is_marked_for_deletion = False
-        self.deletion_date = None
-        self.save(update_fields=['is_marked_for_deletion', 'deletion_date'])
+        # Проверяем соответствие кластера
+        if self.school.closter != self.report.closter:
+            report_is_relevant = False
+            
+        # Проверяем соответствие уровня образования
+        if self.school.ed_level != self.report.ed_level:
+            report_is_relevant = False
+            
+        # Обновляем статус актуальности отчета, если он изменился
+        if self.is_outdated != (not report_is_relevant):
+            self.is_outdated = not report_is_relevant
+            self.save(update_fields=['is_outdated'])
+            
+        return report_is_relevant
 
 @receiver(pre_save, sender=SchoolReport)
 def accept(sender, instance, **kwargs):
@@ -684,6 +698,24 @@ class Answer(models.Model):
     )
     is_mod_by_mo = models.BooleanField(
         "Изменён МинОбром?", default=False
+    )
+    
+    is_checked = models.BooleanField(
+        "Проверено", default=False
+    )
+    checked_by = models.ForeignKey(
+        'users.User',
+        verbose_name='Проверил',
+        related_name='checked_answers',
+        on_delete=SET_NULL,
+        null=True,
+        blank=True
+    )
+    checked_at = models.DateTimeField(
+        "Дата проверки",
+        auto_now_add=True,
+        null=True,
+        blank=True
     )
 
     def file_path(instance, filename):

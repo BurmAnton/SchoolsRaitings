@@ -12,6 +12,14 @@ def get_item(dictionary, key):
 
 
 @register.filter
+def is_not_iro(user):
+    from users.models import Group
+    
+    iro_group =  Group.objects.get(name='Представитель ИРО')
+    return user.groups.filter(id=iro_group.id).count() != 1
+
+
+@register.filter
 def is_school_exist(user):
     school = School.objects.filter(principal=user, is_archived=False)
     return school.count() != 0

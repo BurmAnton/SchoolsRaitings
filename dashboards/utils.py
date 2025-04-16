@@ -114,14 +114,13 @@ def calculate_stats(year, s_reports_year, sections):
 def generate_ter_admins_report_csv(year, schools, s_reports):
     import xlsxwriter
     from django.http import HttpResponse
-    from django.db.models import Sum
+    from django.db.models import Sum, Prefetch
     from reports.models import Section, Field, Answer
     from io import BytesIO
 
     # Create workbook
     output = BytesIO()
     workbook = xlsxwriter.Workbook(output)
-    worksheet = workbook.add_worksheet()
 
     # Define formats
     formats = {
@@ -147,18 +146,30 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
         })
     }
 
-    # Write headers
-    header = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Итого баллов']
+    # Create main worksheet
+    worksheet = workbook.add_worksheet("Сводный отчет")
+
+    # Get sections and prefetch related data
     sections = Section.objects.filter(report__year=year).distinct('number').order_by('number')
     
+    # Prefetch answers for all sections
+    sections_with_answers = sections.prefetch_related(
+        Prefetch(
+            'fields',
+            queryset=Field.objects.prefetch_related(
+                Prefetch(
+                    'answers',
+                    queryset=Answer.objects.filter(s_report__in=s_reports),
+                    to_attr='prefetched_answers'
+                )
+            )
+        )
+    )
+
+    # Write headers
+    header = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Итого баллов']
     for section in sections:
         header.append(f"{section.number}. {section.name}")
-
-    # Write header row and set column widths
-    for col, value in enumerate(header):
-        worksheet.write(0, col, value, formats['header'])
-        width = min(max(len(value) * 1.1, 20), 50)
-        worksheet.set_column(col, col, width)
 
     # Add zone headers
     zone_headers = [
@@ -166,6 +177,12 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
         ('Кол-во/доля критериев школы в жёлтой зоне', ['Количество', 'Доля']), 
         ('Кол-во/доля критериев школы в красной зоне', ['Количество', 'Доля'])
     ]
+
+    # Write header row and set column widths
+    for col, value in enumerate(header):
+        worksheet.write(0, col, value, formats['header'])
+        width = min(max(len(value) * 1.1, 20), 50)
+        worksheet.set_column(col, col, width)
 
     col = len(header)
     for title, columns in zone_headers:
@@ -190,70 +207,111 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
             row = [
                 str(school.ter_admin),
                 school.get_ed_level_display(),
-                school.__str__(),
+                school.__str__(),  # Школа будет окрашена в цвет зоны
                 report.points
             ]
 
             # Add section points
-            section_points = []
-            for section in sections:
-                sections_objs = Section.objects.filter(name=section.name)
-                fields = Field.objects.filter(sections__in=sections_objs).distinct('number').prefetch_related('answers')
-                points = Answer.objects.filter(
-                    question__in=fields, 
-                    s_report=report
-                ).aggregate(Sum('points'))['points__sum'] or 0
-                section_points.append(points)
+            for section in sections_with_answers:
+                points = sum(
+                    answer.points 
+                    for field in section.fields.all() 
+                    for answer in field.prefetched_answers 
+                    if answer.s_report_id == report.id
+                )
                 row.append(points)
 
-            # Write row data with appropriate formatting
+            # Add zone stats
+            for zone in ['G', 'Y', 'R']:
+                count = 0
+                total = 0
+                for section in sections_with_answers:
+                    for field in section.fields.all():
+                        for answer in field.prefetched_answers:
+                            if answer.s_report_id == report.id:
+                                total += 1
+                                if answer.zone == zone:
+                                    count += 1
+                row.extend([count, f"{count/total*100:.1f}%" if total > 0 else "0.0%"])
+
+            # Write row with appropriate zone formatting
             for col, value in enumerate(row):
-                format_key = 'cell'
-                if col == 3:
-                    format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(report.zone, 'cell')
-                elif col >= 4:
-                    section = sections[col-4]
-                    zone = count_section_points(report, section)
-                    format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(zone, 'cell')
-                
-                worksheet.write(row_num, col, value, formats[format_key])
-
-            # Calculate and write zone statistics
-            answers = Answer.objects.filter(s_report=report)
-            total = answers.count()
-            zone_counts = {
-                'G': answers.filter(zone='G').count(),
-                'Y': answers.filter(zone='Y').count(),
-                'R': answers.filter(zone='R').count()
-            }
-
-            col = len(header) - 6
-            for zone, count in zone_counts.items():
-                pct = f"{(count/total)*100:.1f}%" if total else "0.0%"
-                format_key = {'G': 'green', 'Y': 'yellow', 'R': 'red'}[zone]
-                worksheet.write(row_num, col, count, formats[format_key])
-                worksheet.write(row_num, col + 1, pct, formats[format_key])
-                col += 2
-
-            worksheet.set_row(row_num, len(school.__str__()))
+                if col == 2:  # School column
+                    format_key = {'G': 'green', 'Y': 'yellow', 'R': 'red'}.get(report.zone, 'cell')
+                    worksheet.write(row_num, col, value, formats[format_key])
+                else:
+                    worksheet.write(row_num, col, value, formats['cell'])
             row_num += 1
 
-    # Write summary rows
-    write_summary_rows(worksheet, row_num, s_reports, sections, formats)
+    # Create worksheets for each section
+    for section in sections_with_answers:
+        section_worksheet = workbook.add_worksheet(f"Раздел {section.number}")
+        
+        # Write section headers
+        section_header = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Баллы раздела']
+        fields = sorted(section.fields.all(), key=lambda x: [int(n) for n in str(x.number).split('.')])
+        
+        for field in fields:
+            section_header.append(f"{field.number}. {field.name}")
 
-    # Write detailed section analysis
-    write_section_details(worksheet, row_num + 2, sections, s_reports, formats)
+        # Write header row and set column widths
+        for col, value in enumerate(section_header):
+            section_worksheet.write(0, col, value, formats['header'])
+            width = min(max(len(value) * 1.1, 20), 50)
+            section_worksheet.set_column(col, col, width)
 
-    # Generate response
+        # Write data rows
+        row_num = 1
+        for school in schools:
+            school_reports = s_reports.filter(school=school, report__year=year)
+            if not school_reports.exists():
+                continue
+
+            for report in school_reports:
+                # Basic school info
+                row = [
+                    str(school.ter_admin),
+                    school.get_ed_level_display(),
+                    school.__str__()  # Школа будет окрашена в цвет зоны
+                ]
+
+                # Get section points
+                section_points = sum(
+                    answer.points 
+                    for field in section.fields.all() 
+                    for answer in field.prefetched_answers 
+                    if answer.s_report_id == report.id
+                )
+                row.append(section_points)
+
+                # Add field values
+                for field in fields:
+                    answer = next(
+                        (a for a in field.prefetched_answers if a.s_report_id == report.id),
+                        None
+                    )
+                    row.append(answer.points if answer else 0)
+
+                # Write row with appropriate zone formatting
+                for col, value in enumerate(row):
+                    if col == 2:  # School column
+                        format_key = {'G': 'green', 'Y': 'yellow', 'R': 'red'}.get(report.zone, 'cell')
+                        section_worksheet.write(row_num, col, value, formats[format_key])
+                    else:
+                        section_worksheet.write(row_num, col, value, formats['cell'])
+                row_num += 1
+
+    # Close workbook
     workbook.close()
     output.seek(0)
-    
+
+    # Create response
     response = HttpResponse(
         output.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response['Content-Disposition'] = f'attachment; filename="ter_admins_report_{year}.xlsx"'
-    
+    response['Content-Disposition'] = f'attachment; filename=ter_admins_report_{year.year}.xlsx'
+
     return response
 
 def write_section_details(worksheet, row_num, sections, s_reports, formats):

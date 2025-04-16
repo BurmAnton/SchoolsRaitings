@@ -1,22 +1,20 @@
-from decimal import Decimal
-from django.shortcuts import get_object_or_404, render, redirect
+from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
-from django.db.models import Sum, Max
+from django.db.models import Sum
 from django.conf import settings
 from django.contrib import messages
-import hashlib
-import json
-from django.http import JsonResponse, Http404, HttpResponse
+
+from django.http import HttpResponse
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 
 from dashboards import utils
-from reports.models import Answer, Report, SchoolReport, Section, Field, Year, Option
+from reports.models import Answer, Report, SchoolReport, Section, Field, Year
 from schools.models import SchoolCloster, School, TerAdmin
 from common.utils import get_cache_key
 
@@ -281,9 +279,14 @@ def ter_admins_dash(request):
 @login_required
 @csrf_exempt
 def school_report(request):
+    # Определяем, является ли пользователь директором школы
+    is_school_principal = hasattr(request.user, 'school') and request.user.school
+    
+    # Получаем доступные ТУ/ДО
     ter_admins = TerAdmin.objects.filter(representatives=request.user).prefetch_related('schools')
     if not ter_admins.first():
         ter_admins = TerAdmin.objects.all().prefetch_related('schools')
+    
     years = Year.objects.all().order_by('-year')
     
     school = None
@@ -295,51 +298,151 @@ def school_report(request):
     reports = None
     fields_sum_data = {}
 
-    if request.method == 'POST':
-        school = School.objects.get(id=request.POST["school"])
-        f_years = request.POST.getlist("years")
-        f_years = [Year.objects.get(year=year) for year in f_years]
-        reports = Report.objects.filter(year__in=f_years)
-        sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
-        s_reports = SchoolReport.objects.filter(
-            report__in=reports, 
-            school=school, 
-            status='D'
-        ).order_by('report__year').prefetch_related('answers', 'sections')
+    # Если пользователь - директор школы, автоматически используем его школу
+    if is_school_principal:
+        school = request.user.school
         
-        filter = {
-            'years': f_years,
-            'school': str(school.id),
-            'ter_admin': str(school.ter_admin.id)
-        }
+        # Берем последний год по умолчанию или годы из запроса
+        if request.method == 'POST' and 'years' in request.POST:
+            f_years = request.POST.getlist("years")
+            f_years = [Year.objects.get(year=year) for year in f_years]
+        else:
+            current_year = years.first()
+            if current_year:
+                f_years = [current_year]
+            else:
+                f_years = []
         
-        # Handle export request
-        if 'download' in request.POST:
-            return utils.generate_school_report_csv(f_years[-1], school, s_reports, sections)
+        if f_years:
+            reports = Report.objects.filter(year__in=f_years)
+            sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
+            s_reports = SchoolReport.objects.filter(
+                report__in=reports, 
+                school=school, 
+                status='D'
+            ).order_by('report__year').prefetch_related('answers', 'sections')
             
-        stats, section_data = utils.calculate_stats_and_section_data(f_years, reports, sections, s_reports)
+            filter = {
+                'years': f_years,
+                'school': str(school.id),
+                'ter_admin': str(school.ter_admin.id) if school.ter_admin else None
+            }
+            
+            # Handle export request
+            if request.method == 'POST' and 'download' in request.POST:
+                return utils.generate_school_report_csv(f_years[-1], school, s_reports, sections)
+            
+            stats, section_data = utils.calculate_stats_and_section_data(f_years, reports, sections, s_reports)
 
-        # Calculate fields sum data only for existing answers
-        sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
-        fields = Field.objects.filter(sections__in=sections).distinct('number').prefetch_related('answers')
-        
-        for field in fields:
-            answers_sum = field.answers.filter(
-                s_report__in=s_reports,
-                points__isnull=False
-            ).aggregate(Sum('points'))['points__sum']
-            fields_sum_data[field.id] = answers_sum if answers_sum is not None else 0
+            # Calculate fields sum data only for existing answers
+            sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
+            fields = Field.objects.filter(sections__in=sections).distinct('number').prefetch_related('answers')
+            
+            for field in fields:
+                answers_sum = field.answers.filter(
+                    s_report__in=s_reports,
+                    points__isnull=False
+                ).aggregate(Sum('points'))['points__sum']
+                fields_sum_data[field.id] = answers_sum if answers_sum is not None else 0
+    # Если это не директор школы, обрабатываем GET и POST запросы стандартно
+    else:
+        # Проверяем, передан ли идентификатор школы в GET-параметрах
+        if request.method == 'GET' and 'school' in request.GET:
+            try:
+                school_id = int(request.GET.get('school'))
+                school = School.objects.get(id=school_id)
+            except (ValueError, School.DoesNotExist):
+                school = None
+
+            # Если школа определена, автоматически формируем отчет
+            if school:
+                # Берем последний год по умолчанию
+                current_year = years.first()
+                if current_year:
+                    f_years = [current_year]
+                    reports = Report.objects.filter(year__in=f_years)
+                    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
+                    s_reports = SchoolReport.objects.filter(
+                        report__in=reports, 
+                        school=school, 
+                        status='D'
+                    ).order_by('report__year').prefetch_related('answers', 'sections')
+                    
+                    filter = {
+                        'years': f_years,
+                        'school': str(school.id),
+                        'ter_admin': str(school.ter_admin.id) if school.ter_admin else None
+                    }
+                    
+                    stats, section_data = utils.calculate_stats_and_section_data(f_years, reports, sections, s_reports)
+
+                    # Calculate fields sum data only for existing answers
+                    sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
+                    fields = Field.objects.filter(sections__in=sections).distinct('number').prefetch_related('answers')
+                    
+                    for field in fields:
+                        answers_sum = field.answers.filter(
+                            s_report__in=s_reports,
+                            points__isnull=False
+                        ).aggregate(Sum('points'))['points__sum']
+                        fields_sum_data[field.id] = answers_sum if answers_sum is not None else 0
+
+        # Обработка POST запроса (выбор фильтров)
+        if request.method == 'POST' and not is_school_principal:
+            school = School.objects.get(id=request.POST["school"])
+            f_years = request.POST.getlist("years")
+            f_years = [Year.objects.get(year=year) for year in f_years]
+            reports = Report.objects.filter(year__in=f_years)
+            sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
+            s_reports = SchoolReport.objects.filter(
+                report__in=reports, 
+                school=school, 
+                status='D'
+            ).order_by('report__year').prefetch_related('answers', 'sections')
+            
+            filter = {
+                'years': f_years,
+                'school': str(school.id),
+                'ter_admin': str(school.ter_admin.id) if school.ter_admin else None
+            }
+            
+            # Handle export request
+            if 'download' in request.POST:
+                return utils.generate_school_report_csv(f_years[-1], school, s_reports, sections)
+                
+            stats, section_data = utils.calculate_stats_and_section_data(f_years, reports, sections, s_reports)
+
+            # Calculate fields sum data only for existing answers
+            sections = Section.objects.filter(report__in=reports).distinct('number').order_by('number')
+            fields = Field.objects.filter(sections__in=sections).distinct('number').prefetch_related('answers')
+            
+            for field in fields:
+                answers_sum = field.answers.filter(
+                    s_report__in=s_reports,
+                    points__isnull=False
+                ).aggregate(Sum('points'))['points__sum']
+                fields_sum_data[field.id] = answers_sum if answers_sum is not None else 0
+
+    # Подготавливаем список школ для выбора в зависимости от роли пользователя
+    schools_for_select = []
+    if is_school_principal:
+        schools_for_select = [request.user.school]
+    else:
+        # Для остальных пользователей показываем все доступные школы
+        for ter_admin in ter_admins:
+            schools_for_select.extend(ter_admin.schools.filter(is_archived=False))
 
     return render(request, "dashboards/school_report.html", {
-        'years': years,
-        'ter_admins': ter_admins,
-        'dash_school': school,
-        's_reports': s_reports,
-        'filter': filter,
-        'sections': sections,
-        'stats': stats,
-        'section_data': section_data,
-        'fields_sum_data': fields_sum_data
+        "filter": filter,
+        "ter_admins": ter_admins,
+        "years": years,
+        "schools": schools_for_select,
+        "sections": sections,
+        "section_data": section_data,
+        "stats": stats,
+        "fields_sum_data": fields_sum_data,
+        "s_reports": s_reports,
+        "dash_school": school
     })
 
 

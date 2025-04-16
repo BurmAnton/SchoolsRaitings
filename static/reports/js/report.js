@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
         })
     })
-    document.querySelectorAll('.form-check-input:not(.mult-checkbox)').forEach(input => {
+    document.querySelectorAll('.form-check-input:not(.mult-checkbox):not(.check-answer)').forEach(input => {
         input.addEventListener('change', () => {
             let points = "0"
             if(input.checked){
@@ -121,6 +121,38 @@ document.addEventListener('DOMContentLoaded', function() {
             })
         })
     })
+    document.querySelectorAll('.check-answer').forEach(input => {
+        input.addEventListener('change', () => {
+            const answerId = input.dataset.answerId;
+            const isChecked = input.checked;
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "Accept": "application/json",
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    check_answer: true,
+                    answer_id: answerId,
+                    is_checked: isChecked
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                const checkInfo = document.getElementById(`check-info-${answerId}`);
+                if (isChecked) {
+                    checkInfo.innerHTML = `${result.checked_by}<br>Дата: ${result.checked_at}`;
+                } else {
+                    checkInfo.innerHTML = '';
+                }
+            })
+            .catch(error => {
+                console.error('Error updating check status:', error);
+            });
+        });
+    });
 })
 
 

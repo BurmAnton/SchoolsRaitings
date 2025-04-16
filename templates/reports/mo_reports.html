@@ -23,6 +23,44 @@
                 margin-bottom: 0.5rem;
                 justify-content: center;
             }
+            
+            .outdated-report-badge {
+                display: inline-block;
+                background-color: #FFC107;
+                color: #000;
+                font-size: 12px;
+                padding: 2px 6px;
+                border-radius: 4px;
+                margin-left: 5px;
+                vertical-align: middle;
+            }
+            
+            .outdated-report-tooltip {
+                position: relative;
+                display: inline-block;
+            }
+            
+            .outdated-report-tooltip .tooltip-text {
+                visibility: hidden;
+                width: 300px;
+                background-color: #555;
+                color: #fff;
+                text-align: center;
+                border-radius: 6px;
+                padding: 8px;
+                position: absolute;
+                z-index: 1;
+                bottom: 125%;
+                left: 50%;
+                margin-left: -150px;
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+            
+            .outdated-report-tooltip:hover .tooltip-text {
+                visibility: visible;
+                opacity: 1;
+            }
         </style>
 {% endblock %}
 {% block script %}
@@ -35,7 +73,7 @@
     <form method="post" action="{% url 'mo_reports' %}" id="filter-form">
         <h2>Фильтр отчётов</h2>
         <div class="filter">
-            <div class="form mb-3" style="grid-column-start: 1; grid-column-end: 3; grid-row: 1;">
+            <div class="form mb-3" style="grid-column:2; grid-row: 1;">
                 <label for="ClosterFilter">Кластеры</label>
                 <select class="selectpicker" title="Выберите кластеры" name="closters" id="ClosterFilter" multiple data-selected-text-format="static" data-width="100%" data-container="body" data-live-search="true">
                     {% for closter in closters %}
@@ -43,16 +81,17 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="form mb-3" style="grid-column: 1; grid-row: 2;">
-                <label for="TerAdminFilter">ТУ/ДО</label>
-                <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admins" id="TerAdminFilter" multiple data-selected-text-format="static" data-width="100%" data-container="body" data-live-search="true">
-                    {% for ter_admin in ter_admins %}
-                        <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i" in filter|get_item:'ter_admins' %}selected{% endif %}>{{ ter_admin }}</option>
+            
+            <div class="form mb-3" style="grid-column: 2; grid-row: 2;">
+                <label for="EdLevelFilter">Уровень образования</label>
+                <select class="selectpicker" title="Выберите уровень образования" name="ed_levels" id="EdLevelFilter" multiple data-selected-text-format="static" data-width="100%" data-container="body" data-live-search="true">
+                    {% for value, label in ed_levels %}
+                        <option value="{{ value }}" {% if value in filter|get_item:'ed_levels' %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="form mb-3" style="grid-column: 2;  grid-row: 2;">
-                <label for="ClosterFilter">Статусы</label>
+            <div class="form mb-3" style="grid-column: 1; grid-row: 2;">
+                <label for="StatusFilter">Статусы</label>
                 <select class="selectpicker" title="Выберите статусы" name="status" id="StatusFilter" multiple data-selected-text-format="static" data-width="100%" data-container="body" data-live-search="true">
                     <option value="C" {% if 'C' in filter|get_item:'status' %}selected{% endif %}>Заполнение</option>
                     <option value="A" {% if 'A' in filter|get_item:'status' %}selected{% endif %}>На согласовании в ТУ/ДО</option>
@@ -60,10 +99,22 @@
                     <option value="D" {% if 'D' in filter|get_item:'status' %}selected{% endif %}>Отчёт принят</option>
                 </select>
             </div>
+            <div class="form mb-3" style="grid-column: 1; grid-row: 1;">
+                <label for="TerAdminFilter">ТУ/ДО</label>
+                <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admins" id="TerAdminFilter" multiple data-selected-text-format="static" data-width="100%" data-container="body" data-live-search="true">
+                    {% for ter_admin in ter_admins %}
+                        <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i" in filter|get_item:'ter_admins' %}selected{% endif %}>{{ ter_admin }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
         <div style="width: 100%; display: flex; justify-content: space-between;flex-direction: row-reverse; margin-top: 10px;">
-            <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
+            <div style="display: flex; gap: 10px;">
+                <button style="width: 250px" name="export_data" class="btn btn-sm btn-outline-success" type="submit">Скачать данные о заполнении</button>
+                <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
+            </div>
             {% if filter is not None %}<a style="width: 150px" href="{% url 'mo_reports' %}?reset=1" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
+
         </div>
 </form>
 
@@ -71,60 +122,76 @@
 
         <h2>Отчёты</h2>
         <button type="submit" class="btn btn-sm btn-outline-primary" id="SendReports" name="send-reports" disabled>Принять отчёты (<span class="selected-row-count">0</span>)</button>
+        <a href="javascript:void(0);" id="SelectAllReportsBtn" style="margin-left: 15px; display: none;" data-total-reports="{{ paginator.count }}">Выбрать все отчёты ({{ paginator.count }})</a>
+        <input type="hidden" name="select_all_reports" id="selectAllReportsInput" value="false">
         
         <table class="table">
-            <tr class="">
-                <th scope="col" id="CheckAll">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="">
-                    </div>
-                </th>
-                <th scope="row">Школа</th>
-                <th scope="row">Название отчёта</th>
-                <th scope="row" class="th-center">Год</th>
-                <th scope="row" class="th-center">Статус</th>
-                <th scope="row" class="th-center">Заполнено</th>
-                <th scope="row" class="th-center">Баллы (Зона)</th>
-            </tr>
-            {% for report in reports %}
+            <thead>
                 <tr>
-                    <td scope="row" class="check-td">
+                    <th scope="col" id="CheckAll">
                         <div class="form-check">
-                            <input class="form-check-input center-checkbox" type="checkbox" value="{{center.id}}">
+                            <input class="form-check-input" type="checkbox" value="">
                         </div>
-                    </td>
-                    <td scope="row">
-                        <a href="{% url 'mo_report' report.id %}">{{ report.school }}</a>
-                    </td>
-                    <td scope="row">{{ report.report.name }}</td>
-                    <td scope="row" class="td-center">{{ report.report.year }}</td>
-                    <td scope="row" class="td-center">
-                        {{ report.get_status_display }}
-                    </td>
-                    <td scope="row" class="td-center">
-                        <div class="progress" style="height: 30px;">
-                            <div class="progress-bar {% if report|get_completion_percent|first < 100 %}bg-warning{% else %}bg-success{% endif %}" 
-                                 role="progressbar" 
-                                 style="width: {{ report|get_completion_percent|first }}%"
-                                 aria-valuenow="{{ report|get_completion_percent|first }}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100">
-                                {{ report|get_completion_percent_str }}
+                    </th>
+                    <th scope="row">Школа</th>
+                    <th scope="row">Кластер</th>
+                    <th scope="row">Уровень образования</th>
+                    <th scope="row" class="th-center">Год</th>
+                    <th scope="row" class="th-center">Статус</th>
+                    <th scope="row" class="th-center">Заполнено</th>
+                    <th scope="row" class="th-center">Баллы (Зона)</th>
+                    <th scope="row" class="th-center">Проверено</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                    <tr>
+                        <td scope="row" class="check-td">
+                            <div class="form-check">
+                                <input class="form-check-input center-checkbox" type="checkbox" name="report_ids" value="{{ report.id }}">
                             </div>
-                        </div>
-                    </td>
-                    <td scope="row" class="td-center">
-                        <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                            <div style="background-color: {% if report.report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div>
-                            <div>{{ report.points|format_point }}/{{ report.report.points|format_point }}</div>
-                        </div>
-                    </td>
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="6" class="zero-reports">Нет отчётов</td>
-                </tr>
-            {% endfor %}
+                        </td>
+                        <td scope="row">
+                            <a href="{% url 'mo_report' report.id %}">{{ report.school }}</a>
+                            {% if report.is_outdated %}
+                            <div class="outdated-report-tooltip">
+                                <span class="outdated-report-badge">!</span>
+                                <span class="tooltip-text">Отчет устарел: данные школы (кластер или уровень образования) были изменены после создания отчета</span>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td scope="row">{{ report.report.closter.name }}</td>
+                        <td scope="row">{{ report.report.get_ed_level_display }}</td>
+                        <td scope="row" class="td-center">{{ report.report.year }}</td>
+                        <td scope="row" class="td-center">
+                            {{ report.get_status_display }}
+                        </td>
+                        <td scope="row" class="td-center">
+                            <div class="progress" style="height: 30px;">
+                                <div class="progress-bar {% if report|get_completion_percent|first < 100 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ report|get_completion_percent|first }}%"
+                                     aria-valuenow="{{ report|get_completion_percent|first }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    {{ report|get_completion_percent_str }}
+                                </div>
+                            </div>
+                        </td>
+                        <td scope="row" class="td-center">
+                            <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
+                                <div style="background-color: {% if report.report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                <div>{{ report.points|format_point }}/{{ report.report.points|format_point }}</div>
+                            </div>
+                        </td>
+                        <td scope="row" class="td-center">{{ report|get_check_percentage }}%</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="zero-reports">Нет отчётов</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
         </table>
         
         {% if page_obj.has_other_pages %}

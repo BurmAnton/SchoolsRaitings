@@ -62,10 +62,72 @@
             background-color: white;
             width: 100%;
         }
+        
+        .check-section {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 5px;
+            min-width: 200px;
+        }
+        
+        .check-section .form-check {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .check-section .check-info {
+            font-size: 12px;
+            color: #6c757d;
+            margin-left: 25px;
+            line-height: 1.2;
+        }
+
+        .check-section .form-check-input {
+            margin-top: 0;
+        }
+
+        .check-section .form-check-label {
+            margin-bottom: 0;
+            font-size: 14px;
+        }
     </style>
 {% endblock %}
 {% block script %}
     <script src="{% static 'reports/js/report.js' %}" rel="stylesheet"></script>
+    <script>
+        $(document).ready(function() {
+            // Обработка изменения состояния чекбокса проверки
+            $('.check-answer').change(function() {
+                const answerId = $(this).data('answer-id');
+                const isChecked = $(this).prop('checked');
+                
+                $.ajax({
+                    url: window.location.pathname,
+                    method: 'POST',
+                    data: JSON.stringify({
+                        check_answer: true,
+                        answer_id: answerId,
+                        is_checked: isChecked
+                    }),
+                    contentType: 'application/json',
+                    success: function(response) {
+                        const checkInfo = $(`#check-info-${answerId}`);
+                        if (isChecked) {
+                            checkInfo.html(`Проверил: ${response.checked_by}<br>Дата: ${response.checked_at}`);
+                        } else {
+                            checkInfo.html('');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error updating check status:', error);
+                    }
+                });
+            });
+        });
+    </script>
 {% endblock %}
 
 {% block body %}
@@ -133,7 +195,7 @@
                     <th colspan="2">Показатели</th>
                     <th class="center th-points">Баллы</th>
                     <th class="center th-points" style="width: 350px;">Источники данных</th>
-                    {% comment %} <th class="center th-points">Макс.</th> {% endcomment %}
+                    <th class="center th-points">Проверка</th>
                 </tr>
                 {%for field in section|get_sorted_fields %}
                     <tr class="question {% if field.answer_type == 'BL' %}question-bl{% endif %}"> 
@@ -286,6 +348,27 @@
                                     </div>
                                 </div>
                             {% endif %}
+                        </td>
+                        <td scope="row" class="check-section" style="display: table-cell;">
+                            {% with answer=answers|get_answer_obj:field %}
+                                <div class="form-check">
+                                    <input class="form-check-input check-answer" 
+                                           type="checkbox" 
+                                           data-answer-id="{{ answer.id }}"
+                                           id="check_{{ answer.id }}"
+                                           {% if answer.is_checked %}checked{% endif %}
+                                           {% if is_readonly %}disabled{% endif %}>
+                                    <label class="form-check-label" for="check_{{ answer.id }}">
+                                        Проверено
+                                    </label>
+                                </div>
+                                <div id="check-info-{{ answer.id }}" class="check-info">
+                                    {% if answer.is_checked %}
+                                        <div>{{ answer.checked_by.get_full_name }}</div>
+                                        <div>Дата: {{ answer.checked_at|date:"d.m.Y H:i" }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endwith %}
                         </td>
                     </tr>
                     {% endfor %}

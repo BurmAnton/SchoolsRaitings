@@ -10,10 +10,12 @@
 {% block script %}
     <script src="{% static 'dashboards/js/ter_admins_reports.js' %}" rel="stylesheet"></script>
     <script src="{% static 'dashboards/js/closters_report.js' %}" rel="stylesheet"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
 {% endblock %}
 
 {% block body %}
     <form action="{% url 'closters_report' %}" method="post">
+        <h1>3. Средние значения по кластерам общеобразовательных организаций</h1>
         <h2>Фильтр</h2>
         <div class="filter">
             <div class="form mb-3">
@@ -72,7 +74,7 @@
                 <button style="width: 250px" name="download" class="btn btn-sm btn-outline-primary" type="submit">Скачать в Excel</button>
                 <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
             </div>
-            {% if filter is not None %}<a style="width: 150px" href="{% url 'ter_admins_dash' %}" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
+            {% if filter is not None %}<a style="width: 150px" href="{% url 'closters_report' %}" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
             
         </div>
     </form>
@@ -114,6 +116,168 @@
                 </table>
             </div>
         </div>
+        
+        <!-- Добавляем график сравнения значений по кластерам -->
+        <div class="chart-container" style="position: relative; height: 500px; margin-bottom: 30px; margin-top: 30px; width: 100%;">
+            <canvas id="clostersComparisonChart"></canvas>
+        </div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Собираем данные для графика из таблицы
+                var sectionNames = [];
+                var sectionNumbers = [];
+                var maxValues = [];
+                var avgValues = [];
+                var schoolValues = {};
+                
+                // Получаем названия разделов и их максимальные/средние значения из таблицы
+                {% for section in sections %}
+                    sectionNames.push('{{ section.0 }}. {{ section.1 }}');
+                    sectionNumbers.push('{{ section.0 }}');
+                    maxValues.push({{ section.2|max_value:s_reports }});
+                    avgValues.push({{ section.2|avg_value:s_reports }});
+                {% endfor %}
+                
+                // Получаем значения для каждой школы
+                {% for s_report in s_reports %}
+                    schoolValues['{{ s_report.school }}'] = [];
+                    {% for section in sections %}
+                        schoolValues['{{ s_report.school }}'].push({{ s_report|get_section_points_by_name:section.0 }});
+                    {% endfor %}
+                {% endfor %}
+                
+                // Создаем наборы данных
+                var datasets = [];
+                
+                // Добавляем максимальные и средние значения
+                datasets.push({
+                    label: 'Максимальное значение',
+                    backgroundColor: 'rgba(66, 133, 244, 0.2)',
+                    borderColor: 'rgb(66, 133, 244)',
+                    borderWidth: 2,
+                    data: maxValues,
+                    maxBarThickness: 50,
+                    type: 'line',
+                    fill: false
+                });
+                
+                datasets.push({
+                    label: 'Среднее значение',
+                    backgroundColor: 'rgba(15, 157, 88, 0.2)',
+                    borderColor: 'rgb(15, 157, 88)',
+                    borderWidth: 2,
+                    data: avgValues,
+                    maxBarThickness: 50,
+                    type: 'line',
+                    fill: false
+                });
+                
+                // Добавляем данные для каждой школы как столбцы
+                var colors = ['#4dc9f6', '#f67019', '#f53794', '#537bc4', '#acc236', '#166a8f', '#00a950', '#58595b', '#8549ba'];
+                var index = 0;
+                
+                for (var school in schoolValues) {
+                    var color = index < colors.length ? colors[index] : getRandomColor();
+                    index++;
+                    
+                    datasets.push({
+                        label: school,
+                        backgroundColor: color,
+                        borderColor: color,
+                        borderWidth: 1,
+                        data: schoolValues[school],
+                        maxBarThickness: 50
+                    });
+                }
+                
+                // Функция для генерации случайного цвета
+                function getRandomColor() {
+                    var letters = '0123456789ABCDEF';
+                    var color = '#';
+                    for (var i = 0; i < 6; i++) {
+                        color += letters[Math.floor(Math.random() * 16)];
+                    }
+                    return color;
+                }
+                
+                // Создаем график
+                var ctx = document.getElementById('clostersComparisonChart').getContext('2d');
+                var chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sectionNumbers,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            xAxes: [{
+                                scaleLabel: {
+                                    display: true,
+                                    labelString: 'Разделы'
+                                },
+                                gridLines: {
+                                    display: false
+                                },
+                                ticks: {
+                                    fontSize: 14,
+                                    fontStyle: 'bold',
+                                    autoSkip: false
+                                },
+                                categoryPercentage: 0.8,
+                                barPercentage: 0.9
+                            }],
+                            yAxes: [{
+                                scaleLabel: {
+                                    display: true,
+                                    labelString: 'Баллы'
+                                },
+                                ticks: {
+                                    beginAtZero: true,
+                                    fontSize: 12
+                                }
+                            }]
+                        },
+                        title: {
+                            display: true,
+                            text: 'Сравнение значений по разделам между кластерами',
+                            fontSize: 16
+                        },
+                        tooltips: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: function(tooltipItems, data) {
+                                    var idx = tooltipItems[0].index;
+                                    return sectionNames[idx];
+                                }
+                            }
+                        },
+                        hover: {
+                            mode: 'nearest',
+                            intersect: true
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 20,
+                                fontSize: 14
+                            }
+                        },
+                        layout: {
+                            padding: {
+                                left: 0,
+                                right: 0,
+                                top: 0,
+                                bottom: 30
+                            }
+                        }
+                    }
+                });
+            });
+        </script>
     </div>
 
     {% for section in sections %}
