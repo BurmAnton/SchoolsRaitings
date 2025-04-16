@@ -314,3 +314,18 @@ def get_check_percentage(s_report):
         return int((checked_count / total_answers) * 100)
     except Exception:
         return 0
+
+@register.filter
+def report_zone(school_report):
+    """Returns CSS class for displaying report zone color"""
+    try:
+        if school_report.zone == 'G':
+            return 'green'
+        elif school_report.zone == 'Y':
+            return 'yellow'
+        elif school_report.zone == 'R':
+            return 'red'
+        else:
+            return ''
+    except:
+        return ''

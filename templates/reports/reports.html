@@ -46,95 +46,55 @@
         </style>
 {% endblock %}
 {% block script %}
-    <script src="{% static 'reports/js/reports.js' %}"></script>
+    <script src="{% static 'reports/js/reports.js' %}" rel="stylesheet"></script>
 {% endblock %}
 
 {% block body %}
     <div id="reports">
         <h2>Отчёты</h2>
-        <form action="{% url 'reports' school.id %}" method="post">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-sm btn-outline-primary" id="SendReports" name="send-reports" disabled>Отправить на согласование (<span class="selected-row-count">0</span>)</button>
-            <a href="javascript:void(0);" id="SelectAllReportsBtn" style="margin-left: 15px; display: none;" data-total-reports="{{ paginator.count }}">Выбрать все отчёты ({{ paginator.count }})</a>
-            <input type="hidden" name="select_all_reports" id="selectAllReportsInput" value="false">
-            
-            <table class="table">
-                <thead>
-                    <tr class="">
-                        <th scope="col" id="CheckAll">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="">
-                            </div>
-                        </th>
-                        <th scope="row" class="th-center">Год</th>
-                        <th scope="row">Кластер</th>
-                        <th scope="row">Уровень образования</th>
-                        <th scope="row" class="th-center">Статус</th>
-                        <!-- <th scope="row" class="th-center">Заполнено</th> -->
-                        <th scope="row" class="th-center">Баллы (Зона)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for report, s_report in reports %}
-                    <tr>
-                        <td scope="row" class="check-td">
-                            <div class="form-check">
-                                <input class="form-check-input center-checkbox" type="checkbox" name="report_ids" value="{{ report.id }}" 
-                                {% if not s_report or s_report.status != 'C' %}disabled{% endif %}>
-                            </div>
-                        </td>
-                        <td class="td-center">{{ report.year }}</td>
-                        <td>{{ report.closter }}</td>
-                        <td>{{ report.get_ed_level_display }}</td>
-                        <td class="td-center">                
-                            {% if s_report %}
-                                {% if s_report.status == 'D' %}
-                                    {% if s_report.is_outdated %}
-                                    <div class="outdated-report-tooltip">
-                                        <a href="{% url 'report' report.id school.id %}" style="color: green;">Принят <span class="outdated-report-badge">!</span></a>
-                                        <span class="tooltip-text">Отчет устарел: данные школы (кластер или уровень образования) были изменены после создания отчета</span>
-                                    </div>
-                                    {% else %}
-                                    <a href="{% url 'report' report.id school.id %}" style="color: green;">Принят</a>
-                                    {% endif %}
-                                {% elif s_report.status == 'A' %}
-                                    <a href="{% url 'report' report.id school.id %}" style="color: orange;">На согласовании в ТУ/ДО</a>
-                                {% elif s_report.status == 'B' %}
-                                    <a href="{% url 'report' report.id school.id %}" style="color: orange;">Отправлен в МинОбр</a>
-                                {% elif s_report.status == 'C' %}
-                                    <a href="{% url 'report' report.id school.id %}" style="color: red;">Заполнение</a>
-                                {% endif %}
-                                {% if s_report.status != 'C' %}
-                                    <a class="repeat-report" style="margin-left: 15px; cursor: pointer;" id="repeat-button">[Создать повторно]</a>
-                                    <div id="repeat-dialog">
-                                        <p>Вы точно хотите продублировать отчёт? Предыдущий отчёт будет отправлен на удаление и через 30 дней уничтожен, если ТУ/ДО не восстановит его.</p>
-                                        <div class="dialog-buttons">
-                                            <form action="{% url 'report' report.id school.id %}" method="post">
-                                                {% csrf_token %}
-                                                <button name="repeat_report" type="submit" class="btn-primary">Создать повторно</button>
-                                                <button type="button" id="repeat-dialog-cancel">Отмена</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                {% endif %}
+        <table class="table">
+            <tr class="">
+                <th scope="row" class="th-center">Год</th>
+                <th scope="row">Кластер</th>
+                <th scope="row">Уровень образования</th>
+                <th scope="row" class="th-center">Статус</th>
+                <!-- <th scope="row" class="th-center">Заполнено</th> -->
+                <th scope="row" class="th-center">Баллы (Зона)</th>
+            </tr>
+            {% for report in reports %}
+                <tr>
+                    <td scope="row" class="td-center">
+                        <a href="{% url 'report' report.0.id school.id %}">
+                            {{ report.0.year }}
+                        </a>
+                        {% if report.1 is not None and report.1.is_outdated %}
+                        <div class="outdated-report-tooltip">
+                            <span class="outdated-report-badge">!</span>
+                            <span class="tooltip-text">Отчет устарел: данные школы (кластер или уровень образования) были изменены после создания отчета</span>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td scope="row">{{ report.0.closter }}</td>
+                    <td scope="row">{{ report.0.get_ed_level_display }}</td>
+                    <td scope="row" class="td-center">
+                        {% if report.1 is not None %}{{ report.1.get_status_display }}
+                        {% else %}Ожидает заполнения{% endif %}
+                    </td>
+                    <td scope="row" class="td-center">
+                        
+                        <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
+                            {% if report.1 is not None %}
+                                <div style="background-color: {% if report.0.is_counting %}{{report.1.zone|get_color}} {% endif %}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                <div>{{ report.1.points|format_point }}</div>
                             {% else %}
-                                <a href="{% url 'report' report.id school.id %}" class="btn-fill-primary">Начать заполнение</a>
-                            {% endif %}
-                        </td>
-                        <td class="td-center">
-                            {% if s_report %}
-                                <div class="zone-wrapper">
-                                    <div class="zone {{s_report|report_zone}}"></div>
-                                    <span>{{ s_report.points }}</span>
-                                </div>
-                            {% else %}
-                                <span>-</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </form>
+                                <div style="background-color: white; width: 15px; height: 15px; border-radius: 15px"></div>
+                                <div>0</div>
+                            {% endif%}
+                        </div>
+                        
+                </td>
+                </tr>
+            {% endfor %}
+        </table>
     </div>
 {% endblock %}
