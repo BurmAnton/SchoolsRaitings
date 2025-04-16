@@ -109,7 +109,7 @@
     {% endif %}
     <div class="control-panel">
         <a href="{% url 'reports' school.id %}" style="width: 250px" class="btn btn-outline-primary" type="submit">Вернуться к отчётам</a>
-        {% if report.status == 'C' and not is_readonly %}
+        {% if s_report.status == 'C' and not is_readonly %}
             <button type="button" class="btn {% if report.is_ready %}btn-success{% else %}btn-secondary disabled{% endif %} " id='send-button' data-bs-toggle="modal" data-bs-target="#SaveModal">
                 Отправить в ТУ/ДО
             </button>
@@ -141,7 +141,7 @@
                             {% if field.answer_type == 'LST' %}
                                 <div class="mb-3 field filed-select">
                                     <label for="{{ question.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
-                                    <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ field.id }}" name="{{ field.id }}" {% if report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
+                                    <select class="selectpicker" data-width="100%" data-live-search="true" id="{{ field.id }}" name="{{ field.id }}" {% if s_report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
                                         <option data-points="0" value="">Не заполнено</option>
                                         {% for option in field.options.all %}
                                             <option value="{{ option.id }}"  data-points="{{option.points}}" {% if answers|find_answer:field == option.id %}selected{% endif %}>
@@ -160,13 +160,13 @@
                                             <span class="input-group-text">%</span>
                                         </div>
                                     {% endif %}
-                                    <input type="number" maxlength="4" class="form-control number-input" id="{{ field.id }}" data-points="{{ answers|get_points:field }}" value="{{answers|find_answer:field}}"  name="{{ field.id }}" placeholder="" {% if report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
+                                    <input type="number" maxlength="4" class="form-control number-input" id="{{ field.id }}" data-points="{{ answers|get_points:field }}" value="{{answers|find_answer:field}}"  name="{{ field.id }}" placeholder="" {% if s_report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
                                 </div>
                                 {% if answers|is_answer_changed:field %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span><br>{% endif %}
                                 {% if answers|is_answer_changed_by_mo:field %}<span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
                             {% elif field.answer_type == 'BL' %}
                                 <div class="form-check field">
-                                    <input class="form-check-input" type="checkbox" data-points="{{field.bool_points}}" name="{{ field.id }}" id="{{ field.id }}" {% if answers|find_answer:field %}checked{% endif %} {% if report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
+                                    <input class="form-check-input" type="checkbox" data-points="{{field.bool_points}}" name="{{ field.id }}" id="{{ field.id }}" {% if answers|find_answer:field %}checked{% endif %} {% if s_report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
                                     <label class="form-check-label" for="{{ field.id }}">{{ section.number }}.{{ field.number }}. {{ field.name }}</label>
                                 </div>
                                 {% if answers|is_answer_changed:field %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span><br>{% endif %}
@@ -185,7 +185,7 @@
                                                        id="mult_{{ field.id }}_{{ option.id }}" 
                                                        value="{{ option.id }}"
                                                        {% if option.id in answers|find_answer:field %}checked{% endif %} 
-                                                       {% if report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif %}>
+                                                       {% if s_report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif %}>
                                                 <label class="form-check-label" for="mult_{{ field.id }}_{{ option.id }}">
                                                     {{ option.name }}
                                                 </label>
@@ -222,7 +222,7 @@
                                             {% for link in answers|get_links:field %}
                                                 <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
                                                     <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ link.link}}"  style="width: 100%;"target="_blank" rel="noopener noreferrer">{{ link.link}}</a>
-                                                    {% if not is_readonly and report.status == 'C' or not is_readonly and request.user.is_superuser %}
+                                                    {% if not is_readonly and s_report.status == 'C' or not is_readonly and request.user.is_superuser %}
                                                         <button style="width: 50px; height: 100%;" class="btn btn-danger delete-link" data-linkid="{{link.id}}" name="delete-link">—</button>
                                                     {% endif %}
                                                 </div>
@@ -230,7 +230,7 @@
                                         </div>
                                     </div>
 
-                                    {% if not is_readonly and report.status == 'C' or not is_readonly and request.user.is_superuser %}
+                                    {% if not is_readonly and s_report.status == 'C' or not is_readonly and request.user.is_superuser %}
                                         <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка">
                                     {% endif %}
 
@@ -251,14 +251,14 @@
                                                         <a class='attachment{{field.id}}' href="{{ file.file.url }}"  style="width: 100%;" target="_blank">
                                                             {% if file.file %}<button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>{% else %}{% endif %}
                                                         </a>
-                                                        {% if not is_readonly and report.status == 'C' or not is_readonly and request.user.is_superuser %}
+                                                        {% if not is_readonly and s_report.status == 'C' or not is_readonly and request.user.is_superuser %}
                                                             <button style="width: 50px; height: 100%;" class="btn btn-danger delete-file" data-fileid="{{file.id}}" name="delete-file">—</button>
                                                         {% endif %}
                                                     </div>
                                                 {% endif %}
                                             {% endfor %}
                                         </div>
-                                        {% if not is_readonly and report.status == 'C' or not is_readonly and request.user.is_superuser %}
+                                        {% if not is_readonly and s_report.status == 'C' or not is_readonly and request.user.is_superuser %}
                                             <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" >
                                         {% endif %}
                                     </div>
@@ -281,7 +281,7 @@
                                                             <a class='attachment{{field.id}}' href="{{ file.file.url }}"  style="width: 100%;" target="_blank">
                                                                 <button class="btn btn-outline-success btn-sm" style="width: 100%; height: 100%; ">{{ file.file|filename }}</button>
                                                             </a>
-                                                            {% if not is_readonly and report.status == 'C' or not is_readonly and request.user.is_superuser %}
+                                                            {% if not is_readonly and s_report.status == 'C' or not is_readonly and request.user.is_superuser %}
                                                                 <button style="width: 50px; height: 100%;" class="btn btn-danger delete-file" data-fileid="{{file.id}}" name="delete-file">—</button>
                                                             {% endif %}
                                                         </div>
@@ -292,14 +292,14 @@
                                                 {% for link in answers|get_links:field %}
                                                     <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
                                                         <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ link.link}}"  style="width: 100%;"target="_blank" rel="noopener noreferrer">{{ link.link}}</a>
-                                                        {% if not is_readonly and report.status == 'C' or not is_readonly and request.user.is_superuser %}
+                                                        {% if not is_readonly and s_report.status == 'C' or not is_readonly and request.user.is_superuser %}
                                                             <button style="width: 50px; height: 100%;" class="btn btn-danger delete-link" data-linkid="{{link.id}}" name="delete-link">—</button>
                                                         {% endif %}
                                                     </div>
                                                 {% endfor %}
                                             </div>
                                             
-                                            {% if not is_readonly and report.status == 'C' or not is_readonly and request.user.is_superuser %}
+                                            {% if not is_readonly and s_report.status == 'C' or not is_readonly and request.user.is_superuser %}
                                                 <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" >
                                                 <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка">
                                             {% endif %}
@@ -327,7 +327,7 @@
                     {% if attachment.attachment_type == 'LNK' %}
                         <div class="mb-3 field">
                             <label for="Att{{ attachment.id }}">{{attachment.name}}</label>
-                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
+                            <input type="link" class="form-control" id="Att{{ attachment.id }}" name="{{attachment.id}}" placeholder="{{attachment.name}}" {% if s_report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
                         </div>
                     {% elif attachment.attachment_type == 'DC' %}
                     <div class="mb-3">
@@ -336,7 +336,7 @@
                             Документ загружен успешно!
                         </div>
                         <div class="get-attachment">
-                            <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" {% if report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
+                            <input type="file" name="{{attachment.id}}" class="form-control" id="Att{{attachment.id}}" {% if s_report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif%}>
                             <a {% if attachment|get_file_link != None %}href="{{ attachment|get_file_link }}"{% else %}style="display: none;"{% endif %}>
                                 <button class="btn btn-outline-success">Скачать прикреплённый файл</button>
                             </a>
