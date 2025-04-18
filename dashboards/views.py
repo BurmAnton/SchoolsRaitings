@@ -3,10 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
-from django.db.models import Sum
+from django.db.models import Sum, Prefetch
 from django.conf import settings
 from django.contrib import messages
-
+from collections import defaultdict
 from django.http import HttpResponse
 from io import BytesIO
 from openpyxl import Workbook
@@ -14,7 +14,7 @@ from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 
 from dashboards import utils
-from reports.models import Answer, Report, SchoolReport, Section, Field, Year
+from reports.models import Answer, Report, SchoolReport, Section, Field, Year, SectionSreport
 from schools.models import SchoolCloster, School, TerAdmin
 from common.utils import get_cache_key
 
@@ -1069,25 +1069,13 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
     Генерирует Excel-файл с распределением зон по ТУ/ДО, разделам и кластерам,
     а также с детальной информацией по школам и показателям
     """
-    # Отладочные сообщения для проверки входных данных
-    print(f"DEBUG - Generating Excel, stats: {len(stats) if stats else 0} items")
-    print(f"DEBUG - Generating Excel, show_year_column: {show_year_column}")
-    print(f"DEBUG - Generating Excel, section_stats: {len(section_stats) if section_stats else 0} items")
-    print(f"DEBUG - Generating Excel, cluster_stats: {len(cluster_stats) if cluster_stats else 0} items")
-    
     # Проверяем и исправляем входные данные
-    if not stats:
-        stats = []
-    
-    if not section_stats:
-        section_stats = []
-    
-    if not cluster_stats:
-        cluster_stats = []
+    stats = stats or []
+    section_stats = section_stats or []
+    cluster_stats = cluster_stats or []
     
     # Если stats - это список словарей с ключом 'years', разгруппируем его
     if show_year_column and stats and isinstance(stats, list) and stats and isinstance(stats[0], dict) and 'years' in stats[0]:
-        print("DEBUG - Stats is grouped, flattening it")
         flat_stats = []
         for group in stats:
             flat_stats.extend(group.get('years', []))
@@ -1096,762 +1084,30 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
     # Создаем Excel-файл
     output = BytesIO()
     workbook = Workbook()
+    workbook.active.title = "Визуализация"
     
-    # Переименовываем первый лист в "Визуализация"
-    visualization_sheet = workbook.active
-    visualization_sheet.title = "Визуализация"
-    
-    # Стили для ячеек
-    red_fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
-    yellow_fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-    green_fill = PatternFill(start_color='FF00FF00', end_color='FF00FF00', fill_type='solid')
-    bold_font = Font(bold=True)
+    # Стили для ячеек (определяем один раз для повторного использования)
+    styles = {
+        'red_fill': PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid'),
+        'yellow_fill': PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid'),
+        'green_fill': PatternFill(start_color='FF00FF00', end_color='FF00FF00', fill_type='solid'),
+        'bold_font': Font(bold=True)
+    }
     
     # ========== ВКЛАДКА "ВИЗУАЛИЗАЦИЯ" ==========
-    # Заголовок
-    row_num = 1
-    visualization_sheet.cell(row=row_num, column=1, value="Распределение отчетов по зонам").font = bold_font
-    row_num += 2
-    
-    # Заголовки столбцов
-    headers = ["ТУ/ДО"]
-    
-    # Добавляем столбец "Год" после ТУ/ДО, если нужно
-    if show_year_column:
-        headers.append("Год")
-    
-    headers.extend(["Красная зона", "Жёлтая зона", "Зелёная зона", "Всего отчетов"])
-    
-    for col_num, header in enumerate(headers, 1):
-        cell = visualization_sheet.cell(row=row_num, column=col_num, value=header)
-        cell.font = bold_font
-    row_num += 1
-    
-    try:
-        # Защитный блок для отлова ошибок при работе с данными
-        if not stats:
-            # Если нет данных, выводим сообщение
-            visualization_sheet.cell(row=row_num, column=1, value="Нет данных для отображения")
-            row_num += 1
-        # Если выбрано несколько лет, группируем данные по ТУ/ДО
-        elif show_year_column:
-            # Проверяем структуру данных
-            if not all(isinstance(item, dict) and 'ter_admin_name' in item for item in stats):
-                visualization_sheet.cell(row=row_num, column=1, value="Ошибка в структуре данных")
-                row_num += 1
-            else:
-                # Группируем данные по ter_admin_name
-                ter_admin_groups = {}
-                for item in stats:
-                    ter_admin_name = item.get('ter_admin_name', 'Неизвестно')
-                    if ter_admin_name not in ter_admin_groups:
-                        ter_admin_groups[ter_admin_name] = []
-                    ter_admin_groups[ter_admin_name].append(item)
-                
-                # Отображаем данные по группам с объединением ячеек
-                for ter_admin_name in sorted(ter_admin_groups.keys()):
-                    group_items = ter_admin_groups[ter_admin_name]
-                    start_row = row_num
-                    
-                    # Сортируем элементы группы по году
-                    group_items.sort(key=lambda x: x.get('year', 0), reverse=True)
-                    
-                    # Проходим по всем годам для текущего ТУ/ДО
-                    for item in group_items:
-                        col = 1
-                        
-                        # Название ТУ/ДО (добавляем только в первую строку группы)
-                        if row_num == start_row:
-                            visualization_sheet.cell(row=row_num, column=col, value=ter_admin_name)
-                        col += 1
-                        
-                        # Год
-                        visualization_sheet.cell(row=row_num, column=col, value=item.get('year', ''))
-                        col += 1
-                        
-                        # Красная зона (прочерк, если 0)
-                        red_zone_value = item.get('red_zone', 0)
-                        cell_value = "-" if red_zone_value == 0 else red_zone_value
-                        cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                        if red_zone_value > 0:
-                            cell.fill = red_fill
-                        col += 1
-                        
-                        # Жёлтая зона (прочерк, если 0)
-                        yellow_zone_value = item.get('yellow_zone', 0)
-                        cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
-                        cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                        if yellow_zone_value > 0:
-                            cell.fill = yellow_fill
-                        col += 1
-                        
-                        # Зелёная зона (прочерк, если 0)
-                        green_zone_value = item.get('green_zone', 0)
-                        cell_value = "-" if green_zone_value == 0 else green_zone_value
-                        cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                        if green_zone_value > 0:
-                            cell.fill = green_fill
-                        col += 1
-                        
-                        # Всего отчетов (прочерк, если 0)
-                        total_value = item.get('total', 0)
-                        cell_value = "-" if total_value == 0 else total_value
-                        visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                        
-                        row_num += 1
-                    
-                    # Объединяем ячейки с названием ТУ/ДО, если группа содержит более одной записи
-                    if len(group_items) > 1:
-                        try:
-                            visualization_sheet.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
-                        except Exception as e:
-                            print(f"DEBUG - Error merging cells: {str(e)}")
-        else:
-            # Если выбран один год, используем исходную логику
-            # Сортируем статистику по имени ТУ/ДО
-            sorted_stats = sorted(stats, key=lambda x: x.get('ter_admin_name', ''))
-            for item in sorted_stats:
-                col = 1
-                
-                # Название ТУ/ДО
-                visualization_sheet.cell(row=row_num, column=col, value=item.get('ter_admin_name', 'Неизвестно'))
-                col += 1
-                
-                # Красная зона (прочерк, если 0)
-                red_zone_value = item.get('red_zone', 0)
-                cell_value = "-" if red_zone_value == 0 else red_zone_value
-                cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                if red_zone_value > 0:
-                    cell.fill = red_fill
-                col += 1
-                
-                # Жёлтая зона (прочерк, если 0)
-                yellow_zone_value = item.get('yellow_zone', 0)
-                cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
-                cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                if yellow_zone_value > 0:
-                    cell.fill = yellow_fill
-                col += 1
-                
-                # Зелёная зона (прочерк, если 0)
-                green_zone_value = item.get('green_zone', 0)
-                cell_value = "-" if green_zone_value == 0 else green_zone_value
-                cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                if green_zone_value > 0:
-                    cell.fill = green_fill
-                col += 1
-                
-                # Всего отчетов (прочерк, если 0)
-                total_value = item.get('total', 0)
-                cell_value = "-" if total_value == 0 else total_value
-                visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                
-                row_num += 1
-    except Exception as e:
-        # В случае ошибки выводим сообщение об ошибке в Excel
-        print(f"DEBUG - Error processing stats data: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-        visualization_sheet.cell(row=row_num, column=1, value=f"Ошибка обработки данных: {str(e)}")
-        row_num += 1
-    
-    # Автоподбор ширины столбцов для вкладки "Визуализация"
-    for column in visualization_sheet.columns:
-        max_length = 0
-        column_letter = get_column_letter(column[0].column)
-        for cell in column:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        adjusted_width = (max_length + 2)
-        visualization_sheet.column_dimensions[column_letter].width = adjusted_width
-    
-    # ========== ДОБАВЛЯЕМ ТАБЛИЦУ "РАСПРЕДЕЛЕНИЕ ОТЧЕТОВ ПО РАЗДЕЛАМ" ==========
-    if section_stats:
-        row_num += 2
-        visualization_sheet.cell(row=row_num, column=1, value="Распределение отчетов по разделам").font = bold_font
-        row_num += 2
-        
-        # Заголовки столбцов
-        headers = ["Раздел"]
-        
-        # Добавляем столбец "Год" после Раздела, если нужно
-        if show_year_column:
-            headers.append("Год")
-        
-        headers.extend(["Красная зона", "Жёлтая зона", "Зелёная зона", "Всего отчетов"])
-        
-        for col_num, header in enumerate(headers, 1):
-            cell = visualization_sheet.cell(row=row_num, column=col_num, value=header)
-            cell.font = bold_font
-        row_num += 1
-        
-        # Если выбрано несколько лет и данные сгруппированы
-        if show_year_column and isinstance(section_stats[0], dict) and 'years' in section_stats[0]:
-            # Группируем данные по названию раздела
-            for section_data in section_stats:
-                section_name = section_data['section_name']
-                start_row = row_num
-                
-                # Сортируем годы
-                years_data = section_data['years']
-                years_data.sort(key=lambda x: x.get('year', 0))
-                
-                # Проходим по всем годам для текущего раздела
-                for item in years_data:
-                    col = 1
-                    
-                    # Название раздела (добавляем только в первую строку группы)
-                    if row_num == start_row:
-                        visualization_sheet.cell(row=row_num, column=col, value=section_name)
-                    col += 1
-                    
-                    # Год
-                    visualization_sheet.cell(row=row_num, column=col, value=item.get('year', ''))
-                    col += 1
-                    
-                    # Красная зона (прочерк, если 0)
-                    red_zone_value = item['red_zone']
-                    cell_value = "-" if red_zone_value == 0 else red_zone_value
-                    cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                    if red_zone_value > 0:
-                        cell.fill = red_fill
-                    col += 1
-                    
-                    # Жёлтая зона (прочерк, если 0)
-                    yellow_zone_value = item['yellow_zone']
-                    cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
-                    cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                    if yellow_zone_value > 0:
-                        cell.fill = yellow_fill
-                    col += 1
-                    
-                    # Зелёная зона (прочерк, если 0)
-                    green_zone_value = item['green_zone']
-                    cell_value = "-" if green_zone_value == 0 else green_zone_value
-                    cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                    if green_zone_value > 0:
-                        cell.fill = green_fill
-                    col += 1
-                    
-                    # Всего отчетов (прочерк, если 0)
-                    total_value = item['total']
-                    cell_value = "-" if total_value == 0 else total_value
-                    visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                    
-                    row_num += 1
-                
-                # Объединяем ячейки с названием раздела, если группа содержит более одной записи
-                if len(years_data) > 1:
-                    visualization_sheet.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
-        else:
-            # Если один год или данные не сгруппированы
-            for item in section_stats:
-                col = 1
-                
-                # Название раздела
-                visualization_sheet.cell(row=row_num, column=col, value=item['section_name'])
-                col += 1
-                
-                # Год (если нужно)
-                if show_year_column:
-                    visualization_sheet.cell(row=row_num, column=col, value=item.get('year', ''))
-                    col += 1
-                
-                # Красная зона (прочерк, если 0)
-                red_zone_value = item['red_zone']
-                cell_value = "-" if red_zone_value == 0 else red_zone_value
-                cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                if red_zone_value > 0:
-                    cell.fill = red_fill
-                col += 1
-                
-                # Жёлтая зона (прочерк, если 0)
-                yellow_zone_value = item['yellow_zone']
-                cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
-                cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                if yellow_zone_value > 0:
-                    cell.fill = yellow_fill
-                col += 1
-                
-                # Зелёная зона (прочерк, если 0)
-                green_zone_value = item['green_zone']
-                cell_value = "-" if green_zone_value == 0 else green_zone_value
-                cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                if green_zone_value > 0:
-                    cell.fill = green_fill
-                col += 1
-                
-                # Всего отчетов (прочерк, если 0)
-                total_value = item['total']
-                cell_value = "-" if total_value == 0 else total_value
-                visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                
-                row_num += 1
-        
-
-    # ========== ДОБАВЛЯЕМ ТАБЛИЦУ "РАСПРЕДЕЛЕНИЕ ОТЧЕТОВ ПО КЛАСТЕРАМ" ==========
-    if cluster_stats:
-        row_num += 2
-        visualization_sheet.cell(row=row_num, column=1, value="Распределение отчетов по кластерам").font = bold_font
-        row_num += 2
-        
-        # Заголовки столбцов
-        headers = ["Кластер"]
-        
-        # Добавляем столбец "Год" после Кластера, если нужно
-        if show_year_column:
-            headers.append("Год")
-        
-        headers.extend(["Красная зона", "Жёлтая зона", "Зелёная зона", "Всего отчетов"])
-        
-        for col_num, header in enumerate(headers, 1):
-            cell = visualization_sheet.cell(row=row_num, column=col_num, value=header)
-            cell.font = bold_font
-        row_num += 1
-        
-        # Если выбрано несколько лет и данные сгруппированы
-        if show_year_column and isinstance(cluster_stats[0], dict) and 'years' in cluster_stats[0]:
-            # Группируем данные по названию кластера
-            for cluster_data in cluster_stats:
-                cluster_name = cluster_data['cluster_name']
-                start_row = row_num
-                
-                # Сортируем годы
-                years_data = cluster_data['years']
-                years_data.sort(key=lambda x: x.get('year', 0))
-                
-                # Проходим по всем годам для текущего кластера
-                for item in years_data:
-                    col = 1
-                    
-                    # Название кластера (добавляем только в первую строку группы)
-                    if row_num == start_row:
-                        visualization_sheet.cell(row=row_num, column=col, value=cluster_name)
-                    col += 1
-                    
-                    # Год
-                    visualization_sheet.cell(row=row_num, column=col, value=item.get('year', ''))
-                    col += 1
-                    
-                    # Красная зона (прочерк, если 0)
-                    red_zone_value = item['red_zone']
-                    cell_value = "-" if red_zone_value == 0 else red_zone_value
-                    cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                    if red_zone_value > 0:
-                        cell.fill = red_fill
-                    col += 1
-                    
-                    # Жёлтая зона (прочерк, если 0)
-                    yellow_zone_value = item['yellow_zone']
-                    cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
-                    cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                    if yellow_zone_value > 0:
-                        cell.fill = yellow_fill
-                    col += 1
-                    
-                    # Зелёная зона (прочерк, если 0)
-                    green_zone_value = item['green_zone']
-                    cell_value = "-" if green_zone_value == 0 else green_zone_value
-                    cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                    if green_zone_value > 0:
-                        cell.fill = green_fill
-                    col += 1
-                    
-                    # Всего отчетов (прочерк, если 0)
-                    total_value = item['total']
-                    cell_value = "-" if total_value == 0 else total_value
-                    visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                    
-                    row_num += 1
-                
-                # Объединяем ячейки с названием кластера, если группа содержит более одной записи
-                if len(years_data) > 1:
-                    visualization_sheet.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
-        else:
-            # Если один год или данные не сгруппированы
-            for item in cluster_stats:
-                col = 1
-                
-                # Название кластера
-                visualization_sheet.cell(row=row_num, column=col, value=item['cluster_name'])
-                col += 1
-                
-                # Год (если нужно)
-                if show_year_column:
-                    visualization_sheet.cell(row=row_num, column=col, value=item.get('year', ''))
-                    col += 1
-                
-                # Красная зона (прочерк, если 0)
-                red_zone_value = item['red_zone']
-                cell_value = "-" if red_zone_value == 0 else red_zone_value
-                cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                if red_zone_value > 0:
-                    cell.fill = red_fill
-                col += 1
-                
-                # Жёлтая зона (прочерк, если 0)
-                yellow_zone_value = item['yellow_zone']
-                cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
-                cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                if yellow_zone_value > 0:
-                    cell.fill = yellow_fill
-                col += 1
-                
-                # Зелёная зона (прочерк, если 0)
-                green_zone_value = item['green_zone']
-                cell_value = "-" if green_zone_value == 0 else green_zone_value
-                cell = visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                if green_zone_value > 0:
-                    cell.fill = green_fill
-                col += 1
-                
-                # Всего отчетов (прочерк, если 0)
-                total_value = item['total']
-                cell_value = "-" if total_value == 0 else total_value
-                visualization_sheet.cell(row=row_num, column=col, value=cell_value)
-                
-                row_num += 1
-    
-    # Обновляем ширину столбцов после добавления новых таблиц
-    for column in visualization_sheet.columns:
-        max_length = 0
-        column_letter = get_column_letter(column[0].column)
-        for cell in column:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        adjusted_width = (max_length + 2)
-        visualization_sheet.column_dimensions[column_letter].width = adjusted_width
+    _create_visualization_sheet(workbook.active, stats, show_year_column, styles, section_stats, cluster_stats)
     
     # ========== ВКЛАДКА "ОБЩИЙ СВОД" ==========
-    # Создаем лист для общего свода
     general_sheet = workbook.create_sheet(title="Общий свод")
     
-    # Получаем все отчеты школ для выбранных годов
-    all_school_reports = SchoolReport.objects.filter(
-        report__year__in=years,
-        status__in=['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании
-    ).exclude(
-        school=None
-    ).exclude(
-        school__is_archived=True
-    ).select_related(
-        'school__ter_admin',
-        'school__closter',
-        'report__year'
-    ).prefetch_related(
-        'sections',
-        'answers'
-    )
+    # Оптимизированный запрос для получения всех отчетов школ с предзагрузкой связанных данных
+    all_school_reports = _get_all_school_reports(years, show_ter_status, ter_admin_ids)
     
-    # Заголовок
-    row_num = 1
-    general_sheet.cell(row=row_num, column=1, value="Общий свод по школам").font = bold_font
-    row_num += 2
-    
-    # Получаем все разделы для выбранных годов для "Общего свода"
-    sections = Section.objects.filter(
-        report__year__in=years
-    ).distinct('number').order_by('number')
-    
-    # Заголовки столбцов общего свода
-    headers = ["Школа", "ТУ/ДО", "Уровень образования", "Кластер", "Итого баллов"]
-    
-    # Добавляем столбцы с разделами
-    section_headers = [f"Раздел {s.number}" for s in sections]
-    headers.extend(section_headers)
-    
-    for col_num, header in enumerate(headers, 1):
-        cell = general_sheet.cell(row=row_num, column=col_num, value=header)
-        cell.font = bold_font
-    row_num += 1
-    
-    # Словарь для хранения уровней образования
-    ed_levels = {
-        'A': "1 — 11 классы",
-        'M': "1 — 9 классы",
-        'S': "1 — 4 классы",
-        'MG': "5 — 11 классы",
-        'G': "10 — 11 классы",
-    }
-    
-    # Словарь для группировки отчетов по школам
-    school_data = {}
-    
-    # Группируем отчеты по школам
-    for s_report in all_school_reports:
-        school = s_report.school
-        school_id = school.id
-        year = s_report.report.year
-        
-        if (school_id, year.id) not in school_data:
-            school_data[(school_id, year.id)] = {
-                'school_name': school.name,
-                'ter_admin_name': school.ter_admin.name if school.ter_admin else "-",
-                'ed_level': ed_levels.get(school.ed_level, "Н/Д"),
-                'closter_name': school.closter.name if school.closter else "-",
-                'total_points': 0,  # Инициализируем 0, посчитаем сумму позже
-                'zone': s_report.zone,  # Сохраняем зону отчета
-                'sections': {},
-                'year': year.year
-            }
-        
-        # Добавляем данные по секциям
-        for section in s_report.sections.all():
-            section_number = section.section.number
-            if section_number not in school_data[(school_id, year.id)]['sections']:
-                school_data[(school_id, year.id)]['sections'][section_number] = section.points
-                # Добавляем баллы секции к общей сумме
-                school_data[(school_id, year.id)]['total_points'] += section.points
-    
-    # Сортируем данные школ по ТУ/ДО и имени школы
-    sorted_school_data = sorted(
-        school_data.values(),
-        key=lambda x: (x['ter_admin_name'], x['school_name'], x.get('year', 0))
-    )
-    
-    # Заполняем данные по школам
-    for data in sorted_school_data:
-        col = 1
-        
-        # Название школы
-        general_sheet.cell(row=row_num, column=col, value=data['school_name'])
-        col += 1
-        
-        # ТУ/ДО
-        general_sheet.cell(row=row_num, column=col, value=data['ter_admin_name'])
-        col += 1
-        
-        # Уровень образования
-        general_sheet.cell(row=row_num, column=col, value=data['ed_level'])
-        col += 1
-        
-        # Кластер
-        general_sheet.cell(row=row_num, column=col, value=data['closter_name'])
-        col += 1
-        
-        # Итого баллов
-        cell = general_sheet.cell(row=row_num, column=col, value=data['total_points'])
-        # Устанавливаем цвет ячейки в зависимости от зоны
-        if data.get('zone') == 'R':
-            cell.fill = red_fill
-        elif data.get('zone') == 'Y':
-            cell.fill = yellow_fill
-        elif data.get('zone') == 'G':
-            cell.fill = green_fill
-        col += 1
-        
-        # Баллы по разделам
-        for section in sections:
-            section_points = data['sections'].get(section.number, "-")
-            general_sheet.cell(row=row_num, column=col, value=section_points)
-            col += 1
-        
-        row_num += 1
-    
-    # Автоподбор ширины столбцов для вкладки "Общий свод"
-    for column in general_sheet.columns:
-        max_length = 0
-        column_letter = get_column_letter(column[0].column)
-        for cell in column:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        adjusted_width = (max_length + 2)
-        general_sheet.column_dimensions[column_letter].width = adjusted_width
+    # Создаем общий свод
+    _create_general_sheet(general_sheet, all_school_reports, years, styles)
     
     # ========== ВКЛАДКИ ДЛЯ КАЖДОГО РАЗДЕЛА ==========
-    # Получаем все разделы для выбранных годов
-    all_sections = Section.objects.filter(
-        report__year__in=years
-    ).values('name', 'number').distinct('number').order_by('number')
-    
-    # Словарь для хранения уровней образования
-    ed_levels = {
-        'A': "1 — 11 классы",
-        'M': "1 — 9 классы",
-        'S': "1 — 4 классы",
-        'MG': "5 — 11 классы",
-        'G': "10 — 11 классы",
-    }
-    
-    # Получаем все отчеты школ для выбранных годов
-    all_school_reports_section_filter = {
-        'report__year__in': years,
-        'status__in': ['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании
-    }
-    
-    # Если указаны ТУ/ДО, добавляем их в фильтр
-    if ter_admin_ids:
-        all_school_reports_section_filter['school__ter_admin_id__in'] = ter_admin_ids
-    
-    all_school_reports = SchoolReport.objects.filter(**all_school_reports_section_filter).exclude(
-        school=None
-    ).exclude(
-        school__is_archived=True
-    ).select_related(
-        'school__ter_admin',
-        'school__closter',
-        'report__year'
-    ).prefetch_related(
-        'sections',
-        'answers'
-    )
-    
-    # Создаем вкладку для каждого раздела
-    for section in all_sections:
-        section_name = section['name']
-        section_number = section['number']
-        
-        # Создаем имя листа без недопустимых символов (макс. 31 символ)
-        safe_sheet_name = f"Раздел {section_number}"
-        if len(safe_sheet_name) > 31:
-            safe_sheet_name = safe_sheet_name[:28] + "..."
-        
-        section_sheet = workbook.create_sheet(title=safe_sheet_name)
-        
-        # Заголовок
-        row_num = 1
-        section_sheet.cell(row=row_num, column=1, value=f"Раздел {section_number}: {section_name}").font = bold_font
-        row_num += 2
-        
-        # Получаем поля (показатели) для текущего раздела
-        fields = Field.objects.filter(
-            sections__number=section_number,
-            sections__report__year__in=years
-        ).distinct().order_by('number')
-        
-        # Заголовки столбцов: базовые + показатели
-        headers = ["Школа", "ТУ/ДО", "Уровень образования", "Кластер"]
-        field_headers = [f"{field.number}. {field.name}" for field in fields]
-        headers.extend(field_headers)
-        
-        for col_num, header in enumerate(headers, 1):
-            cell = section_sheet.cell(row=row_num, column=col_num, value=header)
-            cell.font = bold_font
-        row_num += 1
-        
-        # Словарь для хранения данных по школам
-        school_data = {}
-        
-        # Собираем ответы для текущего раздела
-        for s_report in all_school_reports:
-            school = s_report.school
-            
-            if not school:
-                continue
-            
-            # Пропускаем, если нет секции для этого раздела
-            report_sections = s_report.sections.filter(section__number=section_number)
-            if not report_sections.exists():
-                continue
-            
-            school_id = school.id
-            
-            if school_id not in school_data:
-                school_data[school_id] = {
-                    'school_name': school.name,
-                    'ter_admin_name': school.ter_admin.name if school.ter_admin else "-",
-                    'ed_level': ed_levels.get(school.ed_level, "Н/Д"),
-                    'closter_name': school.closter.name if school.closter else "-",
-                    'field_data': {}
-                }
-            
-            # Собираем ответы на показатели этого раздела
-            for field in fields:
-                field_id = field.id
-                
-                # Ищем ответ для этого показателя
-                answer = Answer.objects.filter(
-                    question_id=field_id, 
-                    s_report=s_report
-                ).first()
-                
-                if answer:
-                    field_data = {
-                        'points': answer.points,
-                        'zone': answer.zone
-                    }
-                    
-                    # Если уже есть данные по этому полю, обновляем их только если ответ новее
-                    if field_id in school_data[school_id]['field_data']:
-                        if s_report.report.year.year > school_data[school_id]['field_data'][field_id].get('year', 0):
-                            school_data[school_id]['field_data'][field_id] = field_data
-                            school_data[school_id]['field_data'][field_id]['year'] = s_report.report.year.year
-                    else:
-                        school_data[school_id]['field_data'][field_id] = field_data
-                        school_data[school_id]['field_data'][field_id]['year'] = s_report.report.year.year
-        
-        # Сортируем данные школ по ТУ/ДО и имени школы
-        sorted_school_data = sorted(
-            school_data.values(),
-            key=lambda x: (x['ter_admin_name'], x['school_name'])
-        )
-        
-        # Заполняем данные по школам
-        for data in sorted_school_data:
-            col = 1
-            
-            # Название школы
-            section_sheet.cell(row=row_num, column=col, value=data['school_name'])
-            col += 1
-            
-            # ТУ/ДО
-            section_sheet.cell(row=row_num, column=col, value=data['ter_admin_name'])
-            col += 1
-            
-            # Уровень образования
-            section_sheet.cell(row=row_num, column=col, value=data['ed_level'])
-            col += 1
-            
-            # Кластер
-            section_sheet.cell(row=row_num, column=col, value=data['closter_name'])
-            col += 1
-            
-            # Данные по показателям
-            for field in fields:
-                field_id = field.id
-                field_data = data['field_data'].get(field_id, {})
-                
-                if field_data:
-                    points = field_data.get('points', "-")
-                    zone = field_data.get('zone', '')
-                    
-                    cell = section_sheet.cell(row=row_num, column=col, value=points)
-                    
-                    # Устанавливаем цвет ячейки в зависимости от зоны
-                    if zone == 'R':
-                        cell.fill = red_fill
-                    elif zone == 'Y':
-                        cell.fill = yellow_fill
-                    elif zone == 'G':
-                        cell.fill = green_fill
-                else:
-                    section_sheet.cell(row=row_num, column=col, value="-")
-                
-                col += 1
-            
-            row_num += 1
-        
-        # Автоподбор ширины столбцов для вкладки раздела
-        for column in section_sheet.columns:
-            max_length = 0
-            column_letter = get_column_letter(column[0].column)
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = (max_length + 2)
-            section_sheet.column_dimensions[column_letter].width = adjusted_width
+    _create_section_sheets(workbook, all_school_reports, years, styles)
     
     # Сохраняем файл
     workbook.save(output)
@@ -1867,6 +1123,577 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
     response['Content-Disposition'] = f'attachment; filename="zone_distribution_{years_str}.xlsx"'
     
     return response
+
+# Вспомогательные функции для generate_zone_distribution_excel
+def _create_visualization_sheet(sheet, stats, show_year_column, styles, section_stats, cluster_stats):
+    """Создает вкладку визуализации в Excel-файле"""
+    # Заголовок
+    row_num = 1
+    cell = sheet.cell(row=row_num, column=1, value="Распределение отчетов по зонам")
+    cell.font = styles['bold_font']
+    row_num += 2
+    
+    # Заголовки столбцов
+    headers = ["ТУ/ДО"]
+    if show_year_column:
+        headers.append("Год")
+    headers.extend(["Красная зона", "Жёлтая зона", "Зелёная зона", "Всего отчетов"])
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = sheet.cell(row=row_num, column=col_num, value=header)
+        cell.font = styles['bold_font']
+    row_num += 1
+    
+    try:
+        if not stats:
+            sheet.cell(row=row_num, column=1, value="Нет данных для отображения")
+        elif show_year_column:
+            row_num = _add_multi_year_stats(sheet, stats, row_num, styles)
+        else:
+            row_num = _add_single_year_stats(sheet, stats, row_num, styles)
+            
+        # Добавляем таблицы по разделам и кластерам
+        if section_stats:
+            row_num = _add_section_stats(sheet, section_stats, show_year_column, row_num, styles)
+        
+        if cluster_stats:
+            row_num = _add_cluster_stats(sheet, cluster_stats, show_year_column, row_num, styles)
+    except Exception as e:
+        sheet.cell(row=row_num, column=1, value=f"Ошибка обработки данных: {str(e)}")
+    
+    # Автоподбор ширины столбцов
+    _adjust_column_width(sheet)
+
+def _add_multi_year_stats(sheet, stats, row_num, styles):
+    """Добавляет статистику за несколько лет в таблицу"""
+    if not all(isinstance(item, dict) and 'ter_admin_name' in item for item in stats):
+        sheet.cell(row=row_num, column=1, value="Ошибка в структуре данных")
+        return row_num + 1
+        
+    # Группируем данные по ter_admin_name
+    ter_admin_groups = {}
+    for item in stats:
+        ter_admin_name = item.get('ter_admin_name', 'Неизвестно')
+        if ter_admin_name not in ter_admin_groups:
+            ter_admin_groups[ter_admin_name] = []
+        ter_admin_groups[ter_admin_name].append(item)
+    
+    # Отображаем данные по группам с объединением ячеек
+    for ter_admin_name in sorted(ter_admin_groups.keys()):
+        group_items = ter_admin_groups[ter_admin_name]
+        start_row = row_num
+        
+        # Сортируем элементы группы по году
+        group_items.sort(key=lambda x: x.get('year', 0), reverse=True)
+        
+        # Проходим по всем годам для текущего ТУ/ДО
+        for item in group_items:
+            col = 1
+            
+            # Название ТУ/ДО (добавляем только в первую строку группы)
+            if row_num == start_row:
+                sheet.cell(row=row_num, column=col, value=ter_admin_name)
+            col += 1
+            
+            # Год
+            sheet.cell(row=row_num, column=col, value=item.get('year', ''))
+            col += 1
+            
+            # Данные по зонам
+            row_num = _add_zone_cells(sheet, row_num, col, item, styles)
+        
+        # Объединяем ячейки с названием ТУ/ДО, если группа содержит более одной записи
+        if len(group_items) > 1:
+            try:
+                sheet.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
+            except Exception:
+                pass
+    
+    return row_num
+
+def _add_single_year_stats(sheet, stats, row_num, styles):
+    """Добавляет статистику за один год в таблицу"""
+    # Сортируем статистику по имени ТУ/ДО
+    sorted_stats = sorted(stats, key=lambda x: x.get('ter_admin_name', ''))
+    for item in sorted_stats:
+        col = 1
+        
+        # Название ТУ/ДО
+        sheet.cell(row=row_num, column=col, value=item.get('ter_admin_name', 'Неизвестно'))
+        col += 1
+        
+        # Данные по зонам
+        row_num = _add_zone_cells(sheet, row_num, col, item, styles)
+    
+    return row_num
+
+def _add_zone_cells(sheet, row_num, col, item, styles):
+    """Добавляет ячейки с данными по зонам в таблицу"""
+    # Красная зона
+    red_zone_value = item.get('red_zone', 0)
+    cell_value = "-" if red_zone_value == 0 else red_zone_value
+    cell = sheet.cell(row=row_num, column=col, value=cell_value)
+    if red_zone_value > 0:
+        cell.fill = styles['red_fill']
+    col += 1
+    
+    # Жёлтая зона
+    yellow_zone_value = item.get('yellow_zone', 0)
+    cell_value = "-" if yellow_zone_value == 0 else yellow_zone_value
+    cell = sheet.cell(row=row_num, column=col, value=cell_value)
+    if yellow_zone_value > 0:
+        cell.fill = styles['yellow_fill']
+    col += 1
+    
+    # Зелёная зона
+    green_zone_value = item.get('green_zone', 0)
+    cell_value = "-" if green_zone_value == 0 else green_zone_value
+    cell = sheet.cell(row=row_num, column=col, value=cell_value)
+    if green_zone_value > 0:
+        cell.fill = styles['green_fill']
+    col += 1
+    
+    # Всего отчетов
+    total_value = item.get('total', 0)
+    cell_value = "-" if total_value == 0 else total_value
+    sheet.cell(row=row_num, column=col, value=cell_value)
+    
+    return row_num + 1
+
+def _add_section_stats(sheet, section_stats, show_year_column, row_num, styles):
+    """Добавляет статистику по разделам в таблицу"""
+    row_num += 2
+    sheet.cell(row=row_num, column=1, value="Распределение отчетов по разделам").font = styles['bold_font']
+    row_num += 2
+    
+    # Заголовки столбцов
+    headers = ["Раздел"]
+    if show_year_column:
+        headers.append("Год")
+    headers.extend(["Красная зона", "Жёлтая зона", "Зелёная зона", "Всего отчетов"])
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = sheet.cell(row=row_num, column=col_num, value=header)
+        cell.font = styles['bold_font']
+    row_num += 1
+    
+    # Добавляем данные по разделам
+    if show_year_column and section_stats and isinstance(section_stats[0], dict) and 'years' in section_stats[0]:
+        # Группируем данные по названию раздела для нескольких лет
+        for section_data in section_stats:
+            section_name = section_data['section_name']
+            start_row = row_num
+            
+            # Сортируем годы
+            years_data = section_data['years']
+            years_data.sort(key=lambda x: x.get('year', 0))
+            
+            # Добавляем данные для каждого года
+            for item in years_data:
+                col = 1
+                
+                # Название раздела (только для первой строки)
+                if row_num == start_row:
+                    sheet.cell(row=row_num, column=col, value=section_name)
+                col += 1
+                
+                # Год
+                sheet.cell(row=row_num, column=col, value=item.get('year', ''))
+                col += 1
+                
+                # Данные по зонам
+                row_num = _add_zone_cells(sheet, row_num, col, item, styles)
+            
+            # Объединяем ячейки с названием раздела
+            if len(years_data) > 1:
+                try:
+                    sheet.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
+                except Exception:
+                    pass
+    else:
+        # Данные за один год
+        for item in section_stats:
+            col = 1
+            
+            # Название раздела
+            sheet.cell(row=row_num, column=col, value=item['section_name'])
+            col += 1
+            
+            # Год (если нужно)
+            if show_year_column:
+                sheet.cell(row=row_num, column=col, value=item.get('year', ''))
+                col += 1
+            
+            # Данные по зонам
+            row_num = _add_zone_cells(sheet, row_num, col, item, styles)
+    
+    return row_num
+
+def _add_cluster_stats(sheet, cluster_stats, show_year_column, row_num, styles):
+    """Добавляет статистику по кластерам в таблицу"""
+    row_num += 2
+    sheet.cell(row=row_num, column=1, value="Распределение отчетов по кластерам").font = styles['bold_font']
+    row_num += 2
+    
+    # Заголовки столбцов
+    headers = ["Кластер"]
+    if show_year_column:
+        headers.append("Год")
+    headers.extend(["Красная зона", "Жёлтая зона", "Зелёная зона", "Всего отчетов"])
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = sheet.cell(row=row_num, column=col_num, value=header)
+        cell.font = styles['bold_font']
+    row_num += 1
+    
+    # Добавляем данные по кластерам
+    if show_year_column and cluster_stats and isinstance(cluster_stats[0], dict) and 'years' in cluster_stats[0]:
+        # Группируем данные по названию кластера для нескольких лет
+        for cluster_data in cluster_stats:
+            cluster_name = cluster_data['cluster_name']
+            start_row = row_num
+            
+            # Сортируем годы
+            years_data = cluster_data['years']
+            years_data.sort(key=lambda x: x.get('year', 0))
+            
+            # Добавляем данные для каждого года
+            for item in years_data:
+                col = 1
+                
+                # Название кластера (только для первой строки)
+                if row_num == start_row:
+                    sheet.cell(row=row_num, column=col, value=cluster_name)
+                col += 1
+                
+                # Год
+                sheet.cell(row=row_num, column=col, value=item.get('year', ''))
+                col += 1
+                
+                # Данные по зонам
+                row_num = _add_zone_cells(sheet, row_num, col, item, styles)
+            
+            # Объединяем ячейки с названием кластера
+            if len(years_data) > 1:
+                try:
+                    sheet.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
+                except Exception:
+                    pass
+    else:
+        # Данные за один год
+        for item in cluster_stats:
+            col = 1
+            
+            # Название кластера
+            sheet.cell(row=row_num, column=col, value=item['cluster_name'])
+            col += 1
+            
+            # Год (если нужно)
+            if show_year_column:
+                sheet.cell(row=row_num, column=col, value=item.get('year', ''))
+                col += 1
+            
+            # Данные по зонам
+            row_num = _add_zone_cells(sheet, row_num, col, item, styles)
+    
+    return row_num
+
+def _get_all_school_reports(years, show_ter_status, ter_admin_ids):
+    """Получает все отчеты школ с предзагрузкой связанных данных"""
+    filter_params = {
+        'report__year__in': years,
+        'status__in': ['A', 'D'] if show_ter_status else ['D']  # Учитываем отчеты на согласовании
+    }
+    
+    # Если указаны ТУ/ДО, добавляем их в фильтр
+    if ter_admin_ids:
+        filter_params['school__ter_admin_id__in'] = ter_admin_ids
+    
+    return SchoolReport.objects.filter(**filter_params).exclude(
+        school=None
+    ).exclude(
+        school__is_archived=True
+    ).select_related(
+        'school__ter_admin',
+        'school__closter',
+        'report__year'
+    ).prefetch_related(
+        Prefetch('sections', queryset=SectionSreport.objects.select_related('section')),
+        Prefetch('answers', queryset=Answer.objects.select_related('question'))
+    )
+
+def _create_general_sheet(sheet, all_school_reports, years, styles):
+    """Создает вкладку общего свода в Excel-файле"""
+    # Заголовок
+    row_num = 1
+    sheet.cell(row=row_num, column=1, value="Общий свод по школам").font = styles['bold_font']
+    row_num += 2
+    
+    # Получаем все разделы для выбранных годов для "Общего свода"
+    sections = Section.objects.filter(
+        report__year__in=years
+    ).distinct('number').order_by('number')
+    
+    # Заголовки столбцов
+    headers = ["Школа", "ТУ/ДО", "Уровень образования", "Кластер", "Итого баллов"]
+    headers.extend([f"Раздел {s.number}" for s in sections])
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = sheet.cell(row=row_num, column=col_num, value=header)
+        cell.font = styles['bold_font']
+    row_num += 1
+    
+    # Словарь для хранения уровней образования
+    ed_levels = {
+        'A': "1 — 11 классы",
+        'M': "1 — 9 классы",
+        'S': "1 — 4 классы",
+        'MG': "5 — 11 классы",
+        'G': "10 — 11 классы",
+    }
+    
+    # Группируем отчеты по школам сразу в словаре, а не в цикле
+    school_data = defaultdict(lambda: {
+        'sections': defaultdict(float),
+        'total_points': 0,
+        'year': None,
+        'zone': None
+    })
+    
+    # Обрабатываем отчеты и заполняем словарь
+    for s_report in all_school_reports:
+        school = s_report.school
+        if not school:
+            continue
+            
+        school_id = school.id
+        year = s_report.report.year
+        key = (school_id, year.id)
+        
+        if 'school_name' not in school_data[key]:
+            school_data[key].update({
+                'school_name': school.name,
+                'ter_admin_name': school.ter_admin.name if school.ter_admin else "-",
+                'ed_level': ed_levels.get(school.ed_level, "Н/Д"),
+                'closter_name': school.closter.name if school.closter else "-",
+                'year': year.year,
+                'zone': s_report.zone
+            })
+        
+        # Добавляем данные по секциям за один проход
+        for section in s_report.sections.all():
+            section_number = section.section.number
+            school_data[key]['sections'][section_number] = section.points
+            school_data[key]['total_points'] += section.points
+    
+    # Сортируем данные школ
+    sorted_school_data = sorted(
+        school_data.values(),
+        key=lambda x: (x['ter_admin_name'], x['school_name'], x.get('year', 0))
+    )
+    
+    # Заполняем данные школ одним проходом
+    for data in sorted_school_data:
+        col = 1
+        
+        # Базовая информация о школе
+        sheet.cell(row=row_num, column=col, value=data['school_name']); col += 1
+        sheet.cell(row=row_num, column=col, value=data['ter_admin_name']); col += 1
+        sheet.cell(row=row_num, column=col, value=data['ed_level']); col += 1
+        sheet.cell(row=row_num, column=col, value=data['closter_name']); col += 1
+        
+        # Итого баллов с цветом зоны
+        cell = sheet.cell(row=row_num, column=col, value=data['total_points'])
+        zone = data.get('zone')
+        if zone == 'R':
+            cell.fill = styles['red_fill']
+        elif zone == 'Y':
+            cell.fill = styles['yellow_fill']
+        elif zone == 'G':
+            cell.fill = styles['green_fill']
+        col += 1
+        
+        # Баллы по разделам
+        for section in sections:
+            section_points = data['sections'].get(section.number, "-")
+            sheet.cell(row=row_num, column=col, value=section_points)
+            col += 1
+        
+        row_num += 1
+    
+    # Автоподбор ширины столбцов
+    _adjust_column_width(sheet)
+
+def _create_section_sheets(workbook, all_school_reports, years, styles):
+    """Создает вкладки для каждого раздела в Excel-файле"""
+    # Получаем все разделы для выбранных годов
+    all_sections = Section.objects.filter(
+        report__year__in=years
+    ).values('name', 'number').distinct('number').order_by('number')
+    
+    # Словарь для уровней образования
+    ed_levels = {
+        'A': "1 — 11 классы",
+        'M': "1 — 9 классы",
+        'S': "1 — 4 классы",
+        'MG': "5 — 11 классы",
+        'G': "10 — 11 классы",
+    }
+    
+    # Предзагружаем все поля для всех разделов
+    all_fields = {}
+    section_numbers = [section['number'] for section in all_sections]
+    for section_number in section_numbers:
+        fields = Field.objects.filter(
+            sections__number=section_number,
+            sections__report__year__in=years
+        ).distinct().order_by('number')
+        all_fields[section_number] = list(fields)
+    
+    # Создаем отдельный лист для каждого раздела
+    for section in all_sections:
+        section_name = section['name']
+        section_number = section['number']
+        
+        # Создаем имя листа без недопустимых символов (макс. 31 символ)
+        safe_sheet_name = f"Раздел {section_number}"
+        if len(safe_sheet_name) > 31:
+            safe_sheet_name = safe_sheet_name[:28] + "..."
+        
+        section_sheet = workbook.create_sheet(title=safe_sheet_name)
+        
+        # Заголовок
+        row_num = 1
+        section_sheet.cell(row=row_num, column=1, value=f"Раздел {section_number}: {section_name}").font = styles['bold_font']
+        row_num += 2
+        
+        # Получаем поля (показатели) для текущего раздела
+        fields = all_fields.get(section_number, [])
+        
+        # Заголовки столбцов: базовые + показатели
+        headers = ["Школа", "ТУ/ДО", "Уровень образования", "Кластер"]
+        field_headers = [f"{field.number}. {field.name}" for field in fields]
+        headers.extend(field_headers)
+        
+        for col_num, header in enumerate(headers, 1):
+            cell = section_sheet.cell(row=row_num, column=col_num, value=header)
+            cell.font = styles['bold_font']
+        row_num += 1
+        
+        # Оптимизированная обработка данных по школам
+        school_data = {}
+        
+        # Создаем словарь с ID полей для быстрого поиска
+        field_ids = {field.id: field for field in fields}
+        
+        # Находим и группируем отчеты и ответы для этого раздела
+        for s_report in all_school_reports:
+            school = s_report.school
+            if not school:
+                continue
+                
+            # Пропускаем, если нет секции для этого раздела
+            has_section = False
+            for section_sreport in s_report.sections.all():
+                if section_sreport.section.number == section_number:
+                    has_section = True
+                    break
+                    
+            if not has_section:
+                continue
+                
+            school_id = school.id
+            
+            if school_id not in school_data:
+                school_data[school_id] = {
+                    'school_name': school.name,
+                    'ter_admin_name': school.ter_admin.name if school.ter_admin else "-",
+                    'ed_level': ed_levels.get(school.ed_level, "Н/Д"),
+                    'closter_name': school.closter.name if school.closter else "-",
+                    'field_data': {}
+                }
+            
+            # Обрабатываем ответы на показатели этого раздела
+            # Используем предзагруженные ответы
+            for answer in s_report.answers.all():
+                field_id = answer.question_id
+                
+                # Проверяем, что ответ относится к этому разделу
+                if field_id not in field_ids:
+                    continue
+                    
+                field_data = {
+                    'points': answer.points,
+                    'zone': answer.zone,
+                    'year': s_report.report.year.year
+                }
+                
+                # Обновляем данные, только если ответ новее имеющегося
+                if field_id in school_data[school_id]['field_data']:
+                    if field_data['year'] > school_data[school_id]['field_data'][field_id].get('year', 0):
+                        school_data[school_id]['field_data'][field_id] = field_data
+                else:
+                    school_data[school_id]['field_data'][field_id] = field_data
+        
+        # Сортируем и записываем данные школ
+        sorted_school_data = sorted(
+            school_data.values(),
+            key=lambda x: (x['ter_admin_name'], x['school_name'])
+        )
+        
+        for data in sorted_school_data:
+            col = 1
+            
+            # Базовая информация о школе
+            section_sheet.cell(row=row_num, column=col, value=data['school_name']); col += 1
+            section_sheet.cell(row=row_num, column=col, value=data['ter_admin_name']); col += 1
+            section_sheet.cell(row=row_num, column=col, value=data['ed_level']); col += 1
+            section_sheet.cell(row=row_num, column=col, value=data['closter_name']); col += 1
+            
+            # Данные по показателям
+            for field in fields:
+                field_id = field.id
+                field_data = data['field_data'].get(field_id, {})
+                
+                if field_data:
+                    points = field_data.get('points', "-")
+                    zone = field_data.get('zone', '')
+                    
+                    cell = section_sheet.cell(row=row_num, column=col, value=points)
+                    
+                    # Устанавливаем цвет ячейки в зависимости от зоны
+                    if zone == 'R':
+                        cell.fill = styles['red_fill']
+                    elif zone == 'Y':
+                        cell.fill = styles['yellow_fill']
+                    elif zone == 'G':
+                        cell.fill = styles['green_fill']
+                else:
+                    section_sheet.cell(row=row_num, column=col, value="-")
+                
+                col += 1
+            
+            row_num += 1
+        
+        # Автоподбор ширины столбцов
+        _adjust_column_width(section_sheet)
+
+def _adjust_column_width(sheet):
+    """Регулирует ширину столбцов на листе Excel"""
+    for column in sheet.columns:
+        max_length = 0
+        column_letter = get_column_letter(column[0].column)
+        
+        for cell in column:
+            try:
+                cell_value = str(cell.value) if cell.value is not None else ""
+                if len(cell_value) > max_length:
+                    max_length = len(cell_value)
+            except:
+                pass
+                
+        adjusted_width = (max_length + 2)
+        sheet.column_dimensions[column_letter].width = adjusted_width
 
 # Вспомогательные функции для расчета статистики (добавить в конец файла)
 def calculate_section_stats(selected_years, show_year_column=False, show_ter_status=False, ter_admin_ids=None):
