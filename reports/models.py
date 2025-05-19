@@ -555,7 +555,7 @@ class SchoolReport(models.Model):
         "Дата удаления", blank=True, null=True,
         help_text="Дата, когда отчёт будет фактически удален"
     )
-    
+
     # Поле для отметки устаревших отчетов
     is_outdated = models.BooleanField(
         "Устаревший отчет", default=False,
@@ -567,14 +567,14 @@ class SchoolReport(models.Model):
     objects = ActiveSchoolReportManager()
     # admin_objects будет возвращать все отчеты, включая помеченные на удаление
     admin_objects = AllSchoolReportManager()
-    
+
     class Meta:
         verbose_name = "Отчёт школы"
         verbose_name_plural = "Отчёты школ"
 
     def __str__(self):
         return f"{self.school} ({self.report})"
-    
+        
     def check_relevance(self):
         """
         Проверяет актуальность отчета на основе текущих данных школы.

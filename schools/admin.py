@@ -302,37 +302,33 @@ class SchoolAdmin(ColumnWidthMixin, admin.ModelAdmin):
         
         return super().has_change_permission(request, obj)
 
+    def has_view_permission(self, request, obj=None):
+        # Суперадмины могут видеть все школы
+        if request.user.is_superuser:
+            return True
+            
+        # Представители ТУ/ДО могут видеть только свои школы
+        if request.user.groups.filter(name='Представитель ТУ/ДО').exists():
+            if obj is None:  # При просмотре списка школ
+                return True
+            # При просмотре конкретной школы проверяем, принадлежит ли она ТУ/ДО пользователя
+            return obj.ter_admin in request.user.ter_admin.all()
+            
+        return super().has_view_permission(request, obj)
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         
-        # Если фильтр не указан явно, по умолчанию показываем только активные школы
-        # Проверяем параметр is_archived нашего кастомного фильтра
-        is_archived_param = request.GET.get('is_archived')
-        
-        # Если пользователь суперадмин (staff), он может видеть все школы с учетом фильтра
-        if request.user.is_superuser or request.user.is_staff:
-            # Если фильтр не указан или указан 'active', показываем только активные школы
-            if is_archived_param is None or is_archived_param == 'active':
-                return qs.filter(is_archived=False)
-            # Если указан 'archived', показываем только архивные школы
-            elif is_archived_param == 'archived':
-                return qs.filter(is_archived=True)
-            # Если указан 'all', показываем все школы
+        # Если пользователь суперадмин, он может видеть все школы
+        if request.user.is_superuser:
             return qs
             
         # Для представителей ТУ/ДО показываем только их школы
         if request.user.groups.filter(name='Представитель ТУ/ДО').exists():
-            # Фильтруем только по школам их ТУ/ДО
-            ter_admin_qs = qs.filter(ter_admin__in=request.user.ter_admin.all())
+            qs = qs.filter(ter_admin__in=request.user.ter_admin.all())
             
-            # Применяем фильтр по архивным школам аналогично
-            if is_archived_param is None or is_archived_param == 'active':
-                return ter_admin_qs.filter(is_archived=False)
-            elif is_archived_param == 'archived':
-                return ter_admin_qs.filter(is_archived=True)
-            return ter_admin_qs
-        
-        # Для остальных пользователей по умолчанию показываем только активные школы
+        # Применяем фильтр по архивным школам
+        is_archived_param = request.GET.get('is_archived')
         if is_archived_param is None or is_archived_param == 'active':
             return qs.filter(is_archived=False)
         elif is_archived_param == 'archived':

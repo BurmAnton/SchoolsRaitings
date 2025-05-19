@@ -533,22 +533,50 @@ def closters_report(request, year=2024):
             fields
         ])
 
-    # Prepare data for caching
+    # --- Формируем данные для графика (school_values и section_names) ---
+    # section_names: список "1. Название раздела"
+    section_names = [f"{section['number']}. {section['name']}" for section in sections_data]
+    section_numbers = [str(section['number']) for section in sections_data]
+    # school_values: {school_name: [points_per_section, ...]}
+    school_values = {}
+    s_reports_qs = SchoolReport.objects.filter(
+        report__year=year,
+        status__in=['A', 'D'] if show_ter_status else ['D'],
+        school__in=schools
+    ).select_related('school', 'report')
+    for s_report in s_reports_qs:
+        school_name = str(s_report.school)
+        school_values[school_name] = []
+        for section in sections_data:
+            # Найти SectionSreport для этой школы и раздела
+            section_sreport = SectionSreport.objects.filter(s_report=s_report, section__number=section['number']).first()
+            value = float(section_sreport.points) if section_sreport and section_sreport.points is not None else 0
+            school_values[school_name].append(value)
+
+    # Гарантируем, что переменные всегда определены
+    section_names = section_names or []
+    section_numbers = section_numbers or []
+    school_values = school_values or {}
+
     context_data = {
         'years': years,
         'ter_admins': ter_admins,
         'closters': closters,
         'ed_levels': ed_levels,
-        's_reports': SchoolReport.objects.filter(
-            report__year=year,
-            status__in=['A', 'D'] if show_ter_status else ['D'],
-            school__in=schools
-        ).select_related('school', 'report'),
+        's_reports': s_reports_qs,
         'sections': sections_list,
         'schools': schools,
         'filter': filter,
-        'show_ter_status': show_ter_status
+        'show_ter_status': show_ter_status,
+        'selected_year': year,
+        'section_names': section_names,
+        'section_numbers': section_numbers,
+        'school_values': school_values,
     }
+
+    # Преобразуем school_values к float для кэша
+    for school, values in context_data['school_values'].items():
+        context_data['school_values'][school] = [float(v) for v in values]
 
     # Cache the data for 5 minutes
     cache.set(cache_key, context_data, timeout=300)

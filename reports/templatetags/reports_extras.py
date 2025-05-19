@@ -262,25 +262,27 @@ def safe_json(value):
 
 @register.filter
 def get_completion_percent(report):
-    """Calculates the completion percentage of a report"""
+    """Calculates the completion percentage of a report (только LST, NMBR, PRC)"""
     try:
-        # Получаем общее количество полей
-        total_fields = report.report.sections.all().values_list("fields", flat=True).distinct().count()
+        # Получаем все вопросы нужных типов
+        valid_types = ['LST', 'NMBR', 'PRC']
+        questions = report.report.sections.all().values_list("fields", flat=True).distinct()
+        from reports.models import Field
+        valid_questions = Field.objects.filter(id__in=questions, answer_type__in=valid_types)
+        total_fields = valid_questions.count()
         if total_fields == 0:
             return 100, "100%"
-            
-        # Подсчитываем заполненные поля одним запросом
-        filled_count = report.answers.annotate(
+        # Подсчитываем заполненные поля
+        filled_count = report.answers.filter(
+            question__in=valid_questions,
+        ).annotate(
             is_filled=Case(
                 When(Q(question__answer_type='LST', option__isnull=False), then=1),
-                When(Q(question__answer_type='BL', bool_value=True), then=1),
                 When(Q(question__answer_type__in=['NMBR', 'PRC'], number_value__isnull=False), then=1),
-                When(Q(question__answer_type='MULT', selected_options__isnull=False), then=1),
                 default=0,
                 output_field=IntegerField(),
             )
         ).filter(is_filled=1).count()
-
         percentage = int((filled_count / total_fields) * 100)
         return percentage, f"{percentage}%"
     except Exception as e:

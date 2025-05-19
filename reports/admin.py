@@ -296,14 +296,12 @@ class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
     
     def get_inline_instances(self, request, obj=None):
         inline_instances = super().get_inline_instances(request, obj)
-        
-        # Если объект существует и его тип ответа не MULT, фильтруем инлайны
-        if obj and obj.answer_type != 'MULT':
+        # При создании нового объекта (obj is None) — не показываем CombinationInline
+        if obj is None or (obj and obj.answer_type != 'MULT'):
             inline_instances = [
                 inline for inline in inline_instances 
                 if not isinstance(inline, CombinationInline)
             ]
-        
         return inline_instances
 
     class Media:

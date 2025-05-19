@@ -69,41 +69,25 @@ jQuery(document).ready(function ($) {
                 var selectedValue = answerType.value;
                 
                 // Получаем контейнеры инлайн-форм
-                var optionInline = document.querySelector('.option-inline-related');
+                var optionInline = document.querySelector('#options-group');
+                var optionRangeInline = document.querySelector('#range_options-group');
                 var rangeOptionInline = document.querySelector('.rangeoption-inline-related');
                 var combinationInline = document.querySelector('.optioncombination-inline-related');
                 
                 // Скрываем все по умолчанию
+                if (optionInline) optionInline.style.display = 'none';
+                if (optionRangeInline) optionRangeInline.style.display = 'none';
                 if (rangeOptionInline) rangeOptionInline.style.display = 'none';
                 if (combinationInline) combinationInline.style.display = 'none';
                 
                 // Показываем нужные инлайны в зависимости от типа ответа
-                if (selectedValue === 'LST' || selectedValue === 'MULT') {
+                if (selectedValue === 'LST') {
                     if (optionInline) optionInline.style.display = 'block';
-                    
-                    // Только для множественного выбора показываем комбинации
-                    if (combinationInline) {
-                        combinationInline.style.display = selectedValue === 'MULT' ? 'block' : 'none';
-                    }
-                    
-                    // Скрываем колонку "Зона" для множественного выбора
-                    if (selectedValue === 'MULT') {
-                        const zoneHeaders = document.querySelectorAll('.option-inline-related th:nth-child(4)');
-                        const zoneCells = document.querySelectorAll('.option-inline-related td:nth-child(4)');
-                        
-                        zoneHeaders.forEach(header => {
-                            header.style.display = 'none';
-                        });
-                        
-                        zoneCells.forEach(cell => {
-                            cell.style.display = 'none';
-                        });
-                    }
+                } else if (selectedValue === 'MULT') {
+                    if (optionInline) optionInline.style.display = 'block';
+                    if (optionRangeInline) optionRangeInline.style.display = 'block';
                 } else if (selectedValue === 'NMBR' || selectedValue === 'PRC') {
                     if (rangeOptionInline) rangeOptionInline.style.display = 'block';
-                    if (optionInline) optionInline.style.display = 'none';
-                } else if (selectedValue === 'BL') {
-                    if (optionInline) optionInline.style.display = 'none';
                 }
             }
             
@@ -114,6 +98,12 @@ jQuery(document).ready(function ($) {
             var answerType = document.getElementById('id_answer_type');
             if (answerType) {
                 answerType.addEventListener('change', toggleInlines);
+            }
+
+            // Принудительно скрыть CombinationInline при создании нового объекта
+            var answerTypeVal = $('#id_answer_type').val();
+            if (!answerTypeVal || answerTypeVal !== 'MULT') {
+                $('.optioncombination-inline-related').hide();
             }
         });
     })(django.jQuery);

@@ -5,11 +5,12 @@
 {% block title %}Статистика{% endblock %}
 
 {% block style %}
-        <link href="{% static 'dashboards/css/ter_admins_dash.css' %}" rel="stylesheet">
+    <link href="{% static 'dashboards/css/ter_admins_dash.css' %}" rel="stylesheet">
 {% endblock %}
+
 {% block script %}
-    <script src="{% static 'dashboards/js/ter_admins_reports.js' %}" rel="stylesheet"></script>
-    <script src="{% static 'dashboards/js/closters_report.js' %}" rel="stylesheet"></script>
+    <script src="{% static 'dashboards/js/ter_admins_reports.js' %}"></script>
+    <script src="{% static 'dashboards/js/closters_report.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
 {% endblock %}
 
@@ -22,11 +23,7 @@
                 <label for="YearFilter">Год</label>
                 <select class="selectpicker" title="Выберите год" name="year" id="YearFilter" data-width="100%" data-container="body" required>
                     {% for year in years %}
-                        {% if forloop.first  and selected_year is None %}
-                            <option value="{{ year }}" selected>{{ year.year }}</option>
-                        {% else %}
-                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year.year }}</option>
-                        {% endif %}
+                        <option value="{{ year.year }}" {% if year == selected_year %}selected{% endif %}>{{ year.year }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -117,6 +114,28 @@
             </div>
         </div>
         
+        <!-- Мультиселект для выбора школ -->
+        <div class="form mb-3">
+            <label for="SchoolSelect">Выберите школы для отображения на графике</label>
+            <div class="input-group">
+                <select id="SchoolSelect" multiple class="selectpicker" data-width="100%" data-live-search="true" data-actions-box="true" data-selected-text-format="count > 1" title="Выберите школы">
+                    {% for s_report in s_reports %}
+                        <option value="{{ s_report.school }}" {% if forloop.counter <= 10 %}selected{% endif %}>{{ s_report.school }}</option>
+                    {% endfor %}
+                </select>
+                <div class="input-group-append" style="margin-left: 10px;">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" id="selectAllSchools">Выбрать все</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" id="deselectAllSchools">Снять выделение</button>
+                </div>
+            </div>
+            <small id="selectedCount" class="form-text text-muted"></small>
+        </div>
+
+        <!-- JSON data for JS -->
+        {{ school_values|json_script:"school-values-data" }}
+        {{ section_names|json_script:"section-names-data" }}
+        {{ section_numbers|json_script:"section-numbers-data" }}
+
         <!-- Добавляем график сравнения значений по кластерам -->
         <div class="chart-container" style="position: relative; height: 500px; margin-bottom: 30px; margin-top: 30px; width: 100%;">
             <canvas id="clostersComparisonChart"></canvas>
@@ -124,74 +143,19 @@
         
         <script>
             document.addEventListener('DOMContentLoaded', function() {
-                // Собираем данные для графика из таблицы
-                var sectionNames = [];
-                var sectionNumbers = [];
+                // Получаем данные из Django через json_script
+                var schoolValues = JSON.parse(document.getElementById('school-values-data').textContent);
+                var sectionNames = JSON.parse(document.getElementById('section-names-data').textContent);
+                var sectionNumbers = JSON.parse(document.getElementById('section-numbers-data').textContent);
+                // Максимальные и средние значения по разделам
                 var maxValues = [];
                 var avgValues = [];
-                var schoolValues = {};
-                
-                // Получаем названия разделов и их максимальные/средние значения из таблицы
                 {% for section in sections %}
-                    sectionNames.push('{{ section.0 }}. {{ section.1 }}');
-                    sectionNumbers.push('{{ section.0 }}');
                     maxValues.push({{ section.2|max_value:s_reports }});
                     avgValues.push({{ section.2|avg_value:s_reports }});
                 {% endfor %}
-                
-                // Получаем значения для каждой школы
-                {% for s_report in s_reports %}
-                    schoolValues['{{ s_report.school }}'] = [];
-                    {% for section in sections %}
-                        schoolValues['{{ s_report.school }}'].push({{ s_report|get_section_points_by_name:section.0 }});
-                    {% endfor %}
-                {% endfor %}
-                
-                // Создаем наборы данных
-                var datasets = [];
-                
-                // Добавляем максимальные и средние значения
-                datasets.push({
-                    label: 'Максимальное значение',
-                    backgroundColor: 'rgba(66, 133, 244, 0.2)',
-                    borderColor: 'rgb(66, 133, 244)',
-                    borderWidth: 2,
-                    data: maxValues,
-                    maxBarThickness: 50,
-                    type: 'line',
-                    fill: false
-                });
-                
-                datasets.push({
-                    label: 'Среднее значение',
-                    backgroundColor: 'rgba(15, 157, 88, 0.2)',
-                    borderColor: 'rgb(15, 157, 88)',
-                    borderWidth: 2,
-                    data: avgValues,
-                    maxBarThickness: 50,
-                    type: 'line',
-                    fill: false
-                });
-                
-                // Добавляем данные для каждой школы как столбцы
+                // Цвета для школ
                 var colors = ['#4dc9f6', '#f67019', '#f53794', '#537bc4', '#acc236', '#166a8f', '#00a950', '#58595b', '#8549ba'];
-                var index = 0;
-                
-                for (var school in schoolValues) {
-                    var color = index < colors.length ? colors[index] : getRandomColor();
-                    index++;
-                    
-                    datasets.push({
-                        label: school,
-                        backgroundColor: color,
-                        borderColor: color,
-                        borderWidth: 1,
-                        data: schoolValues[school],
-                        maxBarThickness: 50
-                    });
-                }
-                
-                // Функция для генерации случайного цвета
                 function getRandomColor() {
                     var letters = '0123456789ABCDEF';
                     var color = '#';
@@ -200,82 +164,152 @@
                     }
                     return color;
                 }
-                
-                // Создаем график
-                var ctx = document.getElementById('clostersComparisonChart').getContext('2d');
-                var chart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: sectionNumbers,
-                        datasets: datasets
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            xAxes: [{
-                                scaleLabel: {
-                                    display: true,
-                                    labelString: 'Разделы'
-                                },
-                                gridLines: {
-                                    display: false
-                                },
-                                ticks: {
-                                    fontSize: 14,
-                                    fontStyle: 'bold',
-                                    autoSkip: false
-                                },
-                                categoryPercentage: 0.8,
-                                barPercentage: 0.9
-                            }],
-                            yAxes: [{
-                                scaleLabel: {
-                                    display: true,
-                                    labelString: 'Баллы'
-                                },
-                                ticks: {
-                                    beginAtZero: true,
-                                    fontSize: 12
+                function renderChart(selectedSchools) {
+                    var datasets = [];
+                    datasets.push({
+                        label: 'Максимальное значение',
+                        backgroundColor: 'rgba(66, 133, 244, 0.2)',
+                        borderColor: 'rgb(66, 133, 244)',
+                        borderWidth: 2,
+                        data: maxValues,
+                        maxBarThickness: 50,
+                        type: 'line',
+                        fill: false
+                    });
+                    datasets.push({
+                        label: 'Среднее значение',
+                        backgroundColor: 'rgba(15, 157, 88, 0.2)',
+                        borderColor: 'rgb(15, 157, 88)',
+                        borderWidth: 2,
+                        data: avgValues,
+                        maxBarThickness: 50,
+                        type: 'line',
+                        fill: false
+                    });
+                    for (var i = 0; i < selectedSchools.length; i++) {
+                        var school = selectedSchools[i];
+                        var color = i < colors.length ? colors[i] : getRandomColor();
+                        datasets.push({
+                            label: school,
+                            backgroundColor: color,
+                            borderColor: color,
+                            borderWidth: 1,
+                            data: schoolValues[school],
+                            maxBarThickness: 50
+                        });
+                    }
+                    var ctx = document.getElementById('clostersComparisonChart').getContext('2d');
+                    if (window.clostersChart) {
+                        window.clostersChart.destroy();
+                    }
+                    window.clostersChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: sectionNumbers,
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                xAxes: [{
+                                    scaleLabel: {
+                                        display: true,
+                                        labelString: 'Разделы'
+                                    },
+                                    gridLines: {
+                                        display: false
+                                    },
+                                    ticks: {
+                                        fontSize: 14,
+                                        fontStyle: 'bold',
+                                        autoSkip: false
+                                    },
+                                    categoryPercentage: 0.8,
+                                    barPercentage: 0.9
+                                }],
+                                yAxes: [{
+                                    scaleLabel: {
+                                        display: true,
+                                        labelString: 'Баллы'
+                                    },
+                                    ticks: {
+                                        beginAtZero: true,
+                                        fontSize: 12
+                                    }
+                                }]
+                            },
+                            title: {
+                                display: true,
+                                text: 'Сравнение значений по разделам между кластерами',
+                                fontSize: 16
+                            },
+                            tooltips: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    title: function(tooltipItems, data) {
+                                        var idx = tooltipItems[0].index;
+                                        return sectionNames[idx];
+                                    }
                                 }
-                            }]
-                        },
-                        title: {
-                            display: true,
-                            text: 'Сравнение значений по разделам между кластерами',
-                            fontSize: 16
-                        },
-                        tooltips: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                title: function(tooltipItems, data) {
-                                    var idx = tooltipItems[0].index;
-                                    return sectionNames[idx];
+                            },
+                            hover: {
+                                mode: 'nearest',
+                                intersect: true
+                            },
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    padding: 20,
+                                    fontSize: 14
                                 }
-                            }
-                        },
-                        hover: {
-                            mode: 'nearest',
-                            intersect: true
-                        },
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                padding: 20,
-                                fontSize: 14
-                            }
-                        },
-                        layout: {
-                            padding: {
-                                left: 0,
-                                right: 0,
-                                top: 0,
-                                bottom: 30
+                            },
+                            layout: {
+                                padding: {
+                                    left: 0,
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 30
+                                }
                             }
                         }
-                    }
+                    });
+                }
+                var schoolSelect = document.getElementById('SchoolSelect');
+                function getSelectedSchools() {
+                    return Array.from(schoolSelect.selectedOptions).map(function(opt) { return opt.value; });
+                }
+                renderChart(getSelectedSchools());
+                schoolSelect.addEventListener('change', function() {
+                    renderChart(getSelectedSchools());
                 });
+
+                // Инициализация selectpicker с Bootstrap
+                $('#SchoolSelect').selectpicker({
+                    actionsBox: true,
+                    liveSearch: true,
+                    selectedTextFormat: 'count > 1',
+                    noneSelectedText: 'Ничего не выбрано',
+                    countSelectedText: '{0} школ выбрано'
+                });
+                // Кнопки выбрать все/снять выделение
+                document.getElementById('selectAllSchools').onclick = function() {
+                    $('#SchoolSelect').selectpicker('selectAll');
+                    updateSelectedCount();
+                };
+                document.getElementById('deselectAllSchools').onclick = function() {
+                    $('#SchoolSelect').selectpicker('deselectAll');
+                    updateSelectedCount();
+                };
+                // Обновление количества выбранных
+                function updateSelectedCount() {
+                    var count = $('#SchoolSelect').val() ? $('#SchoolSelect').val().length : 0;
+                    var total = $('#SchoolSelect option').length;
+                    document.getElementById('selectedCount').textContent = count ? ('Выбрано школ: ' + count + ' из ' + total) : 'Ничего не выбрано';
+                }
+                $('#SchoolSelect').on('changed.bs.select', updateSelectedCount);
+                updateSelectedCount();
             });
         </script>
     </div>

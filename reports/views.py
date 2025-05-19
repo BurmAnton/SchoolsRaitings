@@ -497,6 +497,10 @@ def ter_admin_reports(request, user_id):
             schools = schools.filter(closter__in=request.POST.getlist('closters'))
             s_reports = s_reports.filter(school__in=schools)
             filter_params['closters'] = request.POST.getlist('closters')
+        if len(request.POST.getlist('ed_levels')) != 0:
+            schools = schools.filter(ed_level__in=request.POST.getlist('ed_levels'))
+            s_reports = s_reports.filter(school__in=schools)
+            filter_params['ed_levels'] = request.POST.getlist('ed_levels')
         if len(request.POST.getlist('status')) != 0:
             s_reports = s_reports.filter(status__in=request.POST.getlist('status'))
             filter_params['status'] = request.POST.getlist('status')
@@ -513,6 +517,9 @@ def ter_admin_reports(request, user_id):
             s_reports = s_reports.filter(school__in=schools)
         if 'closters' in filter_params and filter_params['closters']:
             schools = schools.filter(closter__in=filter_params['closters'])
+            s_reports = s_reports.filter(school__in=schools)
+        if 'ed_levels' in filter_params and filter_params['ed_levels']:
+            schools = schools.filter(ed_level__in=filter_params['ed_levels'])
             s_reports = s_reports.filter(school__in=schools)
         if 'status' in filter_params and filter_params['status']:
             s_reports = s_reports.filter(status__in=filter_params['status'])
@@ -542,6 +549,7 @@ def ter_admin_reports(request, user_id):
         'reports': page_obj,
         'schools': all_schools,
         'closters': closters,
+        'ed_levels': School.SCHOOL_LEVELS,
         'filter': filter,
         'paginator': paginator,
         'page_obj': page_obj
@@ -1070,37 +1078,26 @@ def export_reports_to_excel(s_reports, filename='reports_completion.xlsx'):
     # Данные
     row = 1
     for report in s_reports:
-        # Получаем процент заполнения
-        completion_data = get_completion_percent(report)
-        completion_percent = completion_data[0] if isinstance(completion_data, tuple) else completion_data
-        
-        # Делим на 100, так как формат Excel требует десятичную дробь
+        # Получаем вопросы только нужных типов
+        valid_types = ['LST', 'NMBR', 'PRC']
+        questions = report.report.sections.all().values_list("fields", flat=True).distinct()
+        valid_questions = Field.objects.filter(id__in=questions, answer_type__in=valid_types)
+        total_fields = valid_questions.count()
+        if total_fields == 0:
+            completion_percent = 100
+            filled_fields = 0
+        else:
+            # Подсчитываем заполненные поля
+            answers = report.answers.filter(question__in=valid_questions)
+            filled_fields = 0
+            for answer in answers:
+                if answer.question.answer_type == 'LST' and answer.option is not None:
+                    filled_fields += 1
+                elif answer.question.answer_type in ['NMBR', 'PRC'] and answer.number_value is not None:
+                    filled_fields += 1
+            completion_percent = int(round((filled_fields / total_fields) * 100))
         completion_fraction = completion_percent / 100.0
-        
-        # Получаем название уровня образования
         ed_level_display = report.report.get_ed_level_display()
-        
-        # Получаем количество заполненных и общее количество полей
-        all_answers = Answer.objects.filter(s_report=report)
-        total_fields = all_answers.count()
-        
-        # Считаем заполненные поля разных типов
-        empty_lst_fields = all_answers.filter(question__answer_type='LST', option=None).count()
-        empty_bl_fields = all_answers.filter(question__answer_type='BL', bool_value=None).count()
-        empty_nmbr_fields = all_answers.filter(
-            question__answer_type__in=['NMBR', 'PRC'], 
-            number_value=None
-        ).count()
-        # Для MULT считаем ответы без выбранных опций
-        empty_mult_fields = 0
-        for answer in all_answers.filter(question__answer_type='MULT'):
-            if not answer.selected_options.exists():
-                empty_mult_fields += 1
-        
-        # Общее количество незаполненных полей
-        empty_fields = empty_lst_fields + empty_bl_fields + empty_nmbr_fields + empty_mult_fields
-        filled_fields = total_fields - empty_fields
-        
         worksheet.write(row, 0, report.school.name, cell_format)
         worksheet.write(row, 1, report.report.closter.name if report.report.closter else '-', cell_format)
         worksheet.write(row, 2, ed_level_display, cell_format)

@@ -304,14 +304,14 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
     # Close workbook
     workbook.close()
     output.seek(0)
-
+    
     # Create response
     response = HttpResponse(
         output.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename=ter_admins_report_{year.year}.xlsx'
-
+    
     return response
 
 def write_section_details(worksheet, row_num, sections, s_reports, formats):

@@ -45,28 +45,28 @@
                 </div>
             {% else %}
                 <!-- Для остальных пользователей оставляем возможность выбора -->
-                <div class="form mb-3">
-                    <label for="TerAdminFilter">Территориальные управления/Департаменты образования</label>
-                    <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admin" id="TerAdminFilter" data-width="100%" data-container="body" data-live-search="true">
-                        {% if request.user|is_ter_admin_exist %}
-                            <option value="{{ ter_admins.0.id }}" selected>{{ ter_admins.0 }}</option>
-                        {% else %}
-                            {% for ter_admin in ter_admins %}
-                                <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i" in filter|get_item:"ter_admin" %}selected{% endif %}>{{ ter_admin }}</option>
-                            {% endfor %}
-                        {% endif %}
-                    </select>
-                </div>
-                <div class="form mb-3" id="SchoolFilterContainer">
-                    <label for="SchoolFilter">Школа</label>
-                    <select class="selectpicker" title="Выберите школу" name="school" id="SchoolFilter" data-width="100%" data-container="body" data-live-search="true" required>
+            <div class="form mb-3">
+                <label for="TerAdminFilter">Территориальные управления/Департаменты образования</label>
+                <select class="selectpicker" title="Выберите ТУ/ДО" name="ter_admin" id="TerAdminFilter" data-width="100%" data-container="body" data-live-search="true">
+                    {% if request.user|is_ter_admin_exist %}
+                        <option value="{{ ter_admins.0.id }}" selected>{{ ter_admins.0 }}</option>
+                    {% else %}
                         {% for ter_admin in ter_admins %}
-                            {% for school in ter_admin.schools.all %}
-                                <option value="{{ school.id }}" data-ter-admin-id="{{ ter_admin.id }}" {% if school.id == dash_school.id %}selected{% endif %}>{{ school }}</option>
-                            {% endfor %}
+                            <option value="{{ ter_admin.id }}" {% if ter_admin.id|stringformat:"i" in filter|get_item:"ter_admin" %}selected{% endif %}>{{ ter_admin }}</option>
                         {% endfor %}
-                    </select>
-                </div>
+                    {% endif %}
+                </select>
+            </div>
+            <div class="form mb-3" id="SchoolFilterContainer">
+                <label for="SchoolFilter">Школа</label>
+                <select class="selectpicker" title="Выберите школу" name="school" id="SchoolFilter" data-width="100%" data-container="body" data-live-search="true" required>
+                    {% for ter_admin in ter_admins %}
+                        {% for school in ter_admin.schools.all %}
+                            <option value="{{ school.id }}" data-ter-admin-id="{{ ter_admin.id }}" {% if school.id == dash_school.id %}selected{% endif %}>{{ school }}</option>
+                        {% endfor %}
+                    {% endfor %}
+                </select>
+            </div>
             {% endif %}
         </div>
         <div style="width: 100%; display: flex; justify-content: space-between;flex-direction: row-reverse; margin-top: 10px;">
