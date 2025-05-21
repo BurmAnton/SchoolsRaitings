@@ -8,17 +8,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     terAdminSelect.addEventListener('change', function() {
         const selectedTerAdminId = this.value;
-        console.log(selectedTerAdminId)
-        // Hide all options in the school select
-        Array.from(schoolSelect.options).forEach(option => {
-            if (option.dataset.terAdminId !== selectedTerAdminId) {
-                option.style.display = 'none';
+        
+        // Сначала скрываем все опции
+        $(schoolSelect).find('option').each(function() {
+            const $option = $(this);
+            const terAdminId = $option.attr('data-ter-admin-id');
+            
+            if (terAdminId !== selectedTerAdminId) {
+                $option.prop('hidden', true);
+                $option.prop('disabled', true);
             } else {
-                option.style.display = '';
+                $option.prop('hidden', false);
+                $option.prop('disabled', false);
             }
         });
 
-        // Reset the school select
+        // Сбросить выбор и обновить Bootstrap-select
         schoolSelect.value = '';
         $(schoolSelect).selectpicker('refresh');
     });
