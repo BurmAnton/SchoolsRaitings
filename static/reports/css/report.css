@@ -11,7 +11,7 @@
 }
 
 .dropdown-menu {
-  z-index: 100;
+  z-index: 2000 !important;
   max-width: 100% !important;
 }
 

@@ -329,3 +329,14 @@ def subtract(value, arg):
         return float(value) - float(arg)
     except ValueError:
         return 0
+
+@register.filter
+def get_report_by_year(s_reports, year):
+    """
+    Возвращает SchoolReport за указанный год из списка s_reports, либо None.
+    """
+    for sr in s_reports:
+        if hasattr(sr, 'report') and hasattr(sr.report, 'year'):
+            if str(sr.report.year) == str(year) or sr.report.year == year:
+                return sr
+    return None

@@ -294,15 +294,15 @@ class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
     
     recalculate_reports.short_description = "Пересчитать баллы и зоны для всех отчетов"
     
-    def get_inline_instances(self, request, obj=None):
-        inline_instances = super().get_inline_instances(request, obj)
-        # При создании нового объекта (obj is None) — не показываем CombinationInline
-        if obj is None or (obj and obj.answer_type != 'MULT'):
-            inline_instances = [
-                inline for inline in inline_instances 
-                if not isinstance(inline, CombinationInline)
-            ]
-        return inline_instances
+    # def get_inline_instances(self, request, obj=None):
+    #     inline_instances = super().get_inline_instances(request, obj)
+    #     # При создании нового объекта (obj is None) — не показываем CombinationInline
+    #     if obj is None or (obj and obj.answer_type != 'MULT'):
+    #         inline_instances = [
+    #             inline for inline in inline_instances 
+    #             if not isinstance(inline, CombinationInline)
+    #         ]
+    #     return inline_instances
 
     class Media:
         js = ["../static/admin/js/question_change.js", 'admin/js/column_width.js']

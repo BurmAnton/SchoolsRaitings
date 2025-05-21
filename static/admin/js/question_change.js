@@ -6,7 +6,7 @@ jQuery(document).ready(function ($) {
             var answer_type = $('#id_answer_type'),
                 options = $('#options-group'),
                 range_options = $('#range_options-group'),
-                combinations = $('#optioncombination_set-group'),
+                combinations = $('#combinations-group'),
                 bool_points = $('.field-bool_points'),
                 max_points = $('.field-max_points');
 
@@ -70,13 +70,11 @@ jQuery(document).ready(function ($) {
                 
                 // Получаем контейнеры инлайн-форм
                 var optionInline = document.querySelector('#options-group');
-                var optionRangeInline = document.querySelector('#range_options-group');
                 var rangeOptionInline = document.querySelector('.rangeoption-inline-related');
                 var combinationInline = document.querySelector('.optioncombination-inline-related');
                 
                 // Скрываем все по умолчанию
                 if (optionInline) optionInline.style.display = 'none';
-                if (optionRangeInline) optionRangeInline.style.display = 'none';
                 if (rangeOptionInline) rangeOptionInline.style.display = 'none';
                 if (combinationInline) combinationInline.style.display = 'none';
                 
@@ -85,7 +83,6 @@ jQuery(document).ready(function ($) {
                     if (optionInline) optionInline.style.display = 'block';
                 } else if (selectedValue === 'MULT') {
                     if (optionInline) optionInline.style.display = 'block';
-                    if (optionRangeInline) optionRangeInline.style.display = 'block';
                 } else if (selectedValue === 'NMBR' || selectedValue === 'PRC') {
                     if (rangeOptionInline) rangeOptionInline.style.display = 'block';
                 }
