@@ -116,7 +116,7 @@
         {% endif %}
     </div>
    {% for section in report.sections.all|dictsort:"id" %}
-        <div class="section {% if current_section == section.id %}current-section{% endif %} {% if forloop.first %}first{% elif forloop.last %}last{% endif %}">
+        <div class="section {% if current_section == section.id %}current-section{% endif %} {% if forloop.first %}first{% elif forloop.last %}last{% endif %}" data-section-id="{{ section.id }}">
             <h2><div class="section-zone" style="background-color: {{s_report|get_section_color:section}}; width: 15px; height: 15px; border-radius: 15px"></div>{{ section }}</h2>
             {% if section.note is not None and section.note != "" %}
                 <div class="alert alert-primary note  d-flex align-items-center" role="alert">
@@ -195,6 +195,13 @@
                                 </div>
                                 {% if answers|is_answer_changed:field %} <span style="color: red; font-size: 12px;">*Данные изменены ТУ/ДО</span><br>{% endif %}
                                 {% if answers|is_answer_changed_by_mo:field %}<span style="color: red; font-size: 12px;">*Данные изменены МинОбр</span>{% endif %}
+                            {% elif field.answer_type == 'LINK' or field.answer_type == 'FL' %}
+                                <div class="input-group">
+                                    <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}" placeholder="Ссылка" {% if s_report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif %}>
+                                    <button class="btn btn-success send-link-btn" type="button" {% if s_report.status != 'C' and not request.user.is_superuser or is_readonly %}disabled{% endif %}>
+                                        <i class="fas fa-arrow-right"></i>
+                                    </button>
+                                </div>
                             {% endif %}
                             {% if field.note is not None and field.note != "" %}
                                 <div class="alert alert-primary note  d-flex align-items-center" role="alert">
@@ -231,7 +238,12 @@
                                     </div>
 
                                     {% if not is_readonly and s_report.status == 'C' or not is_readonly and request.user.is_superuser %}
-                                        <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка">
+                                        <div class="input-group">
+                                            <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}" placeholder="Ссылка">
+                                            <button class="btn btn-success send-link-btn" type="button">
+                                                <i class="fas fa-arrow-right"></i>
+                                            </button>
+                                        </div>
                                     {% endif %}
 
                                 </div>
@@ -301,7 +313,12 @@
                                             
                                             {% if not is_readonly and s_report.status == 'C' or not is_readonly and request.user.is_superuser %}
                                                 <input type="file" name="{{field.id}}" class="form-control " id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" >
-                                                <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка">
+                                                <div class="input-group">
+                                                    <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}" placeholder="Ссылка">
+                                                    <button class="btn btn-success send-link-btn" type="button">
+                                                        <i class="fas fa-arrow-right"></i>
+                                                    </button>
+                                                </div>
                                             {% endif %}
                                         </div>
                                     </div>

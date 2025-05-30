@@ -7,7 +7,7 @@ from django.db.models import Sum, Prefetch
 from django.conf import settings
 from django.contrib import messages
 from collections import defaultdict
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font
@@ -1011,7 +1011,7 @@ def answers_distribution_report(request):
                     })
             
             # Сортируем показатели по номеру
-            section_indicators.sort(key=lambda x: float(x['field_number']) if x['field_number'] and x['field_number'].replace('.', '', 1).isdigit() else float('inf'))
+            section_indicators.sort(key=lambda x: [int(n) for n in str(x['field_number']).split('.')] if x['field_number'] else [0])
             
             # Если есть показатели для этого раздела, добавляем его в список
             if section_indicators:
@@ -1022,7 +1022,7 @@ def answers_distribution_report(request):
                 })
         
         # Сортируем разделы по номеру
-        indicator_stats.sort(key=lambda x: float(x['section_number']) if x['section_number'] and x['section_number'].replace('.', '', 1).isdigit() else float('inf'))
+        indicator_stats.sort(key=lambda x: [int(n) for n in str(x['section_number']).split('.')] if x['section_number'] else [0])
         
         # Добавляем данные в контекст
         context['indicator_stats'] = indicator_stats
@@ -1575,7 +1575,9 @@ def _create_section_sheets(workbook, all_school_reports, years, styles):
         fields = Field.objects.filter(
             sections__number=section_number,
             sections__report__year__in=years
-        ).distinct().order_by('number')
+        ).distinct()
+        # Применяем правильную числовую сортировку по номерам полей
+        fields = sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
         all_fields[section_number] = list(fields)
     
     # Создаем отдельный лист для каждого раздела
@@ -1992,3 +1994,59 @@ def calculate_cluster_stats(selected_years, show_year_column=False, show_ter_sta
                 })
     
     return cluster_stats
+
+@login_required
+@csrf_exempt
+def get_schools_by_ter_admin(request):
+    """
+    AJAX endpoint для получения школ по выбранному ТУ/ДО
+    """
+    if request.method == 'GET':
+        ter_admin_id = request.GET.get('ter_admin_id')
+        
+        if ter_admin_id:
+            try:
+                schools = School.objects.filter(
+                    ter_admin_id=ter_admin_id, 
+                    is_archived=False
+                ).order_by('name')
+                
+                schools_data = []
+                for school in schools:
+                    schools_data.append({
+                        'id': school.id,
+                        'name': str(school)
+                    })
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'schools': schools_data
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': str(e)
+                })
+        else:
+            # Если ТУ/ДО не выбрано, возвращаем все школы
+            ter_admins = TerAdmin.objects.filter(representatives=request.user)
+            if not ter_admins.exists():
+                ter_admins = TerAdmin.objects.all()
+            
+            schools_data = []
+            for ter_admin in ter_admins:
+                for school in ter_admin.schools.filter(is_archived=False):
+                    schools_data.append({
+                        'id': school.id,
+                        'name': str(school)
+                    })
+            
+            return JsonResponse({
+                'status': 'success',
+                'schools': schools_data
+            })
+    
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Invalid request method'
+    })

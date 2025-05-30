@@ -18,7 +18,13 @@ def get_item(dictionary, key):
 
 @register.filter
 def get_sorted_fields(section):
-    return sorted(section.fields.all(), key=lambda x: [int(n) for n in str(x.number).split('.')])
+    # Если передан SectionSreport, получаем связанную Section
+    if hasattr(section, 'section'):
+        actual_section = section.section
+    else:
+        actual_section = section
+        
+    return sorted(actual_section.fields.all(), key=lambda x: [int(n) for n in str(x.number).split('.')])
 
 
 @register.filter
@@ -125,15 +131,21 @@ def get_color_field(answers, field):
 def get_section_color(s_report, section):
     from reports.models import Answer, Field
 
-    questions = section.fields.all()
+    # Если передан SectionSreport, получаем связанную Section
+    if hasattr(section, 'section'):
+        actual_section = section.section
+    else:
+        actual_section = section
+
+    questions = actual_section.fields.all()
 
     points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
     if s_report.report.is_counting == False:
         return 'white'
     try:
-        if points__sum < section.yellow_zone_min:
+        if points__sum < actual_section.yellow_zone_min:
             return "red"
-        elif points__sum >= section.green_zone_min:
+        elif points__sum >= actual_section.green_zone_min:
             return "green"
         return "#ffc600"
     except: return 'red'
@@ -331,3 +343,49 @@ def report_zone(school_report):
             return ''
     except:
         return ''
+
+@register.simple_tag(takes_context=True)
+def can_edit_field(context, answers, field):
+    """
+    Проверяет, может ли пользователь редактировать поле.
+    Возвращает False, если поле проверено другим пользователем.
+    """
+    try:
+        user = context['request'].user
+        answer = answers.filter(question=field).first()
+        if not answer:
+            return True
+            
+        # Если поле не проверено, можно редактировать
+        if not answer.is_checked:
+            return True
+            
+        # Если поле проверено текущим пользователем, можно редактировать
+        if user and answer.checked_by == user:
+            return True
+            
+        # Суперпользователю можно всё
+        if user and user.is_superuser:
+            return True
+            
+        # Если поле проверено другим пользователем, нельзя редактировать
+        return False
+    except:
+        return True
+
+@register.filter
+def get_check_status_message(answers, field):
+    """
+    Возвращает сообщение о статусе проверки поля
+    """
+    try:
+        answer = answers.filter(question=field).first()
+        if not answer or not answer.is_checked:
+            return ""
+            
+        checked_by = answer.checked_by.get_full_name() if answer.checked_by else "Неизвестно"
+        checked_at = answer.checked_at.strftime("%d.%m.%Y %H:%M") if answer.checked_at else ""
+        
+        return f"Проверено: {checked_by} ({checked_at})"
+    except:
+        return ""

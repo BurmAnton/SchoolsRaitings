@@ -3,6 +3,57 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('.active').classList.remove('active')
     document.querySelector('.report-link').classList.add('active')
 
+    // Проверяем, пришли ли мы после сброса фильтров
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('reset')) {
+        console.log('Обнаружен параметр reset, принудительно очищаем фильтры...');
+        
+        // Максимально простой и надежный способ - ждем и очищаем все
+        setTimeout(function() {
+            console.log('Принудительная очистка всех select элементов...');
+            
+            // Находим ВСЕ select элементы на странице
+            document.querySelectorAll('select').forEach(function(select) {
+                console.log('Очищаем select:', select.id || select.name || 'unnamed');
+                
+                // Снимаем selected со ВСЕХ option
+                Array.from(select.options).forEach(function(option) {
+                    option.selected = false;
+                });
+                
+                // Устанавливаем значение в пустое
+                select.value = '';
+                select.selectedIndex = -1;
+                
+                // Если это multiple select, очищаем массив
+                if (select.multiple) {
+                    select.value = [];
+                }
+            });
+            
+            // Теперь обновляем SelectPicker, если он есть
+            if (typeof $.fn.selectpicker !== 'undefined') {
+                $('.selectpicker').selectpicker('refresh');
+                console.log('SelectPicker обновлен');
+            }
+            
+            // Удаляем параметр reset из URL
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+            
+            console.log('Очистка завершена!');
+            
+        }, 1000); // Увеличиваем задержку до 1 секунды
+    }
+
+    // Добавляем обработчик для кнопки сброса фильтров
+    const resetButton = document.getElementById('resetFiltersBtn');
+    if (resetButton) {
+        resetButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            resetAllFilters();
+        });
+    }
 
     document.querySelector('#CheckAll').addEventListener('click', (event) => {
         var checkbox = event.currentTarget.querySelector('.form-check-input');
@@ -179,4 +230,19 @@ function count_selected_rows(){
     }
     
     document.querySelector('.selected-row-count').innerHTML = counter;
+}
+
+function resetAllFilters() {
+    console.log('Простой сброс фильтров - перезагрузка страницы...');
+    
+    // Показываем индикатор сброса
+    const resetButton = document.getElementById('resetFiltersBtn');
+    if (resetButton) {
+        resetButton.textContent = 'Сбрасываем...';
+        resetButton.disabled = true;
+    }
+    
+    // Просто перезагружаем страницу без параметров фильтра
+    const currentUrl = window.location.pathname;
+    window.location.href = currentUrl + '?reset=1';
 }

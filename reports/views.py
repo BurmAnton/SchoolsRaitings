@@ -1,5 +1,3 @@
-import json
-import csv
 import io
 import xlsxwriter
 from django.shortcuts import get_object_or_404, render
@@ -8,17 +6,19 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
-from django.db.models import Sum, Max
 from django.core.paginator import Paginator
-from django.utils import timezone
 
-from reports.models import Answer, Attachment, Field, Option, Report, ReportFile, ReportLink, SchoolReport, Section, SectionSreport, OptionCombination
-from reports.utils import count_points, select_range_option, count_section_points, count_points_field
-from reports.templatetags.reports_extras import get_completion_percent
+from reports.models import Answer, Field, Report,SchoolReport, SectionSreport
+from reports.utils import count_section_points
 from users.models import Group, Notification, MainPageArticle
 from schools.models import School, SchoolCloster, TerAdmin
 from common.utils import get_cache_key
-
+from reports.report_handlers import (
+    handle_ajax_request, 
+    get_report_context, 
+    handle_send_report, 
+    handle_file_upload
+)
 
 @login_required
 def index(request):
@@ -32,10 +32,10 @@ def index(request):
     mo_group = Group.objects.get(name='Представитель МинОбр')
     if user.groups.filter(id=mo_group.id).count() == 1:
         return HttpResponseRedirect(reverse('start'))
-    if user.is_superuser:
+    iro_group = Group.objects.get(name='Представитель ИРО')
+    if user.is_superuser or user.groups.filter(id=iro_group.id).count() == 1:
         return HttpResponseRedirect(reverse('admin:index'))
     return HttpResponseRedirect(reverse('undefined_user'))
-        
 
 
 @login_required
@@ -91,11 +91,13 @@ def reports(request, school_id):
 @login_required
 @csrf_exempt
 def report(request, report_id, school_id):
-    message = None
+    """
+    Рефакторенная версия функции report
+    """
     report = get_object_or_404(Report, id=report_id)
     school = get_object_or_404(School, id=school_id)
 
-    # Check year status - only allow report creation/editing if year status is 'filling' or later
+    # Check year status
     if report.year.status == 'forming':
         return render(request, "reports/report_not_available.html", {
             'school': school,
@@ -103,27 +105,21 @@ def report(request, report_id, school_id):
             'message': "Отчет в стадии формирования и пока недоступен для заполнения."
         })
     
-    # If year status is 'completed', make the report read-only
     is_readonly = report.year.status == 'completed'
-    
-    # If year status is 'completed', show a read-only notification
-    if is_readonly:
-        message = "ReadOnly"
-        
     current_section = request.GET.get('current_section', '')
-    if current_section == "":
-        current_section = report.sections.all().first().id
-    else: current_section = int(current_section)
+    message = None
 
+    # Get or create school report
     s_report, is_new_report = SchoolReport.objects.get_or_create(
-        report=report, school=school, 
+        report=report, school=school
     )
     
+    # Create answers for all questions
     sections = report.sections.all()
     for question in Field.objects.filter(sections__in=sections):
         try:
             Answer.objects.get_or_create(
-                    s_report=s_report,
+                s_report=s_report,
                 question=question,
             )
         except:
@@ -131,235 +127,23 @@ def report(request, report_id, school_id):
             if len(answers) > 1:
                 first_answer = answers.first()
                 answers.exclude(id=first_answer.id).delete()
-                    
 
-    answers = Answer.objects.filter(s_report=s_report)
-    
     if request.method == 'POST' and not is_readonly:
         if 'send-report' in request.POST:
             if s_report.status == 'C':
-                s_report.status = 'A'
-                s_report.save()
-            message = "SendToTerAdmin"
+                message = handle_send_report(s_report, 'A')
         elif request.FILES.get("file") is not None:
-            file = request.FILES.get("file")
             id = request.POST.dict()['id']
-
             question = Field.objects.get(id=id)
-            answers = Answer.objects.filter(question=question, s_report=s_report)
-            if answers.count() == 0:
-                answer = Answer.objects.create(
-                    s_report=s_report,
-                    question=question,
-                )
-            elif answers.count() == 1:
-                answer = answers.first()
-            else:
-                answer = answers.first()
-                answers.exclude(id=answer.id).delete()
-
-            file = ReportFile.objects.create(
-                s_report=answer.s_report,
-                answer=answer,
-                file = file
-            )
-            return JsonResponse({
-                "message": "File updated/saved successfully.",
-                "question_id": question.id,
-                "file_link": file.file.url,
-                "filename": file.file.name,
-                "file_id": file.id
-            }, status=201)
+            return handle_file_upload(request, question, s_report)
         else:
-            data = json.loads(request.body.decode("utf-8"))
-            
-            # Блокируем все изменения через AJAX, если год завершен (is_readonly=True)
+            # Блокируем все изменения через AJAX, если год завершен
             if is_readonly:
                 return JsonResponse({"error": "Редактирование недоступно. Год закрыт."}, status=403)
-                
-            if 'file_id' in data:
-                file_id = data['file_id']
-                ReportFile.objects.get(id=file_id).delete()
-                return JsonResponse({"message": "File deleted successfully.",}, status=201)
-            elif 'link_id' in data:
-                link_id = data['link_id']
-                ReportLink.objects.get(id=link_id).delete()
-                return JsonResponse({"message": "Link deleted successfully.",}, status=201)
-            
-           
-            try:
-                question = Field.objects.get(id=data['id'].replace('check_', ''))
-            except Field.DoesNotExist:
-                return JsonResponse({"error": "Поле не найдено"}, status=404)
-            answers = Answer.objects.filter(question=question, s_report=s_report)
-            if answers.count() == 0:
-                answer = Answer.objects.create(
-                    s_report=s_report,
-                    question=question,
-                )
-            elif answers.count() == 1:
-                answer = answers.first()
-            else:
-                answer = answers.first()
-                answers.exclude(id=answer.id).delete()
-            if 'link' in data:
-                link = data['value']
-                link = ReportLink.objects.create(
-                    s_report=answer.s_report,
-                    answer=answer,
-                    link = link,
-                )
-                link.save()
-                return JsonResponse({
-                    "message": "Link updated/saved successfully.",
-                    "question_id": question.id,
-                    "link": link.link,
-                    "link_id": link.id
-                }, status=201)
-            if question.answer_type == "LST":
-                try:
-                    option = Option.objects.get(id=data['value'])
-                    answer.option = option
-                    answer.points = option.points
-                    answer.zone = option.zone
-                except:
-                    answer.option = None
-                    answer.points = 0
-                    answer.zone = "R"
-            elif question.answer_type == "BL":
-                
-                answer.bool_value = data['value']
-                answer.points = question.bool_points if answer.bool_value else 0
-                answer.zone = "G" if answer.bool_value else "R"
-            elif question.answer_type in ['NMBR', 'PRC']:
-                answer.number_value = float(data['value'])
-                r_option = select_range_option(question.range_options.all(), answer.number_value)
-                if r_option == None: 
-                    answer.points = 0
-                    answer.zone = "R"
-                else: 
-                    answer.points = r_option.points
-                    answer.zone = r_option.zone
-            elif question.answer_type == 'MULT':
-                # Обработка множественного выбора
-                if 'multiple_values' in data:
-                    # Очищаем предыдущие выбранные опции
-                    answer.selected_options.clear()
-                    selected_options_ids = data['multiple_values']
-                    
-                    if selected_options_ids:
-                        # Получаем объекты Option по их ID
-                        selected_options = list(Option.objects.filter(id__in=selected_options_ids))
-                        
-                        # Добавляем выбранные опции
-                        answer.selected_options.add(*selected_options)
-                        
-                        # Сортируем номера опций для проверки комбинаций
-                        option_numbers = sorted([str(opt.number) for opt in selected_options])
-                        option_numbers_str = ','.join(option_numbers)
-                        
-                        # Проверяем, есть ли точное совпадение с комбинацией
-                        try:
-                            combination = OptionCombination.objects.get(
-                                field=question, 
-                                option_numbers=option_numbers_str
-                            )
-                            answer.points = combination.points
-                        except OptionCombination.DoesNotExist:
-                            # Если нет точного совпадения, суммируем баллы выбранных опций
-                            total_points = sum(opt.points for opt in selected_options)
-                            
-                            # Проверяем, не превышает ли сумма максимальное значение (если оно задано)
-                            if question.max_points is not None and total_points > question.max_points:
-                                total_points = question.max_points
-                                
-                            answer.points = total_points
-                        
-                        # Определяем зону на основе баллов и настроек показателя
-                        field = question
-                        if field.yellow_zone_min is not None and field.green_zone_min is not None:
-                            if answer.points < field.yellow_zone_min:
-                                answer.zone = 'R'
-                            elif answer.points >= field.green_zone_min:
-                                answer.zone = 'G'
-                            else:
-                                answer.zone = 'Y'
-                        else:
-                            # Если в показателе не заданы зоны, попробуем использовать зоны из раздела
-                            section = field.sections.first()
-                            if section and section.yellow_zone_min is not None and section.green_zone_min is not None:
-                                if answer.points < section.yellow_zone_min:
-                                    answer.zone = 'R'
-                                elif answer.points >= section.green_zone_min:
-                                    answer.zone = 'G'
-                                else:
-                                    answer.zone = 'Y'
-                            else:
-                                # Если нигде не заданы зоны, то определяем по наличию баллов
-                                answer.zone = 'G' if answer.points > 0 else 'R'
-                    else:
-                        # Если ничего не выбрано, обнуляем баллы
-                        answer.points = 0
-                        answer.zone = 'R'
-            answer.save()
+            return handle_ajax_request(request, s_report, user_type='school')
 
-            # Clear dashboard caches when answer is updated
-            cache_key = get_cache_key('ter_admins_dash',
-                year=s_report.report.year,
-                schools=','.join(sorted(str(s.id) for s in School.objects.filter(ter_admin=school.ter_admin, is_archived=False))),
-                reports=','.join(sorted(str(r.id) for r in Report.objects.filter(year=s_report.report.year)))
-            )
-            cache.delete(cache_key)
-            
-            # Clear closters_report cache
-            cache_key = get_cache_key('closters_report_data',
-                year=s_report.report.year,
-                ter_admin=str(school.ter_admin.id),
-                closters=str(school.closter.id) if school.closter else '',
-                ed_levels=school.ed_level
-            )
-            cache.delete(cache_key)
-
-            list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
-            if len(list_answers) == 0:
-                s_report.is_ready = True
-            else: s_report.is_ready = False
-            zone, points_sum = count_points(s_report)
-            
-            if zone != 'W':
-                s_report.zone = zone
-                a_zone = answer.zone
-            else:
-                a_zone = 'W'
-
-            s_report.points = points_sum
-            s_report.save()
-
-            section = Section.objects.get(fields=question.id, report=s_report.report)
-         
-            return JsonResponse(
-                {
-                    "message": "Question changed successfully.", 
-                    "points": str(answer.points), 
-                    "ready":s_report.is_ready,
-                    "zone": zone, 
-                    "report_points": s_report.points,
-                    "answer_z": a_zone,
-                    "section_z": count_section_points(s_report, section),
-                
-                }, 
-                status=201
-            )
-
-    return render(request, "reports/report.html", {
-        'school': school,
-        'report': report,
-        'current_section': current_section,
-        'message': message,
-        's_report': s_report,
-        'answers': answers,
-        'is_readonly': is_readonly,
-    })
+    context = get_report_context(request, s_report, current_section, message)
+    return render(request, "reports/report.html", context)
 
 
 @login_required
@@ -482,8 +266,18 @@ def ter_admin_reports(request, user_id):
     filter = None
     # Reset filter if requested
     if 'reset' in request.GET:
-        if 'ter_admin_reports_filter_{user_id}' in request.session:
-            del request.session[f'ter_admin_reports_filter_{user_id}']
+        session_key = f'ter_admin_reports_filter_{user_id}'
+        print(f"DEBUG: Trying to reset filter. Session key: {session_key}")
+        print(f"DEBUG: Session keys before reset: {list(request.session.keys())}")
+        
+        if session_key in request.session:
+            print(f"DEBUG: Found filter in session: {request.session[session_key]}")
+            del request.session[session_key]
+            print("DEBUG: Filter deleted from session")
+        else:
+            print("DEBUG: No filter found in session to delete")
+            
+        print(f"DEBUG: Session keys after reset: {list(request.session.keys())}")
         return HttpResponseRedirect(reverse('ter_admin_reports', args=[user_id]))
     
     # Store filter parameters in session when POST request
@@ -542,7 +336,6 @@ def ter_admin_reports(request, user_id):
     paginator = Paginator(s_reports, 20)  # 20 reports per page
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
-
     return render(request, "reports/ter_admin_reports.html", {
         'user_id': user_id,
         'ter_admin': ter_admin,
@@ -559,416 +352,58 @@ def ter_admin_reports(request, user_id):
 @login_required
 @csrf_exempt
 def mo_report(request, s_report_id):
-    message = None
+    """
+    Рефакторенная версия функции mo_report
+    """
     s_report = get_object_or_404(SchoolReport, id=s_report_id)
-    answers = Answer.objects.filter(s_report=s_report)
-    
-    # If year status is 'completed', make the report read-only
     is_readonly = s_report.report.year.status == 'completed'
-    
-    # If year status is 'completed', show a read-only notification
-    if is_readonly:
-        message = "ReadOnly"
-    
     current_section = request.GET.get('current_section', '')
-    if current_section == "":
-        current_section = s_report.report.sections.all().first().id
-    else: current_section = int(current_section)
+    message = None
 
     if request.method == 'POST' and not is_readonly:
         if 'send-report' in request.POST:
-            s_report.status = 'A'
-            s_report.save()
-            message = "SendToTerAdmin"
+            message = handle_send_report(s_report, 'A')
         elif request.FILES.get("file") is not None:
-            file = request.FILES.get("file")
             id = request.POST.dict()['id']
-
             question = Field.objects.get(id=id)
-            answer = Answer.objects.filter(question=question, s_report=s_report).first()
-            file = ReportFile.objects.create(
-                s_report=answer.s_report,
-                answer=answer,
-                file=file
-            )
-            return JsonResponse({
-                "message": "File updated/saved successfully.",
-                "question_id": question.id,
-                "file_link": file.file.url,
-                "filename": file.file.name,
-                "file_id": file.id
-            }, status=201)
+            return handle_file_upload(request, question, s_report)
         else:
-            data = json.loads(request.body.decode("utf-8"))
-            
-            # Блокируем все изменения через AJAX, если год завершен (is_readonly=True)
+            # Блокируем все изменения через AJAX, если год завершен
             if is_readonly:
                 return JsonResponse({"error": "Редактирование недоступно. Год закрыт."}, status=403)
-                
-            if 'file_id' in data:
-                file_id = data['file_id']
-                ReportFile.objects.get(id=file_id).delete()
-                return JsonResponse({"message": "File deleted successfully.",}, status=201)
-            elif 'link_id' in data:
-                link_id = data['link_id']
-                ReportLink.objects.get(id=link_id).delete()
-                return JsonResponse({"message": "Link deleted successfully.",}, status=201)
-            
-            question = Field.objects.get(id=data['id'].replace('check_', ''))
-            answer = Answer.objects.filter(question=question, s_report=s_report).first()
-            if question.answer_type == "LST":
-                try:
-                    option = Option.objects.get(id=data['value'])
-                    answer.option = option
-                    answer.points = option.points
-                    answer.zone = option.zone
-                except:
-                    answer.option = None
-                    answer.points = 0
-                    answer.zone = "R"
-            elif question.answer_type == "BL":
-                answer.bool_value = data['value']
-                answer.points = question.bool_points if answer.bool_value else 0
-                answer.zone = "G" if answer.bool_value else "R"
-            elif question.answer_type in ['NMBR', 'PRC']:
-                answer.number_value = float(data['value'])
-                r_option = select_range_option(question.range_options.all(), answer.number_value)
-                if r_option == None: 
-                    answer.points = 0
-                    answer.zone = "R"
-                else: 
-                    answer.points = r_option.points
-                    answer.zone = r_option.zone
-            elif question.answer_type == 'MULT':
-                # Обработка множественного выбора
-                if 'multiple_values' in data:
-                    # Очищаем предыдущие выбранные опции
-                    answer.selected_options.clear()
-                    selected_options_ids = data['multiple_values']
-                    
-                    if selected_options_ids:
-                        # Получаем объекты Option по их ID
-                        selected_options = list(Option.objects.filter(id__in=selected_options_ids))
-                        
-                        # Добавляем выбранные опции
-                        answer.selected_options.add(*selected_options)
-                        
-                        # Сортируем номера опций для проверки комбинаций
-                        option_numbers = sorted([str(opt.number) for opt in selected_options])
-                        option_numbers_str = ','.join(option_numbers)
-                        
-                        # Проверяем, есть ли точное совпадение с комбинацией
-                        try:
-                            combination = OptionCombination.objects.get(
-                                field=question, 
-                                option_numbers=option_numbers_str
-                            )
-                            answer.points = combination.points
-                        except OptionCombination.DoesNotExist:
-                            # Если нет точного совпадения, суммируем баллы выбранных опций
-                            total_points = sum(opt.points for opt in selected_options)
-                            
-                            # Проверяем, не превышает ли сумма максимальное значение (если оно задано)
-                            if question.max_points is not None and total_points > question.max_points:
-                                total_points = question.max_points
-                                
-                            answer.points = total_points
-                        
-                        # Определяем зону на основе баллов и настроек показателя
-                        field = question
-                        if field.yellow_zone_min is not None and field.green_zone_min is not None:
-                            if answer.points < field.yellow_zone_min:
-                                answer.zone = 'R'
-                            elif answer.points >= field.green_zone_min:
-                                answer.zone = 'G'
-                            else:
-                                answer.zone = 'Y'
-                        else:
-                            # Если в показателе не заданы зоны, попробуем использовать зоны из раздела
-                            section = field.sections.first()
-                            if section and section.yellow_zone_min is not None and section.green_zone_min is not None:
-                                if answer.points < section.yellow_zone_min:
-                                    answer.zone = 'R'
-                                elif answer.points >= section.green_zone_min:
-                                    answer.zone = 'G'
-                                else:
-                                    answer.zone = 'Y'
-                            else:
-                                # Если нигде не заданы зоны, то определяем по наличию баллов
-                                answer.zone = 'G' if answer.points > 0 else 'R'
-                    else:
-                        # Если ничего не выбрано, обнуляем баллы
-                        answer.points = 0
-                        answer.zone = 'R'
-            answer.is_mod_by_mo = True #####
-            answer.save()
-
-            list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
-            if len(list_answers) == 0:
-                s_report.is_ready = True
-            else: s_report.is_ready = False
-            zone, points_sum = count_points(s_report)
-            
-            if zone != 'W':
-                s_report.zone = zone
-                a_zone = answer.zone
-            else:
-                a_zone = 'W'
-
-            s_report.points = points_sum
-            s_report.save()
-
-            section = Section.objects.get(fields=question.id, report=s_report.report)
-
-            return JsonResponse(
-                {
-                    "message": "Question changed successfully.", 
-                    "points": str(answer.points), 
-                    "ready":s_report.is_ready,
-                    "zone": zone, 
-                    "report_points": s_report.points,
-                    "answer_z": a_zone,
-                    "section_z": count_section_points(s_report, section),
-                
-                }, 
-                status=201
-            )
+            return handle_ajax_request(request, s_report, user_type='mo')
     
-    return render(request, "reports/mo_report.html", {
-        'message': message,
-        'school': s_report.school,
-        'report': s_report,
-        'answers': answers,
-        'current_section': current_section,
-        'is_readonly': is_readonly,
-    })
+    context = get_report_context(request, s_report, current_section, message)
+    return render(request, "reports/mo_report.html", context)
 
 
 @login_required
 @csrf_exempt
 def ter_admin_report(request, ter_admin_id, s_report_id):
-    message = None
+    """
+    Рефакторенная версия функции ter_admin_report
+    """
     ter_admin = get_object_or_404(TerAdmin, id=ter_admin_id)
     s_report = get_object_or_404(SchoolReport, id=s_report_id)
-    answers = Answer.objects.filter(s_report=s_report)
-
-    # If year status is 'completed', make the report read-only
     is_readonly = s_report.report.year.status == 'completed'
-
-    # If year status is 'completed', show a read-only notification
-    if is_readonly:
-        message = "ReadOnly"
-
     current_section = request.GET.get('current_section', '')
-    if current_section == "":
-        current_section = s_report.report.sections.all().first().id
-    else: current_section = int(current_section)
-    
+    message = None
+
     if request.method == 'POST' and not is_readonly:
         if 'send-report' in request.POST:
-            s_report.status = 'B'
-            s_report.save()
-            message = "SendToMinObr"
+            message = handle_send_report(s_report, 'B')
         elif request.FILES.get("file") is not None:
-            file = request.FILES.get("file")
             id = request.POST.dict()['id']
-
             question = Field.objects.get(id=id)
-            answer = Answer.objects.filter(question=question, s_report=s_report).first()
-            file = ReportFile.objects.create(
-                s_report=answer.s_report,
-                answer=answer,
-                file=file
-            )
-            return JsonResponse({
-                "message": "File updated/saved successfully.",
-                "question_id": question.id,
-                "file_link": file.file.url,
-                "filename": file.file.name,
-                "file_id": file.id
-            }, status=201)
+            return handle_file_upload(request, question, s_report)
         else:
-            data = json.loads(request.body.decode("utf-8"))
-            if 'file_id' in data:
-                file_id = data['file_id']
-                ReportFile.objects.get(id=file_id).delete()
-                return JsonResponse({"message": "File deleted successfully.",}, status=201)
-            elif 'link_id' in data:
-                link_id = data['link_id']
-                ReportLink.objects.get(id=link_id).delete()
-                return JsonResponse({"message": "Link deleted successfully.",}, status=201)
-            elif 'check_answer' in data:
-                # Обработка проверки показателя
-                answer_id = data['answer_id']
-                is_checked = data['is_checked']
-
-                try:
-                    answer = Answer.objects.get(id=answer_id)
-                    answer.is_checked = is_checked
-                    if is_checked:
-                        answer.checked_by = request.user
-                        answer.checked_at = timezone.now()
-                    else:
-                        answer.checked_by = None
-                        answer.checked_at = None
-                    answer.save()
-                    return JsonResponse({
-                        "message": "Answer check status updated successfully.",
-                        "checked_by": answer.checked_by.get_full_name() if answer.checked_by else None,
-                        "checked_at": answer.checked_at.strftime("%d.%m.%Y %H:%M") if answer.checked_at else None
-                    }, status=201)
-                except Answer.DoesNotExist:
-                    return JsonResponse({"error": "Ответ не найден"}, status=404)
-            
-            # Блокируем все изменения через AJAX, если год завершен (is_readonly=True)
+            # Блокируем все изменения через AJAX, если год завершен
             if is_readonly:
                 return JsonResponse({"error": "Редактирование недоступно. Год закрыт."}, status=403)
-            
-            try:
-                question = Field.objects.get(id=data['id'].replace('check_', ''))
-            except Field.DoesNotExist:
-                return JsonResponse({"error": "Поле не найдено"}, status=404)
-            answer = Answer.objects.filter(question=question, s_report=s_report).first()
-            if 'link' in data:
-                link = data['value']
-                link = ReportLink.objects.create(
-                    s_report=answer.s_report,
-                    answer=answer,
-                    link=link,
-                )
-                link.save()
-                return JsonResponse({
-                    "message": "Link updated/saved successfully.",
-                    "question_id": question.id,
-                    "link": link.link,
-                    "link_id": link.id
-                }, status=201)
-            if question.answer_type == "LST":
-                try:
-                    option = Option.objects.get(id=data['value'])
-                    answer.option = option
-                    answer.points = option.points
-                    answer.zone = option.zone
-                except:
-                    answer.option = None
-                    answer.points = 0
-                    answer.zone = "R"
-            elif question.answer_type == "BL":
-                answer.bool_value = data['value']
-                answer.points = question.bool_points if answer.bool_value else 0
-                answer.zone = "G" if answer.bool_value else "R"
-            elif question.answer_type in ['NMBR', 'PRC']:
-                answer.number_value = float(data['value'])
-                r_option = select_range_option(question.range_options.all(), answer.number_value)
-                if r_option == None: 
-                    answer.points = 0
-                    answer.zone = "R"
-                else: 
-                    answer.points = r_option.points
-                    answer.zone = r_option.zone
-            elif question.answer_type == 'MULT':
-                # Обработка множественного выбора
-                if 'multiple_values' in data:
-                    # Очищаем предыдущие выбранные опции
-                    answer.selected_options.clear()
-                    selected_options_ids = data['multiple_values']
-                    
-                    if selected_options_ids:
-                        # Получаем объекты Option по их ID
-                        selected_options = list(Option.objects.filter(id__in=selected_options_ids))
-                        
-                        # Добавляем выбранные опции
-                        answer.selected_options.add(*selected_options)
-                        
-                        # Сортируем номера опций для проверки комбинаций
-                        option_numbers = sorted([str(opt.number) for opt in selected_options])
-                        option_numbers_str = ','.join(option_numbers)
-                        
-                        # Проверяем, есть ли точное совпадение с комбинацией
-                        try:
-                            combination = OptionCombination.objects.get(
-                                field=question, 
-                                option_numbers=option_numbers_str
-                            )
-                            answer.points = combination.points
-                        except OptionCombination.DoesNotExist:
-                            # Если нет точного совпадения, суммируем баллы выбранных опций
-                            total_points = sum(opt.points for opt in selected_options)
-                            
-                            # Проверяем, не превышает ли сумма максимальное значение (если оно задано)
-                            if question.max_points is not None and total_points > question.max_points:
-                                total_points = question.max_points
-                                
-                            answer.points = total_points
-                        
-                        # Определяем зону на основе баллов и настроек показателя
-                        field = question
-                        if field.yellow_zone_min is not None and field.green_zone_min is not None:
-                            if answer.points < field.yellow_zone_min:
-                                answer.zone = 'R'
-                            elif answer.points >= field.green_zone_min:
-                                answer.zone = 'G'
-                            else:
-                                answer.zone = 'Y'
-                        else:
-                            # Если в показателе не заданы зоны, попробуем использовать зоны из раздела
-                            section = field.sections.first()
-                            if section and section.yellow_zone_min is not None and section.green_zone_min is not None:
-                                if answer.points < section.yellow_zone_min:
-                                    answer.zone = 'R'
-                                elif answer.points >= section.green_zone_min:
-                                    answer.zone = 'G'
-                                else:
-                                    answer.zone = 'Y'
-                            else:
-                                # Если нигде не заданы зоны, то определяем по наличию баллов
-                                answer.zone = 'G' if answer.points > 0 else 'R'
-                    else:
-                        # Если ничего не выбрано, обнуляем баллы
-                        answer.points = 0
-                        answer.zone = 'R'
-            answer.is_mod_by_ter = True
-            answer.save()
+            return handle_ajax_request(request, s_report, user_type='ter_admin')
 
-            list_answers = Answer.objects.filter(s_report=s_report, question__answer_type='LST', option=None)
-            if len(list_answers) == 0:
-                s_report.is_ready = True
-            else: s_report.is_ready = False
-            zone, points_sum = count_points(s_report)
-            
-            if zone != 'W':
-                s_report.zone = zone
-                a_zone = answer.zone
-            else:
-                a_zone = 'W'
-
-            s_report.points = points_sum
-            s_report.save()
-
-            section = Section.objects.get(fields=question.id, report=s_report.report)
-
-            return JsonResponse(
-                {
-                    "message": "Question changed successfully.", 
-                    "points": str(answer.points), 
-                    "ready":s_report.is_ready,
-                    "zone": zone, 
-                    "report_points": s_report.points,
-                    "answer_z": a_zone,
-                    "section_z": count_section_points(s_report, section),
-                }, 
-                status=201
-            )
-
-    return render(request, "reports/ter_admin_report.html", {
-        'message': message,
-        'ter_admin': ter_admin,
-        'school': s_report.school,
-        'report': s_report,
-        'answers': answers,
-        'current_section': current_section,
-        'is_readonly': is_readonly,
-    })
+    context = get_report_context(request, s_report, current_section, message, ter_admin=ter_admin)
+    return render(request, "reports/ter_admin_report.html", context)
 
 def update_answer(request, answer_id):
     answer = get_object_or_404(Answer, id=answer_id)

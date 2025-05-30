@@ -1,4 +1,47 @@
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing report page...');
+    
+    // Проверяем наличие секций и автоматически устанавливаем первую как текущую
+    const sections = document.querySelectorAll('.section');
+    const currentSection = document.querySelector('.current-section');
+    
+    if (sections.length > 0 && !currentSection) {
+        console.warn('No current section found! Adding current-section class to first section.');
+        sections[0].classList.add('current-section');
+    }
+    
+    // Добавляем обработчики для навигационных ссылок
+    document.querySelectorAll('.pagination .page-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault(); // Предотвращаем обычный переход по ссылке
+            
+            const url = new URL(this.href);
+            const targetSectionId = url.searchParams.get('current_section');
+            
+            if (targetSectionId) {
+                // Скрываем текущую секцию
+                const currentSection = document.querySelector('.current-section');
+                if (currentSection) {
+                    currentSection.classList.remove('current-section');
+                }
+                
+                // Показываем новую секцию
+                const targetSection = document.querySelector(`[data-section-id="${targetSectionId}"]`);
+                if (targetSection) {
+                    targetSection.classList.add('current-section');
+                    
+                    // Обновляем навигацию
+                    check_section();
+                    
+                    // Прокручиваем страницу вверх
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    console.error('Target section not found:', targetSectionId);
+                }
+            }
+        });
+    });
+    
     check_section()
 
     // document.querySelector('#btn-forward').addEventListener('click', (btn) => {
@@ -78,11 +121,77 @@ document.addEventListener('DOMContentLoaded', function() {
             input.value = ""
         })
     })
-    document.querySelectorAll('input[type="link"]').forEach(input => {
-        input.addEventListener('change', () => {
-            upload_link(input.value, input.name, input)
+    
+    // Обработчик для кнопок отправки ссылок
+    document.querySelectorAll('.send-link-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const linkInput = button.parentElement.querySelector('input[type="link"]');
+            const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            
+            // Очищаем предыдущие состояния
+            linkInput.classList.remove('is-invalid');
+            button.classList.remove('sending');
+            
+            if (linkInput.value) {
+                // Добавляем анимацию загрузки
+                button.classList.add('sending');
+                button.disabled = true;
+                
+                // Показываем индикатор загрузки
+                const originalIcon = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                upload_link(linkInput.value, linkInput.name, linkInput)
+                    .then(() => {
+                        // Успешная отправка
+                        button.innerHTML = '<i class="fas fa-check"></i>';
+                        
+                        // Возвращаем исходный вид через 2 секунды
+                        setTimeout(() => {
+                            button.innerHTML = originalIcon;
+                            button.classList.remove('sending');
+                            button.disabled = false;
+                        }, 2000);
+                    })
+                    .catch(() => {
+                        // Ошибка отправки
+                        button.innerHTML = '<i class="fas fa-times"></i>';
+                        button.classList.add('btn-danger');
+                        button.classList.remove('btn-success');
+                        
+                        // Возвращаем исходный вид через 3 секунды
+                        setTimeout(() => {
+                            button.innerHTML = originalIcon;
+                            button.classList.remove('sending', 'btn-danger');
+                            button.classList.add('btn-success');
+                            button.disabled = false;
+                        }, 3000);
+                    });
+            } else {
+                // Показываем ошибку валидации
+                linkInput.classList.add('is-invalid');
+                let alert_element = linkInput.closest('.col, .field, .mb-3').querySelector('.alert');
+                if (alert_element) {
+                    alert_element.innerHTML = linkInput.value ? "Введите корректную ссылку!" : "Поле не может быть пустым!";
+                    alert_element.classList.remove('alert-success');
+                    alert_element.classList.add('alert-danger');
+                    let alert_id = `#${alert_element.id}`;
+                    $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
+                        $(".alert").slideUp(500);
+                        alert_element.classList.remove('alert-danger');
+                        alert_element.classList.add('alert-success');
+                    });
+                }
+                
+                // Добавляем эффект тряски для кнопки
+                // button.classList.add('shake');
+                // setTimeout(() => {
+                //     button.classList.remove('shake');
+                // }, 500);
+            }
         })
     })
+    
     document.querySelectorAll('.delete-file').forEach(btn => {
         btn.addEventListener('click', () => {
             fetch(window.location.href, {
@@ -96,10 +205,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     'file_id': btn.dataset.fileid,
                 }),
             })
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 403) {
+                    return response.json().then(data => {
+                        showBlockedFieldMessage(data.error);
+                        throw new Error(data.error);
+                    });
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(result => {
                 btn.parentElement.style.display = 'none';
             })
+            .catch(error => {
+                console.error('Error deleting file:', error);
+            });
         })
     })
     document.querySelectorAll('.delete-link').forEach(btn => {
@@ -115,10 +238,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     'link_id': btn.dataset.linkid,
                 }),
             })
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 403) {
+                    return response.json().then(data => {
+                        showBlockedFieldMessage(data.error);
+                        throw new Error(data.error);
+                    });
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(result => {
                 btn.parentElement.style.display = 'none';
             })
+            .catch(error => {
+                console.error('Error deleting link:', error);
+            });
         })
     })
     document.querySelectorAll('.check-answer').forEach(input => {
@@ -200,7 +337,18 @@ function change_question_value(id, value, input){
             'value': value,
         }),
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.status === 403) {
+            return response.json().then(data => {
+                showBlockedFieldMessage(data.error);
+                throw new Error(data.error);
+            });
+        }
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
     .then(result => {
         document.querySelector(`#points_${id}`).innerHTML = result['points'].replace(",", ".").replace(".0", "")
         if (result['ready'] === true){
@@ -248,18 +396,21 @@ function change_question_value(id, value, input){
     .then(result => {
         document.querySelectorAll('.section-points').forEach(th => {set_points(th)})
         
-    }
-
-    )
+    })
+    .catch(error => {
+        console.error('Error updating field:', error);
+        // Сообщение об ошибке уже показано в showBlockedFieldMessage
+    });
 }
 
 function upload_link(value, name, input){
     
-    fetch(window.location.href, {
+    return fetch(window.location.href, {
         method: 'POST',
         headers: {
             "X-CSRFToken": getCookie("csrftoken"),
             "Accept": "application/json",
+            'Content-Type': 'application/json'
             },
         body: JSON.stringify({
             'link': true,
@@ -267,13 +418,57 @@ function upload_link(value, name, input){
             'id': name,
         }),
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
+        
+        if (response.status === 403) {
+            return response.json().then(data => {
+                showBlockedFieldMessage(data.error);
+                throw new Error(data.error);
+            });
+        }
+        
+        if (!response.ok) {
+            return response.text().then(text => {
+                console.error('Server error response:', text);
+                throw new Error(`HTTP ${response.status}: ${text}`);
+            });
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            return response.text().then(text => {
+                console.error('Non-JSON response:', text);
+                throw new Error('Сервер вернул не JSON ответ');
+            });
+        }
+        
+        return response.json();
+    })
     .then(result => {
-        console.log(result)
+        console.log('Upload success:', result);
+        
+        if (!result || !result.question_id) {
+            console.error('Invalid response format:', result);
+            throw new Error('Неверный формат ответа сервера');
+        }
         
         alink = result['link'] 
         question_id = result['question_id'] 
         let files = document.querySelector(`.files${question_id}`)
+        
+        if (!files) {
+            console.error('Files container not found for question_id:', question_id);
+            throw new Error('Не найден контейнер для файлов');
+        }
+        
+        // Проверяем, что ссылка получена корректно
+        if (!alink) {
+            console.error('Empty link in response:', result);
+            throw new Error('Сервер вернул пустую ссылку');
+        }
+        
         const div = document.createElement("div")
         div.style = "display: flex; align-items: stretch; gap: 5px; justify-content: space-between;"
         const link = document.createElement("a")
@@ -307,23 +502,87 @@ function upload_link(value, name, input){
                     'link_id': result['link_id'],
                 }),
             })
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 403) {
+                    return response.json().then(data => {
+                        showBlockedFieldMessage(data.error);
+                        throw new Error(data.error);
+                    });
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(result => {
                 btn_delete.parentElement.style.display = 'none';
             })
+            .catch(error => {
+                console.error('Error deleting link:', error);
+            });
         })
         div.appendChild(btn_delete)
         files.appendChild(div)
-        let alert_id = input.parentElement.parentElement.querySelector('.alert').id
-        input.parentElement.parentElement.querySelector('.alert').innerHTML ="Ссылка прикреплена успешно!"
-        alert_id = `#${alert_id}`
-        $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
-            $(".alert").slideUp(500);
+        
+        // Показываем сообщение об успехе
+        let alert_element = input.parentElement.parentElement.querySelector('.alert');
+        if (alert_element) {
+            alert_element.innerHTML = "Ссылка прикреплена успешно!";
+            alert_element.classList.remove('alert-danger');
+            alert_element.classList.add('alert-success');
+            let alert_id = `#${alert_element.id}`;
+            $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
+                $(".alert").slideUp(500);
+            });
+        }
+        
+        // Очищаем поле ввода после успешной отправки с небольшой задержкой
+        setTimeout(() => {
             input.value = "";
-        });
+        }, 1000);
+        
+        return result; // Возвращаем результат для цепочки промисов
     })
+    .catch(error => {
+        console.error('Error uploading link:', error);
+        // Показываем ошибку пользователю
+        let alert_element = input.parentElement.parentElement.querySelector('.alert');
+        if (alert_element) {
+            alert_element.innerHTML = `Ошибка при отправке ссылки: ${error.message}`;
+            alert_element.classList.remove('alert-success');
+            alert_element.classList.add('alert-danger');
+            let alert_id = `#${alert_element.id}`;
+            $(alert_id).fadeTo(4000, 500).slideUp(500, function(){
+                $(".alert").slideUp(500);
+                alert_element.classList.remove('alert-danger');
+                alert_element.classList.add('alert-success');
+            });
+        }
+        throw error; // Перебрасываем ошибку для обработки в вызывающем коде
+    });
 }
 
+// Функция для отображения сообщения о блокировке поля
+function showBlockedFieldMessage(message) {
+    // Создаем модальное окно или уведомление
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-warning alert-dismissible fade show';
+    alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+    alertDiv.innerHTML = `
+        <strong>Редактирование запрещено!</strong><br>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Автоматически скрываем через 5 секунд
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
 
 function upload_file(file, name, input){
     let formData = new FormData()
@@ -339,9 +598,19 @@ function upload_file(file, name, input){
             },
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.status === 403) {
+            return response.json().then(data => {
+                showBlockedFieldMessage(data.error);
+                throw new Error(data.error);
+            });
+        }
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
     .then(result => {
-
         file_link = result['file_link'] 
         file_name = result['filename']
         
@@ -380,10 +649,24 @@ function upload_file(file, name, input){
                     'file_id': result['file_id'],
                 }),
             })
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 403) {
+                    return response.json().then(data => {
+                        showBlockedFieldMessage(data.error);
+                        throw new Error(data.error);
+                    });
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(result => {
                 btn_delete.parentElement.style.display = 'none';
             })
+            .catch(error => {
+                console.error('Error deleting file:', error);
+            });
         })
         div.appendChild(btn_delete)
         files.appendChild(div)
@@ -395,6 +678,10 @@ function upload_file(file, name, input){
             input.value = "";
         });
     })
+    .catch(error => {
+        console.error('Error uploading file:', error);
+        // Сообщение об ошибке уже показано в showBlockedFieldMessage
+    });
 }
 
 
@@ -403,7 +690,10 @@ function check_section(){
     let backButton = document.querySelector('#btn-back');
     let forwardButton = document.querySelector('#btn-forward');
     
-    if (!current_section) return;
+    if (!current_section) {
+        console.error('No current section found in check_section!');
+        return;
+    }
     
     if (backButton) {
         if (current_section.classList.contains('first')){
@@ -421,13 +711,23 @@ function check_section(){
         }
     }
     
+    // Сброс активных элементов навигации
     document.querySelectorAll('.page-item').forEach(item => {
         item.classList.remove('active');
     });
     
     let currentSectionId = current_section.dataset.sectionId;
+    
     if (currentSectionId) {
-        document.querySelector(`.page-item a[href*="current_section=${currentSectionId}"]`)?.parentElement.classList.add('active');
+        const navSelector = `.page-item a[href*="current_section=${currentSectionId}"]`;
+        const navLink = document.querySelector(navSelector);
+        const activePageItem = navLink?.parentElement;
+        
+        if (activePageItem) {
+            activePageItem.classList.add('active');
+        } else {
+            console.warn('Navigation item not found for section ID:', currentSectionId);
+        }
     }
 }
 
@@ -461,7 +761,18 @@ function change_multiple_question_value(fieldId, selectedOptions) {
             'multiple_values': selectedOptions,
         }),
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.status === 403) {
+            return response.json().then(data => {
+                showBlockedFieldMessage(data.error);
+                throw new Error(data.error);
+            });
+        }
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
     .then(result => {
         document.querySelector(`#points_${fieldId}`).innerHTML = result['points'].replace(",", ".").replace(".0", "");
         
@@ -510,5 +821,9 @@ function change_multiple_question_value(fieldId, selectedOptions) {
     })
     .then(result => {
         document.querySelectorAll('.section-points').forEach(th => {set_points(th)});
+    })
+    .catch(error => {
+        console.error('Error updating multiple choice field:', error);
+        // Сообщение об ошибке уже показано в showBlockedFieldMessage
     });
 }

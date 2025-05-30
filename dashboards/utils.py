@@ -453,7 +453,7 @@ def generate_school_report_csv(year, school, s_reports, sections):
     for s_report in s_reports:
         # Basic report info
         row = [
-            s_report.report.year,
+            str(s_report.report.year),
             str(school.ter_admin),
             school.get_ed_level_display(),
             school.__str__(),
@@ -512,7 +512,7 @@ def generate_school_report_csv(year, school, s_reports, sections):
                 ).first()
                 
                 row = [
-                    s_report.report.year,
+                    str(s_report.report.year),
                     str(school.ter_admin),
                     school.__str__(),
                     f"{section.number}.{field.number}. {field.name}",

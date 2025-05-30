@@ -96,10 +96,10 @@
                         {% with s_report=s_reports|get_report_by_year:year.year %}
                         <td style="text-align: center;">
                             {% if s_report %}
-                                <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                                    <div class="section-zone" style="background-color: {{s_report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
-                                    <div><b>{{ s_report.points|format_point }}</b></div>
-                                </div>
+                            <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
+                                <div class="section-zone" style="background-color: {{s_report.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                <div><b>{{ s_report.points|format_point }}</b></div>
+                            </div>
                             {% else %}
                                 <span style="color: #888; font-size: 13px; display: block; text-align: center;">Отчёт отсутствует</span>
                             {% endif %}
@@ -115,10 +115,10 @@
                             {% with s_report=s_reports|get_report_by_year:year.year %}
                             <td style="text-align: center;">
                                 {% if s_report %}
-                                    <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                                        <div class="section-zone" style="background-color: {{s_report|get_section_colord:section}}; width: 15px; height: 15px; border-radius: 15px"></div>
-                                        <div>{{ s_report|get_section_points:section }}</div>
-                                    </div>
+                                <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
+                                    <div class="section-zone" style="background-color: {{s_report|get_section_colord:section}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                    <div>{{ s_report|get_section_points:section }}</div>
+                                </div>
                                 {% else %}
                                     <span style="color: #888; font-size: 13px; display: block; text-align: center;">Отчёт отсутствует</span>
                                 {% endif %}
@@ -332,12 +332,12 @@
                     <td><b>Всего</b></td>
                     {% for year in filter|get_item:"years" %}
                         {% with s_report=s_reports|get_report_by_year:year.year %}
-                        <td style="text-align: center;">
+                        <td style="text-align: center;">    
                             {% if s_report %}
-                                <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                                    <div class="section-zone" style="background-color: {{s_report|get_section_colord:section}}; width: 15px; height: 15px; border-radius: 15px"></div>
-                                    <div>{{ s_report|get_section_points:section }}</div>
-                                </div>
+                            <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
+                                <div class="section-zone" style="background-color: {{s_report|get_section_colord:section}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                <div>{{ s_report|get_section_points:section }}</div>
+                            </div>
                             {% else %}
                                 <span style="color: #888; font-size: 13px; display: block; text-align: center;">Отчёт отсутствует</span>
                             {% endif %}
@@ -352,10 +352,10 @@
                             {% with s_report=s_reports|get_report_by_year:year.year %}
                             <td style="text-align: center;">
                                 {% if s_report %}
-                                    <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                                        <div class="section-zone" style="background-color: {{s_report.answers.all|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div>
-                                        <div>{{ s_report|get_field_points:field }}</div>
-                                    </div>
+                                <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
+                                    <div class="section-zone" style="background-color: {{s_report.answers.all|get_answer:field}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                    <div>{{ s_report|get_field_points:field }}</div>
+                                </div>
                                 {% else %}
                                     <span style="color: #888; font-size: 13px; display: block; text-align: center;">Отчёт отсутствует</span>
                                 {% endif %}

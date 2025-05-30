@@ -92,10 +92,10 @@
     </div>
 
 
-    <h1>{{ report.report }}</h1>
+    <h1>{{ report }}</h1>
     <h2><span style="font-weight: 500; padding-right: 5px;">Школа:</span>  {{ school }} </h2>
-    <h2 id="report-status"><span style="font-weight: 500; padding-right: 5px;">Статус:</span>  {{ report.get_status_display }}</h2>
-    <h2 id="report-points-zone"><div id="report-zone" style="background-color: {% if report.report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div><span style="font-weight: 500; padding-right: 5px;">Баллы:</span> <span id="report-points">{{ report.points|format_point }}</span>/{{ report.report.points|format_point }} </h2>
+    <h2 id="report-status"><span style="font-weight: 500; padding-right: 5px;">Статус:</span>  {{ s_report.get_status_display }}</h2>
+    <h2 id="report-points-zone"><div id="report-zone" style="background-color: {% if report.is_counting %}{{report.zone|get_color}}{% endif %}; width: 15px; height: 15px; border-radius: 15px"></div><span style="font-weight: 500; padding-right: 5px;">Баллы:</span> <span id="report-points">{{ report.points|format_point }}</span>/{{ report.points|format_point }} </h2>
     
     {% if message == 'Approved' %}
         <div class="alert alert-success" role="alert" style="margin-top: 10px; text-align: center;">
@@ -116,9 +116,9 @@
             </form>
         {% endif %}
     </div>
-   {% for section in report.report.sections.all|dictsort:"id" %}
+   {% for section in report.sections.all|dictsort:"id" %}
         <div class="section {% if current_section == section.id %}current-section{% endif %} {% if forloop.first %}first{% endif %} {% if forloop.last %}last{% endif %}" data-section-id="{{ section.id }}">
-            <h2><div class="section-zone" style="background-color: {{report|get_section_color:section}}; width: 15px; height: 15px; border-radius: 15px"></div>{{ section }}</h2>
+            <h2><div class="section-zone" style="background-color: {{s_report|get_section_color:section}}; width: 15px; height: 15px; border-radius: 15px"></div>{{ section }}</h2>
             {% if section.note is not None and section.note != "" %}
                 <div class="alert alert-primary note  d-flex align-items-center" role="alert">
                     <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
@@ -209,8 +209,25 @@
                                 <div id ="alert{{ field.id }}_{{field.id}}" class="alert alert-success alert-dismissible fade show" style="width: 284px;" role="alert">
                                     Ссылка прикреплена успешно!
                                 </div>
+                                <div class="get-attachment">
+                                    <div class="files{{field.id}}" style="display: flex; gap: 5px; flex-direction: column;">
+                                        {% for link in answers|get_links:field %}
+                                            <div style="display: flex; align-items: stretch; gap: 5px; justify-content: space-between;">
+                                                <a class="btn btn-outline-success btn-sm lattachment{{field.id}}" href="{{ link.link}}"  style="width: 100%;"target="_blank" rel="noopener noreferrer">{{ link.link}}</a>
+                                                {% if not is_readonly and s_report.status == 'B' or not is_readonly and request.user.is_superuser %}
+                                                    <button style="width: 50px; height: 100%;" class="btn btn-danger delete-link" data-linkid="{{link.id}}" name="delete-link">—</button>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
                                 {% if report.status == 'B' and request.user.is_superuser and not is_readonly %}
-                                    <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
+                                    <div class="input-group">
+                                        <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}" placeholder="Ссылка">
+                                        <button class="btn btn-success send-link-btn" type="button">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                    </div>
                                 {% endif %}
                             </div>
                         {% elif field.attachment_type == 'DC' %}
@@ -266,7 +283,12 @@
                                         </div>
                                         {% if report.status == 'B' or request.user.is_superuser and not is_readonly %}
                                         <input type="file" name="{{field.id}}" class="form-control" id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" >
-                                        <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}"  placeholder="Ссылка" >
+                                        <div class="input-group">
+                                            <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}" placeholder="Ссылка">
+                                            <button class="btn btn-success send-link-btn" type="button">
+                                                <i class="fas fa-arrow-right"></i>
+                                            </button>
+                                        </div>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -316,10 +338,10 @@
         <div class="pagination-container">
             <nav aria-label="Навигация по разделам">
                 <ul class="pagination justify-content-center">
-                    {% for section in report.report.sections.all|dictsort:"id" %}
+                    {% for section in report.sections.all|dictsort:"id" %}
                         <li class="page-item {% if current_section == section.id %}active{% endif %}">
                             <a class="page-link" href="?current_section={{ section.id }}">
-                                <div class="section-dot" style="background-color: {{report|get_section_color:section}};"></div>
+                                <div class="section-dot" style="background-color: {{s_report|get_section_color:section}};"></div>
                                 {{ section.number }}
                             </a>
                         </li>
@@ -329,9 +351,9 @@
             <div class="text-center">
                 <small>
                     {% with current_idx=0 %}
-                        {% for section in report.report.sections.all|dictsort:"id" %}
+                        {% for section in report.sections.all|dictsort:"id" %}
                             {% if current_section == section.id %}
-                                {% with current_idx=forloop.counter sections_count=report.report.sections.all.count %}
+                                {% with current_idx=forloop.counter sections_count=report.sections.all.count %}
                                     Раздел {{ current_idx }} из {{ sections_count }}
                                 {% endwith %}
                             {% endif %}

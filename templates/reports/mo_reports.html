@@ -113,7 +113,7 @@
                 <button style="width: 250px" name="export_data" class="btn btn-sm btn-outline-success" type="submit">Скачать данные о заполнении</button>
                 <button style="width: 250px" name="filter" class="btn btn-sm btn-outline-primary" type="submit">Фильтровать</button>
             </div>
-            {% if filter is not None %}<a style="width: 150px" href="{% url 'mo_reports' %}?reset=1" class="btn btn-sm btn-primary">Сбросить</a>{% endif %}
+            {% if filter is not None %}<button style="width: 150px" id="resetFiltersBtn" class="btn btn-sm btn-primary" type="button">Сбросить</button>{% endif %}
 
         </div>
 </form>
