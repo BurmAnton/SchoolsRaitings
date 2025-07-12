@@ -276,7 +276,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     is_checked: isChecked
                 }),
             })
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 403) {
+                    return response.json().then(data => {
+                        // Возвращаем чекбокс в предыдущее состояние
+                        input.checked = !isChecked;
+                        showBlockedFieldMessage(data.error);
+                        throw new Error(data.error);
+                    });
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(result => {
                 const checkInfo = document.getElementById(`check-info-${answerId}`);
                 if (isChecked) {

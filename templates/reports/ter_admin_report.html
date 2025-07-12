@@ -103,6 +103,7 @@
             $('.check-answer').change(function() {
                 const answerId = $(this).data('answer-id');
                 const isChecked = $(this).prop('checked');
+                const checkbox = $(this);
                 
                 $.ajax({
                     url: window.location.pathname,
@@ -123,6 +124,17 @@
                     },
                     error: function(xhr, status, error) {
                         console.error('Error updating check status:', error);
+                        
+                        // Если ошибка 403, возвращаем чекбокс в предыдущее состояние и показываем сообщение
+                        if (xhr.status === 403) {
+                            checkbox.prop('checked', !isChecked);
+                            const response = JSON.parse(xhr.responseText);
+                            if (typeof showBlockedFieldMessage === 'function') {
+                                showBlockedFieldMessage(response.error);
+                            } else {
+                                alert(response.error);
+                            }
+                        }
                     }
                 });
             });
@@ -400,7 +412,8 @@
                                            data-answer-id="{{ answer.id }}"
                                            id="check_{{ answer.id }}"
                                            {% if answer.is_checked %}checked{% endif %}
-                                           {% if is_readonly %}disabled{% endif %}>
+                                           {% if is_readonly %}disabled{% endif %}
+                                           {% if answer.is_checked and answer.checked_by != request.user and not request.user.is_superuser %}disabled{% endif %}>
                                     <label class="form-check-label" for="check_{{ answer.id }}">
                                         Проверено
                                     </label>

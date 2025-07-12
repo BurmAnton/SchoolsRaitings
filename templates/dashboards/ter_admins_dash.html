@@ -117,9 +117,13 @@
                                     </div>
                                 </td>
                                 {% for section in s_report.sections.all|dictsort:"section.number" %}
-                                    <td scope="row" tyle="text-align: center; vertical-align: middle;">
+                                    <td scope="row" style="text-align: center; vertical-align: middle;">
                                         <div style="display: flex;gap: 5px; align-items: center; justify-content: center;">
-                                            <div class="section-zone" {% if s_report.report.is_counting  %}style="background-color: {{section.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"{% endif %}></div>
+                                            {% if s_report.report.is_counting and section.zone != 'W' %}
+                                                <div class="section-zone" style="background-color: {{section.zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                            {% elif s_report.report.is_counting and section.zone == 'W' %}
+                                                <div class="section-zone" style="background-color: #f0f0f0; border: 1px solid #ccc; width: 15px; height: 15px; border-radius: 15px"></div>
+                                            {% endif %}
                                             <div>{{ section.points|format_point }}</div>
                                         </div>
                                     </td>
@@ -290,7 +294,17 @@
                             </tr>
                             {% for s_report in schools_reports %}
                                 <tr>
-                                    <td scope="row" class="sticky-row">{% if s_report.report.is_counting %}<div style="display: flex;gap: 5px; align-items: center;"><div class="section-zone" style="background-color: {{school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'zone'|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>{% endif %}
+                                    <td scope="row" class="sticky-row">
+                                        <div style="display: flex;gap: 5px; align-items: center;">
+                                            {% if s_report.report.is_counting %}
+                                                {% with zone=school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'zone' %}
+                                                    {% if zone != 'W' %}
+                                                        <div class="section-zone" style="background-color: {{zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                                    {% else %}
+                                                        <div class="section-zone" style="background-color: #f0f0f0; border: 1px solid #ccc; width: 15px; height: 15px; border-radius: 15px"></div>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% endif %}
                                             <div>
                                                 {% if show_ter_status and s_report.status == 'A' %}
                                                     <span style="margin-bottom: 3px;" class="badge bg-warning" title="На согласовании в ТУ/ДО">!</span>
