@@ -1,7 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log(document.querySelector('.active'))
-    document.querySelector('.active').classList.remove('active')
-    document.querySelector('.dashboard-link').classList.add('active')
+    try {
+        document.querySelector('.active').classList.remove('active')
+        document.querySelector('.dashboard-link').classList.add('active')
+    } catch (error) {
+    }
 
     const terAdminSelect = document.getElementById('TerAdminFilter');
     const schoolSelect = document.getElementById('SchoolFilter');

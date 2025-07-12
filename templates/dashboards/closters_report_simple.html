@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+{% load static %}
+{% block title %}Статистика по кластерам{% endblock %}
+
+{% block style %}
+        <link href="{% static 'dashboards/css/ter_admins_dash.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>3. Средние значения по кластерам общеобразовательных организаций</h1>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Фильтр</h5>
+            <form action="{% url 'closters_report' %}" method="post">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="year">Год</label>
+                        <select class="form-select" name="year" id="year">
+                            {% for year in years %}
+                                <option value="{{ year.year }}" {% if year == selected_year %}selected{% endif %}>{{ year.year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="ter_admin">ТУ/ДО</label>
+                        <select class="form-select" name="ter_admin" id="ter_admin">
+                            {% if is_mo_or_admin %}
+                                <option value="all">Все управления/департаменты</option>
+                            {% endif %}
+                            {% for ter_admin in ter_admins %}
+                                <option value="{{ ter_admin.id }}">{{ ter_admin.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="ed_levels">Уровень образования</label>
+                        <select class="form-select" name="ed_levels" id="ed_levels" multiple>
+                            {% for key, name in ed_levels.items %}
+                                <option value="{{ key }}">{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="closters">Кластеры</label>
+                        <select class="form-select" name="closters" id="closters" multiple>
+                            {% for closter in closters %}
+                                <option value="{{ closter.id }}">{{ closter.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="show_ter_status" id="show_ter_status" {% if show_ter_status %}checked{% endif %}>
+                    <label class="form-check-label" for="show_ter_status">
+                        Показывать школы на согласовании ТУ/ДО
+                    </label>
+                </div>
+                
+                <div class="mt-3">
+                    <button type="submit" name="filter" class="btn btn-primary">Фильтровать</button>
+                    <button type="submit" name="download" class="btn btn-outline-secondary">Скачать в Excel</button>
+                    <a href="{% url 'closters_report' %}" class="btn btn-outline-danger">Сбросить</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if s_reports %}
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Результаты</h5>
+                
+                {% if sections %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Критерий</th>
+                                    <th>Максимальное значение</th>
+                                    <th>Среднее значение</th>
+                                    {% for s_report in s_reports %}
+                                        <th>
+                                            {% if show_ter_status and s_report.status == 'A' %}
+                                                <span class="badge bg-warning">!</span>
+                                            {% endif %}
+                                            {{ s_report.school }}
+                                        </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for section in sections %}
+                                    <tr>
+                                        <td>{{ section.0 }}. {{ section.1 }}</td>
+                                        <td>-</td>
+                                        <td>-</td>
+                                        {% for s_report in s_reports %}
+                                            <td>-</td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        Данные отсутствуют для выбранных параметров.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info mt-4">
+            <h5>Данные отсутствуют</h5>
+            <p>Для выбранных параметров фильтрации данные не найдены. Проверьте:</p>
+            <ul>
+                <li>Выбранный год</li>
+                <li>Наличие отчетов школ за этот период</li>
+                <li>Настройки доступа к территориальным управлениям</li>
+            </ul>
+        </div>
+    {% endif %}
+    
+    <div class="mt-4">
+        <a href="{% url 'ter_admins_reports' %}" class="btn btn-secondary">← Назад к списку отчетов</a>
+        <a href="{% url 'debug_closters_report' %}" class="btn btn-outline-info">Диагностика системы</a>
+    </div>
+</div>
+{% endblock %} 

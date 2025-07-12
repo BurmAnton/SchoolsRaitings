@@ -7,6 +7,7 @@ from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 from datetime import datetime
+import re
 
 from reports.models import Answer, Report, SchoolReport, Section, SectionSreport, Field, Option, Year
 from reports.utils import count_points, count_points_field
@@ -166,6 +167,20 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
         )
     )
 
+    # -------------------------------------------------------------
+    # PRECOMPUTE ANSWER ZONE STATISTICS ДЛЯ КАЖДОГО ОТЧЁТА
+    # Это избавит от тройного прохода по answers в цикле ниже
+    # -------------------------------------------------------------
+    answers_by_report = {}
+    for section in sections_with_answers:
+        for field in section.fields.all():
+            for answer in field.prefetched_answers:
+                stats = answers_by_report.setdefault(answer.s_report_id, {'G': 0, 'Y': 0, 'R': 0, 'total': 0})
+                stats['total'] += 1
+                if answer.zone in stats:
+                    stats[answer.zone] += 1
+    # -------------------------------------------------------------
+
     # Write headers
     header = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Итого баллов']
     for section in sections:
@@ -221,17 +236,11 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
                 )
                 row.append(points)
 
-            # Add zone stats
+            # Add zone stats (используем предрасчитанные данные)
+            zone_stats = answers_by_report.get(report.id, {'G': 0, 'Y': 0, 'R': 0, 'total': 0})
             for zone in ['G', 'Y', 'R']:
-                count = 0
-                total = 0
-                for section in sections_with_answers:
-                    for field in section.fields.all():
-                        for answer in field.prefetched_answers:
-                            if answer.s_report_id == report.id:
-                                total += 1
-                                if answer.zone == zone:
-                                    count += 1
+                count = zone_stats[zone]
+                total = zone_stats['total']
                 row.extend([count, f"{count/total*100:.1f}%" if total > 0 else "0.0%"])
 
             # Write row with appropriate zone formatting
@@ -249,7 +258,10 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
         
         # Write section headers
         section_header = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Баллы раздела']
-        fields = sorted(section.fields.all(), key=lambda x: [int(n) for n in str(x.number).split('.')])
+        fields = sorted(
+            Field.objects.filter(sections=section).distinct('number'),
+            key=lambda f: natural_number_key(f.number)
+        )
         
         for field in fields:
             section_header.append(f"{field.number}. {field.name}")
@@ -324,7 +336,7 @@ def write_section_details(worksheet, row_num, sections, s_reports, formats):
         headers = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Всего баллов']
         sections_objs = Section.objects.filter(name=section.name)
         fields = Field.objects.filter(sections__in=sections_objs).distinct('number').prefetch_related('answers')
-        fields = sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
+        fields = sorted(fields, key=lambda x: natural_number_key(x.number))
         for field in fields:
             headers.append(f'{field.number}. {field.name}')
 
@@ -366,7 +378,7 @@ def write_summary_rows(worksheet, row_num, s_reports, sections, formats):
     for section in sections:
         sections_objs = Section.objects.filter(name=section.name)
         fields = Field.objects.filter(sections__in=sections_objs).distinct('number').prefetch_related('answers')
-        fields = sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
+        fields = sorted(fields, key=lambda x: natural_number_key(x.number))
         section_total = Answer.objects.filter(
             question__in=fields, 
             s_report__in=s_reports
@@ -503,7 +515,10 @@ def generate_school_report_csv(year, school, s_reports, sections):
         row_num = 2
         for s_report in s_reports:
             # Get all fields (questions) for this section
-            fields = Field.objects.filter(sections=section).distinct('number').order_by('number')
+            fields = sorted(
+                Field.objects.filter(sections=section).distinct('number'),
+                key=lambda f: natural_number_key(f.number)
+            )
             
             for field in fields:
                 answer = Answer.objects.filter(
@@ -676,7 +691,10 @@ def generate_closters_report_csv(year, schools, s_reports):
         row_num += 2  # Add blank row after section total
 
         # Write field data
-        fields = Field.objects.filter(sections=section).distinct('number').order_by('number')
+        fields = sorted(
+            Field.objects.filter(sections=section).distinct('number'),
+            key=lambda f: natural_number_key(f.number)
+        )
         for field in fields:
             worksheet.write(row_num, 0, f"{section.number}.{field.number}. {field.name}", formats['cell'])
             
@@ -1468,4 +1486,12 @@ def get_range_for_number(value, field):
         return 4
     else:
         return 5
+
+# -------------------------------------------------------------
+# Вспомогательная функция для натуральной сортировки «1.1.1» < «1.10»
+# -------------------------------------------------------------
+def natural_number_key(number_like):
+    """Преобразует строку вида '1.10.2' в список чисел [1, 10, 2]
+    для корректной иерархической сортировки."""
+    return [int(x) for x in re.findall(r'\d+', str(number_like))]
 

@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.core.paginator import Paginator
 
-from reports.models import Answer, Field, Report,SchoolReport, SectionSreport
+from reports.models import Answer, Field, Report,SchoolReport, SectionSreport, Year
 from reports.utils import count_section_points
 from users.models import Group, Notification, MainPageArticle
 from schools.models import School, SchoolCloster, TerAdmin
@@ -34,7 +34,7 @@ def index(request):
         return HttpResponseRedirect(reverse('start'))
     iro_group = Group.objects.get(name='Представитель ИРО')
     if user.is_superuser or user.groups.filter(id=iro_group.id).count() == 1:
-        return HttpResponseRedirect(reverse('admin:index'))
+        return HttpResponseRedirect(reverse('ter_admins_reports'))
     return HttpResponseRedirect(reverse('undefined_user'))
 
 
@@ -167,7 +167,11 @@ def mo_reports(request):
         'answers',
         'report__sections',
         'report__sections__fields'
-    ).order_by('-report__year', 'school__name')  # Добавляем сортировку для пагинации
+    ).order_by('-report__year__year', 'school__name')  # Сортировка сначала по году, затем по школе
+
+    # Список годов для фильтрации и текущий год
+    years = Year.objects.all().order_by('-year')
+    current_year_obj = Year.objects.filter(is_current=True).first()
 
     filter = None
     # Reset filter if requested
@@ -176,6 +180,10 @@ def mo_reports(request):
             del request.session['mo_reports_filter']
         return HttpResponseRedirect(reverse('mo_reports'))
     
+    # Если не задан фильтр (ни в POST, ни в сессии) — показываем отчёты текущего года
+    if 'filter' not in request.POST and 'mo_reports_filter' not in request.session and current_year_obj:
+        s_reports = s_reports.filter(report__year=current_year_obj)
+
     # Store filter parameters in session when POST request
     if 'filter' in request.POST:
         filter_params = {}
@@ -194,6 +202,9 @@ def mo_reports(request):
         if len(request.POST.getlist('status')) != 0:
             s_reports = s_reports.filter(status__in=request.POST.getlist('status'))
             filter_params['status'] = request.POST.getlist('status')
+        if len(request.POST.getlist('years')) != 0:
+            s_reports = s_reports.filter(report__year__in=request.POST.getlist('years'))
+            filter_params['years'] = request.POST.getlist('years')
         
         filter = filter_params
         request.session['mo_reports_filter'] = filter_params
@@ -213,7 +224,9 @@ def mo_reports(request):
             s_reports = s_reports.filter(school__in=schools)
         if 'status' in filter_params and filter_params['status']:
             s_reports = s_reports.filter(status__in=filter_params['status'])
-            
+        if 'years' in filter_params and filter_params['years']:
+            s_reports = s_reports.filter(report__year__in=filter_params['years'])
+    
     if 'send-reports' in request.POST:
         s_reports.filter(status='B').update(status='D')
         return HttpResponseRedirect(reverse('mo_reports'))
@@ -236,7 +249,9 @@ def mo_reports(request):
         'ed_levels': School.SCHOOL_LEVELS,
         'filter': filter,
         'paginator': paginator,
-        'page_obj': page_obj
+        'page_obj': page_obj,
+        'years': years,
+        'current_year': current_year_obj
     })
 
 
@@ -261,7 +276,11 @@ def ter_admin_reports(request, user_id):
         'answers',
         'report__sections',
         'report__sections__fields'
-    )
+    ).order_by('-report__year__year', 'school__name')  # Сортировка сначала по году, затем по школе
+
+    # Список годов для фильтрации и текущий год
+    years = Year.objects.all().order_by('-year')
+    current_year_obj = Year.objects.filter(is_current=True).first()
 
     filter = None
     # Reset filter if requested
@@ -280,6 +299,10 @@ def ter_admin_reports(request, user_id):
         print(f"DEBUG: Session keys after reset: {list(request.session.keys())}")
         return HttpResponseRedirect(reverse('ter_admin_reports', args=[user_id]))
     
+    # Если не задан фильтр (ни в POST, ни в сессии) — показываем отчёты текущего года
+    if 'filter' not in request.POST and f'ter_admin_reports_filter_{user_id}' not in request.session and current_year_obj:
+        s_reports = s_reports.filter(report__year=current_year_obj)
+
     # Store filter parameters in session when POST request
     if 'filter' in request.POST:
         filter_params = {}
@@ -298,6 +321,9 @@ def ter_admin_reports(request, user_id):
         if len(request.POST.getlist('status')) != 0:
             s_reports = s_reports.filter(status__in=request.POST.getlist('status'))
             filter_params['status'] = request.POST.getlist('status')
+        if len(request.POST.getlist('years')) != 0:
+            s_reports = s_reports.filter(report__year__in=request.POST.getlist('years'))
+            filter_params['years'] = request.POST.getlist('years')
         
         filter = filter_params
         request.session[f'ter_admin_reports_filter_{user_id}'] = filter_params
@@ -317,6 +343,8 @@ def ter_admin_reports(request, user_id):
             s_reports = s_reports.filter(school__in=schools)
         if 'status' in filter_params and filter_params['status']:
             s_reports = s_reports.filter(status__in=filter_params['status'])
+        if 'years' in filter_params and filter_params['years']:
+            s_reports = s_reports.filter(report__year__in=filter_params['years'])
     
     # Обработка пакетной отправки отчетов в МинОбр
     if 'send-reports' in request.POST:
@@ -345,7 +373,9 @@ def ter_admin_reports(request, user_id):
         'ed_levels': School.SCHOOL_LEVELS,
         'filter': filter,
         'paginator': paginator,
-        'page_obj': page_obj
+        'page_obj': page_obj,
+        'years': years,
+        'current_year': current_year_obj
     })
 
 

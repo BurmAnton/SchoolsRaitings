@@ -107,6 +107,17 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="form mb-3" style="grid-column: 1; grid-row: 3;">
+                <label for="YearFilter">Годы</label>
+                <select class="selectpicker" title="Выберите годы" name="years" id="YearFilter" multiple data-width="100%" data-container="body">
+                    {% for y in years %}
+                        <option value="{{ y.id }}" 
+                            {% if y.id|stringformat:'i' in filter|get_item:'years' %}selected{% endif %}{% if not filter and current_year and y.id == current_year.id %}selected{% endif %}>
+                            {{ y.year }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
         <div style="width: 100%; display: flex; justify-content: space-between;flex-direction: row-reverse; margin-top: 10px;">
             <div style="display: flex; gap: 10px;">

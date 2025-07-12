@@ -9,18 +9,35 @@ logger = logging.getLogger(__name__)
 
 
 def select_range_option(options, value):
+    # Вернуть None, если само значение отсутствует или некорректно
+    try:
+        value = round(float(value), 1)
+    except (TypeError, ValueError):
+        return None
+
+    # Перебираем все диапазоны и пытаемся найти подходящий
     for option in options:
-        value = round(value, 1)
-        match option.range_type:
-            case 'L':
-                if value <= round(float(option.less_or_equal), 1): return option
-            case 'G':
-                if value >= round(float(option.greater_or_equal), 1): return option
-            case 'D':
-                if round(float(option.greater_or_equal), 1) <= value <= round(float(option.less_or_equal), 1): 
+        range_type = option.range_type
+        try:
+            if range_type == 'L':
+                if option.less_or_equal is not None and value <= round(float(option.less_or_equal), 1):
                     return option
-            case 'E':
-                if value == round(float(option.equal), 1): return option
+            elif range_type == 'G':
+                if option.greater_or_equal is not None and value >= round(float(option.greater_or_equal), 1):
+                    return option
+            elif range_type == 'D':
+                if (
+                    option.greater_or_equal is not None and 
+                    option.less_or_equal is not None and
+                    round(float(option.greater_or_equal), 1) <= value <= round(float(option.less_or_equal), 1)
+                ):
+                    return option
+            elif range_type == 'E':
+                if option.equal is not None and value == round(float(option.equal), 1):
+                    return option
+        except (TypeError, ValueError):
+            # Пропускаем некорректно заполненные диапазоны
+            continue
 
     return None
 

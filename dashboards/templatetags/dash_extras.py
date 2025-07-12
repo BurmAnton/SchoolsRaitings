@@ -112,132 +112,249 @@ def get_section_colord(s_report, section):
 
 @register.filter        
 def get_section_color_by_name(s_report, section_name):
-    sections = Section.objects.filter(name=section_name, report=s_report.report)
-    if sections.count() > 0:
-        questions = sections[0].fields.all()
-    else:
-        return 'white'
-    section = sections[0]
-    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
-    if points__sum is None:
-        return 'white'
-    if s_report.report.is_counting == False:
-        return 'white'
+    """Определяет цвет зоны по баллам раздела, используя SectionSreport (без JOIN)."""
     try:
-        if points__sum < section.yellow_zone_min:
+        if not s_report or not hasattr(s_report, 'report'):
+            return 'white'
+
+        section = Section.objects.filter(name=section_name, report=s_report.report).first()
+        if not section:
+            return 'white'
+
+        # Быстрый путь через SectionSreport (предзагружено в view)
+        section_report = s_report.sections.filter(section=section).first()
+        if not section_report or section_report.points is None:
+            return 'white'
+
+        if not s_report.report.is_counting:
+            return 'white'
+
+        if section_report.points < section.yellow_zone_min:
             return "red"
-        elif points__sum >= section.green_zone_min: 
+        elif section_report.points >= section.green_zone_min:
             return "green"
         return "#ffc600"
-    except: return 'red'
+    except Exception as e:
+        print(f"Error in get_section_color_by_name: {e}")
+        return 'white'
 
 
 @register.filter
 def format_point(points):
-    if points is None:
+    try:
+        if points is None:
+            return "0"
+        if isinstance(points, (int, float)):
+            if points % 1 == 0:
+                return int(points)
+        return str(points).replace(',', '.')
+    except Exception:
         return "0"
-    if points % 1 == 0:
-        return int(points)
-    return str(points).replace(',', '.')
 
 
 @register.filter
 def get_section_points(s_report, section):
-    points = SectionSreport.objects.get(s_report=s_report, section__number=section.number).points
-    return format_point(points)
+    try:
+        if not s_report or not section:
+            return "0"
+        section_report = SectionSreport.objects.filter(s_report=s_report, section__number=section.number).first()
+        if section_report:
+            return format_point(section_report.points)
+        return "0"
+    except Exception as e:
+        print(f"Error in get_section_points: {e}")
+        return "0"
 
 
 
 @register.filter
 def get_section_points_by_name(s_report, number):
-    sections = Section.objects.filter(number=number, report=s_report.report)
-    if sections.count() > 0:
-        questions = sections[0].fields.all()
-    else:
-        return "-"
+    """Возвращает баллы по разделу через SectionSreport (быстрее одного запроса)."""
+    try:
+        if not s_report or not number:
+            return "-"
 
-    points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
-    return format_point(points__sum)
+        # Пытаемся сразу взять из SectionSreport (это уже предзагружено в view)
+        sec_rep = s_report.sections.filter(section__number=number).first()
+        if sec_rep:
+            # Если баллы None, считаем их равными 0 (чтобы избежать тяжёлого запроса)
+            points_val = sec_rep.points if sec_rep.points is not None else 0
+            return format_point(points_val)
+
+        # Fallback — считаем через ответы (редко, когда нет SectionSreport)
+        sections = Section.objects.filter(number=number, report=s_report.report)
+        if not sections.exists():
+            return "-"
+
+        questions = sections[0].fields.all()
+        if not questions.exists():
+            return "-"
+
+        points__sum = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(Sum('points'))['points__sum']
+        return format_point(points__sum)
+
+    except Exception as e:
+        print(f"Error in get_section_points_by_name: {e}")
+        return "-"
 
 
 @register.filter
 def get_point_sum(s_reports):
-    points = s_reports.aggregate(points_sum=Sum('points'))['points_sum']
-    
-    return format_point(points)
+    try:
+        if not s_reports:
+            return "0"
+        points = s_reports.aggregate(points_sum=Sum('points'))['points_sum']
+        return format_point(points)
+    except Exception as e:
+        print(f"Error in get_point_sum: {e}")
+        return "0"
 
 @register.filter
 def get_color_field_dash(answers, field):
-    answers = answers.filter(question__in=field.questions.all())
-    points = answers.aggregate(Sum('points'))['points__sum']
+    try:
+        if not answers or not field:
+            return "white"
+        answers = answers.filter(question__in=field.questions.all())
+        points = answers.aggregate(Sum('points'))['points__sum']
+        
+        if points is None:
+            return "white"
 
-    if points < field.yellow_zone_min:
-        return "red"
-    if points >= field.green_zone_min:
-        return "green"
-    return "#ffc600" 
+        if points < field.yellow_zone_min:
+            return "red"
+        if points >= field.green_zone_min:
+            return "green"
+        return "#ffc600"
+    except Exception as e:
+        print(f"Error in get_color_field_dash: {e}")
+        return "white"
 
 
 @register.filter
 def get_point_sum_section(s_reports, section):
-    points = SectionSreport.objects.filter(s_report__in=s_reports, section__number=section.number).aggregate(Sum('points'))['points__sum'] or 0
-    return format_point(points)
+    try:
+        if not s_reports or not section:
+            return "0"
+        points = SectionSreport.objects.filter(s_report__in=s_reports, section__number=section.number).aggregate(Sum('points'))['points__sum'] or 0
+        return format_point(points)
+    except Exception as e:
+        print(f"Error in get_point_sum_section: {e}")
+        return "0"
 
 @register.filter
 def get_field_points(s_report, field):
+    """Быстрый доступ к баллам по показателю с кешированием словаря ответов."""
     try:
-        points = s_report.answers.get(question=field).points
-    except:
+        if not s_report or not field:
+            return "-"
+
+        # Создаём и кэшируем словарь answer.question_id -> points при первом обращении
+        answers_map = getattr(s_report, '_answers_map', None)
+        if answers_map is None:
+            answers_map = {a.question_id: a.points for a in s_report.answers.all()}
+            setattr(s_report, '_answers_map', answers_map)
+
+        points = answers_map.get(field.id)
+        if points is None:
+            return "-"
+        return format_point(points)
+    except Exception as e:
+        print(f"Error in get_field_points: {e}")
         return "-"
-    return format_point(points)
 
 
 @register.filter
 def get_year_points(s_reports, year):
-    points = s_reports.filter(report__year=str(year)).aggregate(points_sum=Sum('points'))['points_sum']
-    return format_point(points)
+    try:
+        if not s_reports:
+            return "0"
+        points = s_reports.filter(report__year=str(year)).aggregate(points_sum=Sum('points'))['points_sum']
+        return format_point(points)
+    except Exception as e:
+        print(f"Error in get_year_points: {e}")
+        return "0"
 
 @register.filter
 def max_value(questions, s_reports):
-    max_points = 0
-    for s_report in s_reports:
-        points = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(points_sum=Sum('points'))['points_sum'] or 0
-        max_points = max(max_points, points)
-    return format_point(max_points)
+    """Возвращает максимальное значение баллов по конкретному разделу среди списка отчётов."""
+    try:
+        if not questions or not s_reports:
+            return "0"
+
+        first_q = next(iter(questions), None)
+        if not first_q:
+            return "0"
+
+        # Извлекаем номер раздела (предполагаем, что все вопросы относятся к одному разделу)
+        sec = first_q.sections.first() if hasattr(first_q, 'sections') else None
+        sec_number = sec.number if sec else None
+        if not sec_number:
+            return "0"
+
+        max_points = SectionSreport.objects.filter(
+            s_report__in=s_reports,
+            section__number=sec_number
+        ).aggregate(Max('points'))['points__max'] or 0
+
+        return format_point(max_points)
+    except Exception as e:
+        print(f"Error in max_value: {e}")
+        return "0"
 
 
 
 @register.filter
 def avg_value(questions, s_reports):
-    total_points = 0
-    count = 0
-    for s_report in s_reports:
-        points = Answer.objects.filter(question__in=questions, s_report=s_report).aggregate(points_sum=Sum('points'))['points_sum'] or 0
-        total_points += points
-        count += 1
-    
-    if count == 0:
+    """Среднее значение баллов по разделу (SectionSreport)."""
+    try:
+        if not questions or not s_reports:
+            return "0.00"
+
+        first_q = next(iter(questions), None)
+        if not first_q:
+            return "0.00"
+
+        sec = first_q.sections.first() if hasattr(first_q, 'sections') else None
+        sec_number = sec.number if sec else None
+        if not sec_number:
+            return "0.00"
+
+        avg_points = SectionSreport.objects.filter(
+            s_report__in=s_reports,
+            section__number=sec_number
+        ).aggregate(avg_points=Avg('points'))['avg_points'] or 0
+
+        avg_val = round(float(avg_points), 1)
+        return format_point(avg_val)
+    except Exception as e:
+        print(f"Error in avg_value: {e}")
         return "0.00"
-    
-    avg_points = total_points / count
-    rounded_avg = round(avg_points, 1)
-    return format_point(rounded_avg)
 
 
 @register.filter
 def max_value_section(question, s_reports):
-    max_points = Answer.objects.filter(question=question, s_report__in=s_reports).values('points').aggregate(Max('points'))['points__max'] or 0
-
-    return format_point(max_points)
+    try:
+        if not question or not s_reports:
+            return "0"
+        max_points = Answer.objects.filter(question=question, s_report__in=s_reports).values('points').aggregate(Max('points'))['points__max'] or 0
+        return format_point(max_points)
+    except Exception as e:
+        print(f"Error in max_value_section: {e}")
+        return "0"
 
 
 
 @register.filter
 def avg_value_section(question, s_reports):
-    avg_points = Answer.objects.filter(question=question, s_report__in=s_reports).values('points').aggregate(avg_points=Avg('points'))['avg_points'] or 0
-
-    rounded_avg = round(avg_points, 1)
-    return format_point(rounded_avg)
+    try:
+        if not question or not s_reports:
+            return "0.00"
+        avg_points = Answer.objects.filter(question=question, s_report__in=s_reports).values('points').aggregate(avg_points=Avg('points'))['avg_points'] or 0
+        rounded_avg = round(avg_points, 1)
+        return format_point(rounded_avg)
+    except Exception as e:
+        print(f"Error in avg_value_section: {e}")
+        return "0.00"
 
 
 @register.filter
