@@ -324,6 +324,15 @@ def handle_ajax_request(request, s_report, user_type='school'):
 
         try:
             answer = Answer.objects.get(id=answer_id)
+            
+            # Проверка доступа к снятию галочки
+            if not is_checked and answer.is_checked:
+                # Разрешаем снятие галочки только тому, кто её поставил, или админу
+                if answer.checked_by != request.user and not request.user.is_superuser:
+                    return JsonResponse({
+                        "error": f"Снятие галочки проверки запрещено. Критерий был проверен пользователем {answer.checked_by.get_full_name() if answer.checked_by else 'Неизвестно'}."
+                    }, status=403)
+            
             answer.is_checked = is_checked
             if is_checked:
                 answer.checked_by = request.user

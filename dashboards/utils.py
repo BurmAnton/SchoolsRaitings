@@ -432,7 +432,10 @@ def generate_school_report_csv(year, school, s_reports, sections):
         })
     }
 
-    # Create main worksheet
+    # Get all unique years from s_reports
+    years = sorted(set(s_report.report.year.year for s_report in s_reports))
+    
+    # ===== СОЗДАНИЕ ОСНОВНОГО ЛИСТА С ДАННЫМИ И ГРАФИКОМ =====
     worksheet = workbook.add_worksheet("Сводный отчет")
 
     # Write headers
@@ -487,50 +490,154 @@ def generate_school_report_csv(year, school, s_reports, sections):
 
         row_num += 1
 
-    # Create detailed worksheets for each section
+    # ===== ДОБАВЛЕНИЕ ОСНОВНОГО ГРАФИКА НА ЛИСТ "СВОДНЫЙ ОТЧЕТ" =====
+    
+    # Подготовка данных для основного графика (начинаем после таблицы + отступ)
+    chart_data_start_row = row_num + 3
+    
+    # Заголовки для данных основного графика
+    worksheet.write(chart_data_start_row, 0, 'Год', formats['header'])
+    for col, section in enumerate(sections, 1):
+        worksheet.write(chart_data_start_row, col, f"Раздел {section.number}", formats['header'])
+    
+    # Данные для основного графика
+    for year_idx, year in enumerate(years):
+        row = chart_data_start_row + 1 + year_idx
+        worksheet.write(row, 0, str(year), formats['cell'])
+        
+        # Найти отчет за этот год
+        year_report = next((r for r in s_reports if r.report.year.year == year), None)
+        
+        for col, section in enumerate(sections, 1):
+            if year_report:
+                section_report = SectionSreport.objects.filter(
+                    s_report=year_report,
+                    section__number=section.number
+                ).first()
+                points = section_report.points if section_report else 0
+            else:
+                points = 0
+            
+            worksheet.write(row, col, points, formats['cell'])
+    
+    # Создание основного графика динамики по разделам
+    main_chart = workbook.add_chart({'type': 'column'})
+    
+    # Настройка серий данных для основного графика (по годам)
+    colors = ['#4dc9f6', '#f67019', '#f53794', '#537bc4', '#acc236', '#166a8f', '#00a950']
+    for year_idx, year in enumerate(years):
+        color = colors[year_idx % len(colors)]
+        main_chart.add_series({
+            'name': str(year),
+            'categories': [worksheet.name, chart_data_start_row, 1, chart_data_start_row, len(sections)],
+            'values': [worksheet.name, chart_data_start_row + 1 + year_idx, 1, chart_data_start_row + 1 + year_idx, len(sections)],
+            'fill': {'color': color}
+        })
+    
+    # Настройка основного графика
+    main_chart.set_title({'name': f'Динамика результатов школы по разделам - {school.name}'})
+    main_chart.set_x_axis({'name': 'Разделы'})
+    main_chart.set_y_axis({'name': 'Баллы'})
+    main_chart.set_size({'width': 720, 'height': 480})
+    
+    # Вставка основного графика
+    worksheet.insert_chart(chart_data_start_row, len(sections) + 3, main_chart)
+
+    # ===== СОЗДАНИЕ ДЕТАЛЬНЫХ ЛИСТОВ ДЛЯ КАЖДОГО РАЗДЕЛА С ГРАФИКАМИ =====
     for section in sections:
-        worksheet = workbook.add_worksheet(f"Раздел {section.number}")
+        section_worksheet = workbook.add_worksheet(f"Раздел {section.number}")
         
         # Write section header
-        worksheet.merge_range(0, 0, 0, 4, f"{section.number}. {section.name}", formats['section_header'])
+        section_worksheet.merge_range(0, 0, 0, len(years), f"{section.number}. {section.name}", formats['section_header'])
         
-        # Write column headers
-        headers = ['Год', 'ТУ/ДО', 'Школа', 'Показатель', 'Баллы']
+        # Write column headers: Показатель | 2023 | 2024 | ...
+        headers = ['Показатель'] + [str(year) for year in years]
         for col, header in enumerate(headers):
-            worksheet.write(1, col, header, formats['header'])
-            worksheet.set_column(col, col, 20)
+            section_worksheet.write(1, col, header, formats['header'])
+            if col == 0:
+                section_worksheet.set_column(col, col, 50)  # Wider column for field names
+            else:
+                section_worksheet.set_column(col, col, 15)  # Standard width for years
+        
+        # Get all fields (questions) for this section
+        fields = Field.objects.filter(sections=section).distinct('number').order_by('number')
         
         row_num = 2
-        for s_report in s_reports:
-            # Get all fields (questions) for this section
-            fields = Field.objects.filter(sections=section).distinct('number').order_by('number')
+        for field in fields:
+            # Write field name
+            field_name = f"{section.number}.{field.number}. {field.name}"
+            section_worksheet.write(row_num, 0, field_name, formats['cell'])
             
-            for field in fields:
+            # Write points for each year
+            for col, year in enumerate(years, 1):
+                # Find the answer for this field and year
                 answer = Answer.objects.filter(
                     question=field,
-                    s_report=s_report
+                    s_report__in=s_reports,
+                    s_report__report__year__year=year
                 ).first()
                 
-                row = [
-                    str(s_report.report.year),
-                    str(school.ter_admin),
-                    school.__str__(),
-                    f"{section.number}.{field.number}. {field.name}",
-                    answer.points if answer else 0
-                ]
-                
-                # Write row with appropriate formatting
+                points = answer.points if answer else 0
                 format_key = 'cell'
                 if answer:
                     format_key = {'R': 'red', 'Y': 'yellow', 'G': 'green'}.get(answer.zone, 'cell')
                 
-                for col, value in enumerate(row):
-                    worksheet.write(row_num, col, value, formats['cell' if col < 4 else format_key])
-                
-                row_num += 1
+                section_worksheet.write(row_num, col, points, formats[format_key])
             
-            # Add a blank row between years
             row_num += 1
+        
+        # ===== ДОБАВЛЕНИЕ ГРАФИКА ПОКАЗАТЕЛЕЙ РАЗДЕЛА =====
+        
+        if fields.exists():  # Создаем график только если есть показатели
+            # Подготовка данных для графика раздела (начинаем после таблицы + отступ)
+            section_chart_data_start_row = row_num + 3
+            
+            # Заголовки для данных графика раздела
+            section_worksheet.write(section_chart_data_start_row, 0, 'Показатель', formats['header'])
+            for col, year in enumerate(years, 1):
+                section_worksheet.write(section_chart_data_start_row, col, str(year), formats['header'])
+            
+            # Данные для графика раздела
+            field_row = section_chart_data_start_row + 1
+            for field in fields:
+                # Название показателя
+                field_short_name = f"{section.number}.{field.number}"
+                section_worksheet.write(field_row, 0, field_short_name, formats['cell'])
+                
+                # Значения по годам
+                for col, year in enumerate(years, 1):
+                    answer = Answer.objects.filter(
+                        question=field,
+                        s_report__in=s_reports,
+                        s_report__report__year__year=year
+                    ).first()
+                    
+                    points = answer.points if answer else 0
+                    section_worksheet.write(field_row, col, points, formats['cell'])
+                
+                field_row += 1
+            
+            # Создание графика показателей раздела
+            section_chart = workbook.add_chart({'type': 'column'})
+            
+            # Настройка серий данных для графика раздела (по годам)
+            for year_idx, year in enumerate(years):
+                color = colors[year_idx % len(colors)]
+                section_chart.add_series({
+                    'name': str(year),
+                    'categories': [section_worksheet.name, section_chart_data_start_row + 1, 0, section_chart_data_start_row + fields.count(), 0],
+                    'values': [section_worksheet.name, section_chart_data_start_row + 1, year_idx + 1, section_chart_data_start_row + fields.count(), year_idx + 1],
+                    'fill': {'color': color}
+                })
+            
+            # Настройка графика раздела
+            section_chart.set_title({'name': f'Динамика результатов по показателям раздела {section.number}'})
+            section_chart.set_x_axis({'name': 'Показатели'})
+            section_chart.set_y_axis({'name': 'Баллы'})
+            section_chart.set_size({'width': 720, 'height': 400})
+            
+            # Вставка графика раздела
+            section_worksheet.insert_chart(section_chart_data_start_row, len(years) + 3, section_chart)
 
     # Close workbook
     workbook.close()
@@ -541,7 +648,7 @@ def generate_school_report_csv(year, school, s_reports, sections):
         output.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response['Content-Disposition'] = f'attachment; filename="school_report_{school.id}_{year}.xlsx"'
+    response['Content-Disposition'] = f'attachment; filename="school_report_{school.id}_{year}_with_charts.xlsx"'
     
     return response
 

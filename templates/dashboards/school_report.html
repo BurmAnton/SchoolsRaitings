@@ -11,6 +11,7 @@
 {% block script %}
     <script src="{% static 'dashboards/js/school_report.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+
 {% endblock %}
 
 {% block body %}
@@ -191,13 +192,19 @@
                     
                     {% for section in sections %}
                         // Полное название для тултипа
-                        sectionNames.push('{{ section.number }}. {{ section.name }}');
+                        sectionNames.push('{{ section.number }}. {{ section.name|escapejs }}');
                         // Короткое название для оси X
                         sectionShortNames.push('{{ section.number }}');
-                        sectionPoints['{{ section.number }}. {{ section.name }}'] = [];
+                        sectionPoints['{{ section.number }}. {{ section.name|escapejs }}'] = [];
                         
-                        {% for s_report in s_reports %}
-                            sectionPoints['{{ section.number }}. {{ section.name }}'].push({{ s_report|get_section_points:section|default:0 }});
+                        {% for year in filter|get_item:"years" %}
+                            {% with s_report=s_reports|get_report_by_year:year.year %}
+                                {% if s_report %}
+                                    sectionPoints['{{ section.number }}. {{ section.name|escapejs }}'].push(parseFloat('{{ s_report|get_section_points:section|default:"0"|floatformat:"1" }}') || 0);
+                                {% else %}
+                                    sectionPoints['{{ section.number }}. {{ section.name|escapejs }}'].push(0);
+                                {% endif %}
+                            {% endwith %}
                         {% endfor %}
                     {% endfor %}
                     
@@ -411,6 +418,157 @@
                     {% endfor %}
                 </tr>
             </table>
+            
+            <!-- Добавляем график динамики по показателям для каждого раздела -->
+            {% if section.fields.all|dictsort_fields %}
+            <div class="chart-container" style="position: relative; height: 400px; margin-bottom: 20px; margin-top: 20px; width: 100%;">
+                <canvas id="sectionChart_{{ section.number }}"></canvas>
+            </div>
+            
+            <script>
+                (function() {
+                    // Функция для генерации случайного цвета
+                    function getRandomColor() {
+                        var letters = '0123456789ABCDEF';
+                        var color = '#';
+                        for (var i = 0; i < 6; i++) {
+                            color += letters[Math.floor(Math.random() * 16)];
+                        }
+                        return color;
+                    }
+                    
+                    // Создаем график для раздела {{ section.number }}
+                    var ctx = document.getElementById('sectionChart_{{ section.number }}');
+                    if (ctx) {
+                        // Собираем данные для графика показателей раздела {{ section.number }}
+                        var years = [];
+                        var fieldNames = [];
+                        var fieldShortNames = [];
+                        var fieldPoints = {};
+                        
+                        {% for year in filter|get_item:"years" %}
+                            years.push('{{ year }}');
+                        {% endfor %}
+                        
+                        {% for field in section.fields.all|dictsort_fields %}
+                            // Полное название для тултипа
+                            fieldNames.push('{{ section.number }}.{{ field.number }}. {{ field.name|escapejs }}');
+                            // Короткое название для оси X
+                            fieldShortNames.push('{{ section.number }}.{{ field.number }}');
+                            fieldPoints['{{ section.number }}.{{ field.number }}. {{ field.name|escapejs }}'] = [];
+                            
+                            {% for year in filter|get_item:"years" %}
+                                {% with s_report=s_reports|get_report_by_year:year.year %}
+                                    {% if s_report %}
+                                        fieldPoints['{{ section.number }}.{{ field.number }}. {{ field.name|escapejs }}'].push(parseFloat('{{ s_report|get_field_points:field|default:"0"|floatformat:"1" }}') || 0);
+                                    {% else %}
+                                        fieldPoints['{{ section.number }}.{{ field.number }}. {{ field.name|escapejs }}'].push(0);
+                                    {% endif %}
+                                {% endwith %}
+                            {% endfor %}
+                        {% endfor %}
+                        
+                        // Создаем наборы данных для каждого года
+                        var datasets = [];
+                        var colors = ['#4dc9f6', '#f67019', '#f53794', '#537bc4', '#acc236', '#166a8f', '#00a950', '#58595b', '#8549ba'];
+                        
+                        for (var i = 0; i < years.length; i++) {
+                            var yearData = [];
+                            
+                            // Собираем данные для каждого показателя за текущий год
+                            for (var j = 0; j < fieldNames.length; j++) {
+                                yearData.push(fieldPoints[fieldNames[j]][i]);
+                            }
+                            
+                            // Используем фиксированные цвета из массива
+                            var color = i < colors.length ? colors[i] : getRandomColor();
+                            
+                            datasets.push({
+                                label: years[i].toString(),
+                                backgroundColor: color,
+                                borderColor: color,
+                                borderWidth: 1,
+                                data: yearData
+                            });
+                        }
+                        
+                        var chart = new Chart(ctx.getContext('2d'), {
+                            type: 'bar',
+                            data: {
+                                labels: fieldShortNames,
+                                datasets: datasets
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    xAxes: [{
+                                        scaleLabel: {
+                                            display: true,
+                                            labelString: 'Показатели'
+                                        },
+                                        gridLines: {
+                                            display: false
+                                        },
+                                        ticks: {
+                                            fontSize: 12,
+                                            fontStyle: 'bold',
+                                            maxRotation: 45,
+                                            minRotation: 0
+                                        }
+                                    }],
+                                    yAxes: [{
+                                        scaleLabel: {
+                                            display: true,
+                                            labelString: 'Баллы'
+                                        },
+                                        ticks: {
+                                            beginAtZero: true,
+                                            fontSize: 12
+                                        }
+                                    }]
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Динамика результатов по показателям раздела {{ section.number }}',
+                                    fontSize: 14
+                                },
+                                tooltips: {
+                                    mode: 'index',
+                                    intersect: false,
+                                    callbacks: {
+                                        title: function(tooltipItems, data) {
+                                            var idx = tooltipItems[0].index;
+                                            return fieldNames[idx];
+                                        }
+                                    }
+                                },
+                                hover: {
+                                    mode: 'nearest',
+                                    intersect: true
+                                },
+                                legend: {
+                                    position: 'top',
+                                    labels: {
+                                        padding: 15,
+                                        fontSize: 12
+                                    }
+                                },
+                                layout: {
+                                    padding: {
+                                        left: 0,
+                                        right: 0,
+                                        top: 0,
+                                        bottom: 20
+                                    }
+                                }
+                            }
+                        });
+                    }
+                })();
+            </script>
+            {% endif %}
         </div>
     {% endfor %}
 {% endblock %}
+

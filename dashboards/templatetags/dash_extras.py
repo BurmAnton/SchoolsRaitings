@@ -85,16 +85,31 @@ def get_color(zone):
 
 @register.filter
 def get_section_colord(s_report, section):
-    sections = Section.objects.filter(name=section.name, report=s_report.report)
-    if not sections.exists():
+    section = Section.objects.filter(number=section.number, report=s_report.report).first()
+  
+    if not section:
         return 'white'
-
+    
     try:
         section_report = SectionSreport.objects.filter(
-            s_report=s_report, 
-            section=section
+            s_report=s_report,
+            section=section 
         ).first()
-        
+        if not section_report:
+            # Calculate points for this section
+            questions = section.fields.all()
+            points = Answer.objects.filter(
+                question__in=questions,
+                s_report=s_report
+            ).aggregate(Sum('points'))['points__sum'] or 0
+            
+            # Create new section report
+            section_report = SectionSreport.objects.create(
+                s_report=s_report,
+                section=section,
+                points=points
+            )
+
         if not section_report or section_report.points is None:
             return 'white'
             
@@ -143,7 +158,7 @@ def format_point(points):
 
 @register.filter
 def get_section_points(s_report, section):
-    points = SectionSreport.objects.get(s_report=s_report, section__number=section.number).points
+    points = SectionSreport.objects.filter(s_report=s_report, section__number=section.number).first().points
     return format_point(points)
 
 
