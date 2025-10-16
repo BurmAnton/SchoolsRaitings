@@ -272,6 +272,12 @@ def update_section_points(sender, instance, action, **kwargs):
 class Field(models.Model):
     number = models.CharField('Номер показатель', null=False, blank=False, max_length=500)
     name = models.CharField("Название показателя", max_length=750, null=False, blank=False)
+    years = models.ManyToManyField(
+        Year,
+        verbose_name='Годы',
+        related_name='fields',
+        blank=True
+    )
     points = models.DecimalField(
         "Макс. баллов", max_digits=5,
         decimal_places=1, null=False, blank=False, default=0

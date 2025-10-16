@@ -15,8 +15,9 @@ from django.utils import timezone
 from .models import (
     Attachment, RangeOption, OptionCombination,
     Report, ReportFile, ReportLink, Section, Field, Option, SchoolReport, update_school_report_points, Answer,
-    Year
+    Year, calculate_field_points, invalidate_caches_for_report
 )
+from schools.models import School
 
 from .admin_utils import ColumnWidthMixin, add_custom_admin_css
 
@@ -28,9 +29,37 @@ class SectionInline(admin.StackedInline):
     ordering = ('id',)
 
     model = Section
+    
     def get_extra(self, request, obj=None, **kwargs):
         if obj: return 0
         return 1
+    
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        """
+        Фильтрует показатели (fields) по году отчета.
+        Показывает только показатели, у которых в years есть год отчета.
+        """
+        if db_field.name == "fields":
+            # Получаем ID отчета из URL
+            report_id = request.resolver_match.kwargs.get('object_id')
+            
+            if report_id:
+                try:
+                    report = Report.objects.get(pk=report_id)
+                    # Фильтруем показатели по году отчета
+                    kwargs["queryset"] = Field.objects.filter(years=report.year)
+                except Report.DoesNotExist:
+                    pass
+            else:
+                # При создании нового отчета показываем показатели текущего года
+                try:
+                    current_year = Year.objects.get(is_current=True)
+                    kwargs["queryset"] = Field.objects.filter(years=current_year)
+                except Year.DoesNotExist:
+                    # Если нет текущего года, показываем все
+                    pass
+        
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
 @admin.register(Report)
@@ -168,10 +197,12 @@ class CombinationInline(admin.TabularInline):
 class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
     list_display = ['id', 'number', 'name', 'answer_type', 'points',]
     search_fields = ['number', 'name', 'id']
+    list_filter = [('years', RelatedDropdownFilter),]
     readonly_fields = ['points',]
+    filter_horizontal = ['years',]
     fieldsets = [
         (None, {
-            'fields': ['number', 'name', 'answer_type']
+            'fields': ['number', 'name', 'answer_type', 'years']
         }),
         ('Баллы и зоны', {
             'fields': ['points', 'bool_points', 'max_points', 'yellow_zone_min', 'green_zone_min'],
@@ -196,7 +227,7 @@ class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
 
     inlines = [OptionInline, RangeOptionInline, CombinationInline]
     
-    actions = ['recalculate_reports']
+    actions = ['recalculate_reports', 'copy_fields_to_current_year', 'add_current_year']
     
     def recalculate_reports(self, request, queryset):
         """Пересчитать баллы и зоны для всех отчетов, содержащих выбранные показатели"""
@@ -293,6 +324,112 @@ class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
         logger.info(message)
     
     recalculate_reports.short_description = "Пересчитать баллы и зоны для всех отчетов"
+    
+    def copy_fields_to_current_year(self, request, queryset):
+        """Создает копии выбранных показателей с текущим годом"""
+        try:
+            current_year = Year.objects.get(is_current=True)
+        except Year.DoesNotExist:
+            self.message_user(request, "Ошибка: Не найден текущий год (is_current=True)", level='error')
+            return
+        except Year.MultipleObjectsReturned:
+            self.message_user(request, "Ошибка: Найдено несколько текущих годов", level='error')
+            return
+        
+        copied_count = 0
+        
+        with transaction.atomic():
+            for field in queryset:
+                # Создаем копию показателя
+                new_field = Field.objects.create(
+                    number=field.number,
+                    name=field.name,
+                    points=field.points,
+                    answer_type=field.answer_type,
+                    bool_points=field.bool_points,
+                    max_points=field.max_points,
+                    yellow_zone_min=field.yellow_zone_min,
+                    green_zone_min=field.green_zone_min,
+                    attachment_name=field.attachment_name,
+                    attachment_type=field.attachment_type,
+                    note=field.note,
+                )
+                
+                # Устанавливаем текущий год для новой копии
+                new_field.years.add(current_year)
+                
+                # Копируем связанные Option
+                for option in field.options.all():
+                    Option.objects.create(
+                        number=option.number,
+                        name=option.name,
+                        question=new_field,
+                        yellow_zone_min=option.yellow_zone_min,
+                        green_zone_min=option.green_zone_min,
+                        points=option.points,
+                        zone=option.zone,
+                    )
+                
+                # Копируем связанные RangeOption
+                for range_option in field.range_options.all():
+                    RangeOption.objects.create(
+                        question=new_field,
+                        range_type=range_option.range_type,
+                        zone=range_option.zone,
+                        less_or_equal=range_option.less_or_equal,
+                        greater_or_equal=range_option.greater_or_equal,
+                        equal=range_option.equal,
+                        points=range_option.points,
+                        yellow_zone_min=range_option.yellow_zone_min,
+                        green_zone_min=range_option.green_zone_min,
+                    )
+                
+                # Копируем связанные OptionCombination
+                for combination in field.combinations.all():
+                    OptionCombination.objects.create(
+                        field=new_field,
+                        option_numbers=combination.option_numbers,
+                        points=combination.points,
+                    )
+                
+                copied_count += 1
+        
+        message = f"Создано {copied_count} копий показателей для года {current_year.year}"
+        self.message_user(request, message)
+        logger.info(message)
+    
+    copy_fields_to_current_year.short_description = "Копировать показатели в текущий год"
+    
+    def add_current_year(self, request, queryset):
+        """Добавляет текущий год к выбранным показателям"""
+        try:
+            current_year = Year.objects.get(is_current=True)
+        except Year.DoesNotExist:
+            self.message_user(request, "Ошибка: Не найден текущий год (is_current=True)", level='error')
+            return
+        except Year.MultipleObjectsReturned:
+            self.message_user(request, "Ошибка: Найдено несколько текущих годов", level='error')
+            return
+        
+        updated_count = 0
+        already_has_year = 0
+        
+        for field in queryset:
+            # Проверяем, есть ли уже текущий год у показателя
+            if current_year in field.years.all():
+                already_has_year += 1
+            else:
+                field.years.add(current_year)
+                updated_count += 1
+        
+        message = f"Текущий год {current_year.year} добавлен к {updated_count} показателям"
+        if already_has_year > 0:
+            message += f" ({already_has_year} показателей уже имели этот год)"
+        
+        self.message_user(request, message)
+        logger.info(message)
+    
+    add_current_year.short_description = "Добавить текущий год"
     
     # def get_inline_instances(self, request, obj=None):
     #     inline_instances = super().get_inline_instances(request, obj)
