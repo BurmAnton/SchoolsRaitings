@@ -195,7 +195,7 @@ class CombinationInline(admin.TabularInline):
 @admin.register(Field)
 @add_custom_admin_css
 class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
-    list_display = ['id', 'number', 'name', 'answer_type', 'points',]
+    list_display = ['id', 'number', 'name', 'answer_type', 'points', 'display_years']
     search_fields = ['number', 'name', 'id']
     list_filter = [('years', RelatedDropdownFilter),]
     readonly_fields = ['points',]
@@ -219,9 +219,19 @@ class FieldAdmin(ColumnWidthMixin, admin.ModelAdmin):
         'name': 'column-width-xl column-truncate',
         'answer_type': 'column-width-xl column-align-center',
         'points': 'column-width-xs column-align-center',
+        'display_years': 'column-width-sm column-align-center',
         'yellow_zone_min': 'column-width-md column-align-center',
         'green_zone_min': 'column-width-md column-align-center',
     }
+    
+    def display_years(self, obj):
+        """Отображает годы показателя"""
+        years = obj.years.all().order_by('year')
+        if years:
+            years_list = ', '.join(str(year.year) for year in years)
+            return years_list
+        return "—"
+    display_years.short_description = "Годы"
 
     content = HTMLField()
 
