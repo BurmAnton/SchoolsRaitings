@@ -14,11 +14,18 @@ from reports.utils import count_points, count_points_field
 from schools.models import TerAdmin, School, SchoolCloster
 
 def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
+    """Рассчитывает статистику и данные разделов, сопоставляя по названиям разделов."""
     stats = {}
     section_data = {}
     
-    # Get distinct sections by number
-    distinct_sections = sections.distinct('number').order_by('number')
+    # Get distinct sections by name instead of number
+    # Group sections by name to handle different years
+    section_names = sections.values_list('name', flat=True).distinct()
+    distinct_sections_map = {}
+    for name in section_names:
+        section = sections.filter(name=name).first()
+        if section:
+            distinct_sections_map[name] = section
     
     for year in f_years:
         stats[year] = {
@@ -28,10 +35,10 @@ def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
         }
         section_data[year] = []
         
-        for section in distinct_sections:
-            # Get all sections with the same number for this year
+        for section_name, section in distinct_sections_map.items():
+            # Get all sections with the same name for this year
             year_sections = Section.objects.filter(
-                number=section.number,
+                name=section_name,
                 report__in=reports,
                 report__year=year
             )
@@ -65,6 +72,7 @@ def calculate_stats_and_section_data(f_years, reports, sections, s_reports):
     return stats, section_data
 
 def calculate_stats(year, s_reports_year, sections):
+    """Рассчитывает статистику, используя названия разделов вместо номеров."""
     stats = {}
     # Initialize stats
     overall_stats = {
@@ -75,9 +83,9 @@ def calculate_stats(year, s_reports_year, sections):
 
     s_reports_count = s_reports_year.count()
 
-    # Create lookup dict for section stats
+    # Create lookup dict for section stats using name instead of number
     for section in sections:
-        stats[section.number] = {
+        stats[section.name] = {
             "green_zone": [0, "0.0%"],
             "yellow_zone": [0, "0.0%"],
             "red_zone": [0, "0.0%"]
@@ -90,12 +98,15 @@ def calculate_stats(year, s_reports_year, sections):
             zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[s_report.zone]
             overall_stats[zone][0] += 1
 
-        # Section stats
+        # Section stats - match by name instead of number
         for section_sreport in s_report.sections.all():
             try:
                 if section_sreport.zone in ["G", "Y", "R"]:
                     zone = {"G": "green_zone", "Y": "yellow_zone", "R": "red_zone"}[section_sreport.zone]
-                    stats[section_sreport.section.number][zone][0] += 1
+                    # Use section name as key instead of number
+                    section_name = section_sreport.section.name
+                    if section_name in stats:
+                        stats[section_name][zone][0] += 1
             except:
                 continue
 
@@ -395,16 +406,25 @@ def write_summary_rows(worksheet, row_num, s_reports, sections, formats):
 
 
 def count_section_points(s_report, section):
+    """Подсчитывает зону раздела, сопоставляя раздел по названию."""
     from reports.models import Answer
     try:
-        section_obj = Section.objects.filter(number=section.number, report=s_report.report).first()
+        # Сопоставляем раздел по названию, а не по номеру/ID
+        section_obj = Section.objects.filter(name=section.name, report=s_report.report).first()
+        if not section_obj:
+            return "R"
+        
         points__sum = Answer.objects.filter(question__in=section_obj.fields.all(), s_report=s_report).aggregate(Sum('points'))['points__sum']
+        if points__sum is None:
+            return "R"
+        
         if points__sum < section_obj.yellow_zone_min:
             return "R"
         elif points__sum >= section_obj.green_zone_min:
             return "G"
         return "Y"
-    except:
+    except Exception as e:
+        print(f"Error in count_section_points: {e}")
         return "R"
 
 def generate_school_report_csv(year, school, s_reports, sections):

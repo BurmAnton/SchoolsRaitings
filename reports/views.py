@@ -174,11 +174,12 @@ def mo_reports(request):
     current_year_obj = Year.objects.filter(is_current=True).first()
 
     filter = None
-    # Reset filter if requested
-    if 'reset' in request.GET:
+    # Reset filter if requested or if it's a GET request without pagination
+    if 'reset' in request.GET or (request.method == 'GET' and 'page' not in request.GET):
         if 'mo_reports_filter' in request.session:
             del request.session['mo_reports_filter']
-        return HttpResponseRedirect(reverse('mo_reports'))
+        if 'reset' in request.GET:
+            return HttpResponseRedirect(reverse('mo_reports'))
     
     # Если не задан фильтр (ни в POST, ни в сессии) — показываем отчёты текущего года
     if 'filter' not in request.POST and 'mo_reports_filter' not in request.session and current_year_obj:
@@ -208,8 +209,8 @@ def mo_reports(request):
         
         filter = filter_params
         request.session['mo_reports_filter'] = filter_params
-    # Use filter from session for GET requests (pagination)
-    elif request.method == 'GET' and 'mo_reports_filter' in request.session:
+    # Use filter from session only for GET requests with pagination
+    elif request.method == 'GET' and 'page' in request.GET and 'mo_reports_filter' in request.session:
         filter_params = request.session['mo_reports_filter']
         filter = filter_params
         
@@ -283,24 +284,17 @@ def ter_admin_reports(request, user_id):
     current_year_obj = Year.objects.filter(is_current=True).first()
 
     filter = None
-    # Reset filter if requested
-    if 'reset' in request.GET:
-        session_key = f'ter_admin_reports_filter_{user_id}'
-        print(f"DEBUG: Trying to reset filter. Session key: {session_key}")
-        print(f"DEBUG: Session keys before reset: {list(request.session.keys())}")
-        
+    session_key = f'ter_admin_reports_filter_{user_id}'
+    
+    # Reset filter if requested or if it's a GET request without pagination
+    if 'reset' in request.GET or (request.method == 'GET' and 'page' not in request.GET):
         if session_key in request.session:
-            print(f"DEBUG: Found filter in session: {request.session[session_key]}")
             del request.session[session_key]
-            print("DEBUG: Filter deleted from session")
-        else:
-            print("DEBUG: No filter found in session to delete")
-            
-        print(f"DEBUG: Session keys after reset: {list(request.session.keys())}")
-        return HttpResponseRedirect(reverse('ter_admin_reports', args=[user_id]))
+        if 'reset' in request.GET:
+            return HttpResponseRedirect(reverse('ter_admin_reports', args=[user_id]))
     
     # Если не задан фильтр (ни в POST, ни в сессии) — показываем отчёты текущего года
-    if 'filter' not in request.POST and f'ter_admin_reports_filter_{user_id}' not in request.session and current_year_obj:
+    if 'filter' not in request.POST and session_key not in request.session and current_year_obj:
         s_reports = s_reports.filter(report__year=current_year_obj)
 
     # Store filter parameters in session when POST request
@@ -326,10 +320,10 @@ def ter_admin_reports(request, user_id):
             filter_params['years'] = request.POST.getlist('years')
         
         filter = filter_params
-        request.session[f'ter_admin_reports_filter_{user_id}'] = filter_params
-    # Use filter from session for GET requests (pagination)
-    elif request.method == 'GET' and f'ter_admin_reports_filter_{user_id}' in request.session:
-        filter_params = request.session[f'ter_admin_reports_filter_{user_id}']
+        request.session[session_key] = filter_params
+    # Use filter from session only for GET requests with pagination
+    elif request.method == 'GET' and 'page' in request.GET and session_key in request.session:
+        filter_params = request.session[session_key]
         filter = filter_params
         
         if 'schools' in filter_params and filter_params['schools']:

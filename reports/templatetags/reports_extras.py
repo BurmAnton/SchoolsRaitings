@@ -46,16 +46,28 @@ def dictsort_fields(sections):
 
 @register.filter
 def get_answer(answers, question):
+    """Возвращает цвет зоны ответа, сопоставляя вопрос по названию."""
     try:
-        if answers[0].s_report.report.is_counting == False:
+        if not answers.exists():
             return 'white'
-        answer = answers.get(question=question)
+        
+        first_answer = answers.first()
+        if first_answer and first_answer.s_report.report.is_counting == False:
+            return 'white'
+        
+        # Сопоставляем вопрос по названию, а не по ID
+        answer = answers.filter(question__name=question.name).first()
+        if not answer:
+            return 'white'
+        
         if answer.zone == "R":
             return "red"
         if answer.zone == "Y":
             return "#ffc600"
         return "green"
-    except: return 'white'
+    except Exception as e:
+        print(f"Error in get_answer: {e}")
+        return 'white'
 
 @register.filter
 def find_answer(answers, question):

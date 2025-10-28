@@ -347,7 +347,7 @@
                                 {% for s_report in s_reports %}
                                     <td scope="row" style="text-align: center;">
                                         <div style="display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;">
-                                            <div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{s_report.answers.all|get_answer:question}}; width: 15px; height: 15px; border-radius: 15px"></div>
+                                            <div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{ s_report|get_answer_color_by_field:question }}; width: 15px; height: 15px; border-radius: 15px"></div>
                                             <div>{{ s_report|get_field_points:question }}</div>
                                         </div>
                                     </td>

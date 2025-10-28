@@ -141,7 +141,7 @@
                             <td colspan="2"></td>
                             <td scope="row" style="text-align: center;">{{ total_points|format_point }}</td>
                             {% for section in sections %}
-                                <td scope="row" style="text-align: center;">{{ sections_data|get_item:section.number|get_item:'points'|format_point }}</td>
+                                <td scope="row" style="text-align: center;">{{ sections_data|get_item:section.name|get_item:'points'|format_point }}</td>
                             {% endfor %}
                             <td scope="row" style="text-align: center;">{{ total_green_zone_answers }}</td>
                             <td scope="row" style="text-align: center;">{{ total_green_zone_answers_percent }}</td>
@@ -286,7 +286,7 @@
                                 <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(2, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Уровень образования</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                                 <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(3, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center;"><div>Кластер</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
                                 <th scope="row" class="section-hdr sticky-top" style="cursor: pointer;" onclick="sortTable(4, 'table-{{ section.id }}')"><div style="display: flex; gap: 5px; align-items: center; text-align: center;"><div>Итого</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div></th>
-                                {% for field in sections_data|get_item:section.number|get_item:'fields' %}
+                                {% for field in sections_data|get_item:section.name|get_item:'fields' %}
                                     <th class="section-hdr sticky-top" scope="row" style="text-align: center; cursor: pointer;" onclick="sortTable({{ forloop.counter|add:4 }}, 'table-{{ section.id }}')">
                                         <div style="display: flex; gap: 5px; align-items: center;"><div>{{ section.number }}.{{ field.number }}. {{ field.name }}</div><div class="asc-icon"><img src="{% static 'dashboards/img/icons-acs.png' %}" alt=""></div><div class="desc-icon"><img src="{% static 'dashboards/img/icons-desc.png' %}" alt=""></div></div>
                                     </th>
@@ -297,7 +297,7 @@
                                     <td scope="row" class="sticky-row">
                                         <div style="display: flex;gap: 5px; align-items: center;">
                                             {% if s_report.report.is_counting %}
-                                                {% with zone=school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'zone' %}
+                                                {% with zone=school_reports_data|get_item:s_report.id|get_item:section.name|get_item:'zone' %}
                                                     {% if zone != 'W' %}
                                                         <div class="section-zone" style="background-color: {{zone|get_color}}; width: 15px; height: 15px; border-radius: 15px"></div>
                                                     {% else %}
@@ -316,15 +316,15 @@
                                     <td scope="row">{{ s_report.school.ter_admin }}</td>
                                     <td scope="row">{{ s_report.school.get_ed_level_display }}</td>
                                     <td scope="row">{{ s_report.school.closter }}</td>
-                                    <td scope="row" style="text-align: center;">{{ school_reports_data|get_item:s_report.id|get_item:section.number|get_item:'points' }}</td>
-                                    {% for field in sections_data|get_item:section.number|get_item:'fields' %}
+                                    <td scope="row" style="text-align: center;">{{ school_reports_data|get_item:s_report.id|get_item:section.name|get_item:'points' }}</td>
+                                    {% for field in sections_data|get_item:section.name|get_item:'fields' %}
                                         <td scope="row" style="text-align: center;">
                                             <div style="display: flex; justify-content: center; align-items: center; height: 100%; gap: 5px;">
                                                 {% if s_report.report.is_counting %}
-                                                    <div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{ school_reports_data|get_item:s_report.id|get_item:section.number|get_field_zone:field }}; width: 15px; height: 15px; border-radius: 15px">
+                                                    <div class="field-zone field-zone{{field.id}}" id="zone-field{{field.id}}" style="background-color: {{ school_reports_data|get_item:s_report.id|get_item:section.name|get_field_zone:field }}; width: 15px; height: 15px; border-radius: 15px">
                                                     </div>
                                                 {% endif %}
-                                            <div>{{ school_reports_data|get_item:s_report.id|get_item:section.number|get_field_value:field }}</div>
+                                            <div>{{ school_reports_data|get_item:s_report.id|get_item:section.name|get_field_value:field }}</div>
                                         </div>
                                         </td>
                                     {% endfor %}
@@ -333,39 +333,39 @@
                             <tr>   
                                 <td scope="row" colspan="2" style="text-align: left;" class="sticky-row"><b>Итого</b></td>
                                 <td colspan="2"></td>
-                                <td scope="row" style="text-align: center;"><b>{{ sections_data|get_item:section.number|get_item:'points'|format_point }}</b></td>
-                                {% for field in sections_data|get_item:section.number|get_item:'fields' %}
-                                    <td scope="row" style="text-align: center;"><b>{{ sections_data|get_item:section.number|get_item:'fields'|get_item:field.number|get_item:'points'|format_point }}</b></td>
+                                <td scope="row" style="text-align: center;"><b>{{ sections_data|get_item:section.name|get_item:'points'|format_point }}</b></td>
+                                {% for field in sections_data|get_item:section.name|get_item:'fields' %}
+                                    <td scope="row" style="text-align: center;"><b>{{ sections_data|get_item:section.name|get_item:'fields'|get_item:field.number|get_item:'points'|format_point }}</b></td>
                                 {% endfor %}
                             </tr> 
                             <tr>
                                 <td style="color: green; font-weight: bold"><b>Кол-во школ в зелёной зоне</b></td>
                                 <td colspan></td>
                                 <td style="text-align: center;">
-                                    <td style="text-align: center; color: green; font-weight: bold; white-space: nowrap;"><b style="padding-left: 15px;">{{ stats|get_item:section.number|get_item:"green_zone"|first }} ({{ stats|get_item:section.number|get_item:"green_zone"|last }})</b></td>
+                                    <td style="text-align: center; color: green; font-weight: bold; white-space: nowrap;"><b style="padding-left: 15px;">{{ stats|get_item:section.name|get_item:"green_zone"|first }} ({{ stats|get_item:section.name|get_item:"green_zone"|last }})</b></td>
                                 </td>
-                                {% for field in fields_data|get_item:section.number|get_item:'fields' %}
-                                    <td style="text-align: center; color: green; font-weight: bold; white-space: nowrap;">{{ fields_data|get_item:section.number|get_item:'fields'|get_item:field|get_item:'green_zone' }}</td>
+                                {% for field in fields_data|get_item:section.name|get_item:'fields' %}
+                                    <td style="text-align: center; color: green; font-weight: bold; white-space: nowrap;">{{ fields_data|get_item:section.name|get_item:'fields'|get_item:field|get_item:'green_zone' }}</td>
                                 {% endfor %}
                             </tr>
                             <tr>
                                 <td style="color: #ffc600; font-weight: bold"><b>Кол-во школ в жёлтой зоне</b></td>
                                 <td colspan></td>
                                 <td style="text-align: center;">
-                                    <td style="text-align: center; color: #ffc600; font-weight: bold; white-space: nowrap;"><b style="padding-left: 15px;">{{ stats|get_item:section.number|get_item:"yellow_zone"|first }} ({{ stats|get_item:section.number|get_item:"yellow_zone"|last }})</b></td>
+                                    <td style="text-align: center; color: #ffc600; font-weight: bold; white-space: nowrap;"><b style="padding-left: 15px;">{{ stats|get_item:section.name|get_item:"yellow_zone"|first }} ({{ stats|get_item:section.name|get_item:"yellow_zone"|last }})</b></td>
                                 </td>
-                                {% for field in fields_data|get_item:section.number|get_item:'fields' %}
-                                    <td style="text-align: center; color: #ffc600; font-weight: bold; white-space: nowrap;">{{ fields_data|get_item:section.number|get_item:'fields'|get_item:field|get_item:'yellow_zone' }}</td>
+                                {% for field in fields_data|get_item:section.name|get_item:'fields' %}
+                                    <td style="text-align: center; color: #ffc600; font-weight: bold; white-space: nowrap;">{{ fields_data|get_item:section.name|get_item:'fields'|get_item:field|get_item:'yellow_zone' }}</td>
                                 {% endfor %}
                             </tr>
                             <tr>
                                 <td style="color: red; font-weight: bold"><b>Кол-во школ в красной зоне</b></td>
                                 <td colspan></td>
                                 <td style="text-align: center;">
-                                    <td style="text-align: center; color: red; font-weight: bold; white-space: nowrap;"><b style="padding-left: 15px;">{{ stats|get_item:section.number|get_item:"red_zone"|first }} ({{ stats|get_item:section.number|get_item:"red_zone"|last }})</b></td>
+                                    <td style="text-align: center; color: red; font-weight: bold; white-space: nowrap;"><b style="padding-left: 15px;">{{ stats|get_item:section.name|get_item:"red_zone"|first }} ({{ stats|get_item:section.name|get_item:"red_zone"|last }})</b></td>
                                 </td>
-                                {% for field in fields_data|get_item:section.number|get_item:'fields' %}
-                                    <td style="text-align: center; color: red; font-weight: bold; white-space: nowrap;">{{ fields_data|get_item:section.number|get_item:'fields'|get_item:field|get_item:'red_zone' }}</td> 
+                                {% for field in fields_data|get_item:section.name|get_item:'fields' %}
+                                    <td style="text-align: center; color: red; font-weight: bold; white-space: nowrap;">{{ fields_data|get_item:section.name|get_item:'fields'|get_item:field|get_item:'red_zone' }}</td> 
                                 {% endfor %}
                             </tr>
                         </table>

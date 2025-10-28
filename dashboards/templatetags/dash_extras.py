@@ -84,20 +84,56 @@ def get_color(zone):
     return "white"
 
 @register.filter
-def get_section_colord(s_report, section):
-    section = Section.objects.filter(number=section.number, report=s_report.report).first()
-  
-    if not section:
-        return 'white'
-    
+def get_answer_color_by_field(s_report, field):
+    """Возвращает цвет зоны ответа по показателю, используя кеш на s_report.
+    Сопоставление выполняется по названию показателя, чтобы корректно работать при копировании.
+    """
     try:
+        if not s_report or not field:
+            return 'white'
+        # Если отчёт не считается, не подсвечиваем
+        if hasattr(s_report, 'report') and getattr(s_report.report, 'is_counting', True) is False:
+            return 'white'
+
+        # Кешируем словарь названий показателей -> зона
+        zone_map = getattr(s_report, '_answers_zone_by_name', None)
+        if zone_map is None:
+            zone_map = {}
+            # Важно: answers должны быть предзагружены с question (select_related)
+            for a in s_report.answers.all():
+                if a.question:
+                    zone_map[a.question.name] = a.zone
+            setattr(s_report, '_answers_zone_by_name', zone_map)
+
+        zone = zone_map.get(field.name)
+        if not zone:
+            return 'white'
+        return get_color(zone)
+    except Exception as e:
+        print(f"Error in get_answer_color_by_field: {e}")
+        return 'white'
+
+@register.filter
+def get_section_colord(s_report, section):
+    """Определяет цвет зоны по баллам раздела, сопоставляя по названию."""
+    try:
+        if not s_report or not section:
+            return 'white'
+        
+        # Сопоставляем раздел по названию, а не по номеру/ID
+        section_in_report = Section.objects.filter(name=section.name, report=s_report.report).first()
+      
+        if not section_in_report:
+            return 'white'
+        
         section_report = SectionSreport.objects.filter(
             s_report=s_report,
-            section=section 
+            section=section_in_report 
         ).first()
+        
         if not section_report:
             # Calculate points for this section
-            questions = section.fields.all()
+            questions = section_in_report.fields.all()
             points = Answer.objects.filter(
                 question__in=questions,
                 s_report=s_report
@@ -106,7 +142,7 @@ def get_section_colord(s_report, section):
             # Create new section report
             section_report = SectionSreport.objects.create(
                 s_report=s_report,
-                section=section,
+                section=section_in_report,
                 points=points
             )
 
@@ -116,12 +152,13 @@ def get_section_colord(s_report, section):
         if not s_report.report.is_counting:
             return 'white'
             
-        if section_report.points < section.yellow_zone_min:
+        if section_report.points < section_in_report.yellow_zone_min:
             return "red"
-        elif section_report.points >= section.green_zone_min:
+        elif section_report.points >= section_in_report.green_zone_min:
             return "green"
         return "#ffc600"
-    except Exception:
+    except Exception as e:
+        print(f"Error in get_section_colord: {e}")
         return 'white'
 
 
@@ -169,8 +206,23 @@ def format_point(points):
 
 @register.filter
 def get_section_points(s_report, section):
-    points = SectionSreport.objects.filter(s_report=s_report, section__number=section.number).first().points
-    return format_point(points)
+    """Возвращает баллы по разделу, сопоставляя по названию."""
+    try:
+        if not s_report or not section:
+            return "-"
+        
+        # Сопоставляем разделы по названию, а не по номеру/ID
+        sec_rep = SectionSreport.objects.filter(
+            s_report=s_report, 
+            section__name=section.name
+        ).first()
+        
+        if sec_rep and sec_rep.points is not None:
+            return format_point(sec_rep.points)
+        return "-"
+    except Exception as e:
+        print(f"Error in get_section_points: {e}")
+        return "-"
 
 
 
@@ -239,10 +291,12 @@ def get_color_field_dash(answers, field):
 
 @register.filter
 def get_point_sum_section(s_reports, section):
+    """Возвращает сумму баллов по разделу, сопоставляя по названию."""
     try:
         if not s_reports or not section:
             return "0"
-        points = SectionSreport.objects.filter(s_report__in=s_reports, section__number=section.number).aggregate(Sum('points'))['points__sum'] or 0
+        # Сопоставляем раздел по названию, а не по номеру/ID
+        points = SectionSreport.objects.filter(s_report__in=s_reports, section__name=section.name).aggregate(Sum('points'))['points__sum'] or 0
         return format_point(points)
     except Exception as e:
         print(f"Error in get_point_sum_section: {e}")
@@ -250,18 +304,23 @@ def get_point_sum_section(s_reports, section):
 
 @register.filter
 def get_field_points(s_report, field):
-    """Быстрый доступ к баллам по показателю с кешированием словаря ответов."""
+    """Быстрый доступ к баллам по показателю, сопоставляя по названию показателя."""
     try:
         if not s_report or not field:
             return "-"
 
-        # Создаём и кэшируем словарь answer.question_id -> points при первом обращении
-        answers_map = getattr(s_report, '_answers_map', None)
+        # Создаём и кэшируем словарь answer.question__name -> points при первом обращении
+        # Сопоставляем по названию показателя, а не по ID
+        answers_map = getattr(s_report, '_answers_map_by_name', None)
         if answers_map is None:
-            answers_map = {a.question_id: a.points for a in s_report.answers.all()}
-            setattr(s_report, '_answers_map', answers_map)
+            answers_map = {}
+            for a in s_report.answers.select_related('question').all():
+                if a.question:
+                    # Используем название показателя как ключ
+                    answers_map[a.question.name] = a.points
+            setattr(s_report, '_answers_map_by_name', answers_map)
 
-        points = answers_map.get(field.id)
+        points = answers_map.get(field.name)
         if points is None:
             return "-"
         return format_point(points)

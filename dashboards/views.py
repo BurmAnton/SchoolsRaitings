@@ -176,12 +176,13 @@ def ter_admins_dash(request):
         answer_lookup = {a.question_id: a for a in s_report.answers.all()}
         
         for section in s_report.sections.all():
-            if section.section.number not in fields_data:
-                fields_data[section.section.number] = {
+            # Используем название раздела вместо номера
+            section_name = section.section.name
+            if section_name not in fields_data:
+                fields_data[section_name] = {
                     'fields': {}
                 }
-            section_number = section.section.number
-            school_reports_data[s_report.id][section_number] = {
+            school_reports_data[s_report.id][section_name] = {
                 'points': section.points,
                 'zone': section.zone,
                 'fields': {}
@@ -193,8 +194,8 @@ def ter_admins_dash(request):
             )
             
             for field in fields:
-                if field.number not in fields_data[section_number]['fields']:
-                    fields_data[section_number]['fields'][field.number] = {
+                if field.number not in fields_data[section_name]['fields']:
+                    fields_data[section_name]['fields'][field.number] = {
                         'points': 0,
                         'green_zone': 0,
                         'yellow_zone': 0,
@@ -202,24 +203,24 @@ def ter_admins_dash(request):
                     }
                 answer = answer_lookup.get(field.id)
                 if answer:
-                    school_reports_data[s_report.id][section_number]['fields'][field.number] = {
+                    school_reports_data[s_report.id][section_name]['fields'][field.number] = {
                         'points': answer.points,
                         'zone': answer.zone
                     }
     
-                    fields_data[section_number]['fields'][field.number]['points'] += answer.points
+                    fields_data[section_name]['fields'][field.number]['points'] += answer.points
                     school_reports_data[s_report.id]['answers'] += 1
                     if answer.zone == 'G':
                         school_reports_data[s_report.id]['green_zone_answers'] += 1
-                        fields_data[section_number]['fields'][field.number]['green_zone'] += 1
+                        fields_data[section_name]['fields'][field.number]['green_zone'] += 1
                     elif answer.zone == 'Y':
                         school_reports_data[s_report.id]['yellow_zone_answers'] += 1
-                        fields_data[section_number]['fields'][field.number]['yellow_zone'] += 1
+                        fields_data[section_name]['fields'][field.number]['yellow_zone'] += 1
                     elif answer.zone == 'R':
                         school_reports_data[s_report.id]['red_zone_answers'] += 1
-                        fields_data[section_number]['fields'][field.number]['red_zone'] += 1
+                        fields_data[section_name]['fields'][field.number]['red_zone'] += 1
                 else:
-                    school_reports_data[s_report.id][section_number]['fields'][field.number] = {
+                    school_reports_data[s_report.id][section_name]['fields'][field.number] = {
                         'points': 0,
                         'zone': 'W'
                     }
@@ -231,7 +232,8 @@ def ter_admins_dash(request):
     for section in sections:
         sections_objs = Section.objects.filter(name=section.name)
         fields = Field.objects.filter(sections__in=sections_objs).distinct('number').prefetch_related('answers')
-        sections_data[section.number] = {
+        # Используем название раздела в качестве ключа
+        sections_data[section.name] = {
             'name': section.name,
             'fields': sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
         }
@@ -644,9 +646,11 @@ def closters_report(request, year=2024):
     # ------------------------------------------------------------
 
     # Определяем выбранный год (selected_year) для шаблона
-    selected_year = current_year if request.method != 'POST' else Year.objects.filter(year=year).first()
-    if not selected_year:
-        selected_year = current_year
+    selected_year = current_year
+    if request.method == 'POST':
+        year_val = request.POST.get('year')
+        if year_val:
+            selected_year = Year.objects.filter(year=year_val).first() or current_year
 
     # Проверяем наличие отчетов для выбранного года
     try:
@@ -657,7 +661,34 @@ def closters_report(request, year=2024):
         print(f"Ошибка при проверке отчетов: {e}")
         reports_for_year = Report.objects.none()
 
-    # Запрашиваем отчёты школ с учётом статуса согласования
+    # Если пришёл POST — применяем фильтры
+    if request.method == 'POST':
+        # Показывать отчёты на согласовании ТУ/ДО
+        show_ter_status = 'show_ter_status' in request.POST
+        filter_params['show_ter_status'] = show_ter_status
+
+        # Фильтр по ТУ/ДО
+        ter_admins_f = request.POST.get('ter_admin', '')
+        if ter_admins_f:
+            if ter_admins_f != 'all':
+                schools = schools.filter(ter_admin_id=ter_admins_f)
+                filter_params['ter_admin'] = ter_admins_f
+            else:
+                filter_params['ter_admin'] = 'all'
+
+        # Фильтр по кластерам
+        closters_f = request.POST.getlist('closters')
+        if closters_f:
+            schools = schools.filter(closter_id__in=closters_f)
+            filter_params['closters'] = closters_f
+
+        # Фильтр по уровням образования
+        ed_levels_f = request.POST.getlist('ed_levels')
+        if ed_levels_f:
+            schools = schools.filter(ed_level__in=ed_levels_f)
+            filter_params['ed_levels'] = ed_levels_f
+
+    # Запрашиваем отчёты школ с учётом статуса согласования и отфильтрованных школ
     try:
         s_reports_qs = SchoolReport.objects.filter(
             report__year=selected_year,
@@ -665,7 +696,11 @@ def closters_report(request, year=2024):
             school__in=schools
         ).select_related(
             'school', 'school__ter_admin', 'school__closter'
-        ).prefetch_related('sections__section', 'answers')
+        ).prefetch_related(
+            'sections__section',
+            # Критично: ответы вместе с вопросом, чтобы избежать N+1 по названию поля
+            Prefetch('answers', queryset=Answer.objects.select_related('question'))
+        )
     except Exception as e:
         print(f"Ошибка при получении отчетов школ: {e}")
         s_reports_qs = SchoolReport.objects.none()
