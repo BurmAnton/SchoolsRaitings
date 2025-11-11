@@ -1,0 +1,26 @@
+/**
+ * Стили для административного интерфейса Django
+ */
+
+/* Стили для боковой панели навигации */
+#nav-sidebar a.section {
+    display: block;
+    padding: 8px 16px;
+    white-space: normal;
+    overflow-wrap: break-word;
+    line-height: 1.2;
+}
+
+#nav-sidebar .module td {
+    padding: 4px;
+    line-height: 1.2;
+    vertical-align: middle;
+}
+
+/* Стиль для иконки добавления */
+#nav-sidebar .addlink {
+    margin-left: 10px;
+    color: var(--link-fg);
+    text-decoration: none;
+    font-size: 1.2em;
+} 

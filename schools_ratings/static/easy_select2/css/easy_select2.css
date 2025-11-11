@@ -1,0 +1,10 @@
+ul.select2-selection__rendered li {
+    list-style-type: none;
+    background-color: black !important;
+}
+.select2-results__option {
+    color: black !important;
+}
+ul.select2-selection__rendered.select2-search{
+    background-color: white !important;
+}

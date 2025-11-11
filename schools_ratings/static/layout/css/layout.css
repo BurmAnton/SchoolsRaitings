@@ -1,0 +1,311 @@
+body {
+  min-height: 100vh;
+  display: -ms-grid;
+  display: grid;
+  -ms-grid-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr auto;
+  font-family: 'akrobat';
+}
+
+body h1 {
+  width: 100%;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 400;
+}
+
+body h2 {
+  width: 100%;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+body .btn-primary {
+  background-color: #a61849 !important;
+  border-color: #a61849 !important;
+}
+
+body .btn-outline-primary {
+  color: #a61849 !important;
+  border-color: #a61849 !important;
+}
+
+body .btn-outline-primary:hover {
+  background-color: #a61849 !important;
+  color: white !important;
+}
+
+body .body {
+  padding: 25px 10%;
+  min-height: 200px;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  background-color: rgba(255, 0, 0, 0.12);
+  -webkit-column-gap: 25px;
+          column-gap: 25px;
+}
+
+body .body > div {
+  background-color: white;
+  border-radius: 5px;
+}
+
+body .body #main-menu {
+  padding: 15px 15px;
+  width: 250px;
+  height: -webkit-min-content;
+  height: -moz-min-content;
+  height: min-content;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+}
+
+body .body #main-menu h2 {
+  margin-bottom: 15px;
+}
+
+body .body #main-menu .nav-pills {
+  width: 100%;
+  margin-right: 0;
+}
+
+body .body #main-menu button {
+  text-align: left;
+  color: #a61849;
+}
+
+body .body #main-menu .active {
+  color: white;
+  background-color: #a61849;
+  border-color: #a61849;
+}
+
+body .body #main-menu .admin-panel-link {
+  width: 100%;
+}
+
+body .body #main-menu .admin-panel-link a {
+  width: 100%;
+}
+
+body header {
+  width: 100%;
+  height: -webkit-min-content;
+  height: -moz-min-content;
+  height: min-content;
+  padding-top: 5px;
+  -webkit-box-shadow: 0px 6px 6px rgba(166, 24, 73, 0.61);
+          box-shadow: 0px 6px 6px rgba(166, 24, 73, 0.61);
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+}
+
+body header div {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+}
+
+body header #logo {
+  height: 80px;
+  margin-bottom: 10px;
+  margin-left: 30px;
+}
+
+body header #header-menu {
+  width: 80%;
+  margin: auto;
+  display: -ms-grid;
+  display: grid;
+  -webkit-box-pack: justify;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
+  justify-items: start;
+  -ms-grid-columns: 200px auto auto;
+      grid-template-columns: 200px auto auto;
+}
+
+body header #header-menu #user-welcome {
+  font-weight: 500 !important;
+  color: #262626cc;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+body header #header-menu #user-welcome #notif-btn {
+  padding: 0;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  width: 35px;
+  height: 35px;
+  border: 0px solid black;
+  border-radius: 50px;
+  margin-left: 10px;
+  background-color: white;
+}
+
+body header #header-menu #user-welcome #notif-btn img {
+  width: 30px;
+}
+
+body header #header-menu #user-welcome #notif-btn.show {
+  border: 2px solid #a61849;
+}
+
+body header #header-menu #user-welcome a {
+  color: #a61849;
+}
+
+body header #header-title {
+  height: -webkit-min-content;
+  height: -moz-min-content;
+  height: min-content;
+  padding: 10px 0;
+  background-color: #a61849;
+  color: white;
+}
+
+body header #header-title p {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 400;
+}
+
+body footer {
+  min-height: 90px;
+  width: 100%;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  -webkit-column-gap: 35px;
+          column-gap: 35px;
+  background-color: #262626;
+  color: #b3b3b3;
+}
+
+body footer span {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+}
+
+body footer #footer-email:before {
+  width: 29px;
+  height: 29px;
+  background-image: url(../img/email-icon.png);
+  background-size: 25px 23px;
+  background-repeat: no-repeat;
+  padding-right: 5px;
+  padding-top: 5px;
+  content: "";
+}
+
+body footer #footer-phone:before {
+  content: url(../img/phone-icon.png);
+  padding-right: 5px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+body footer #footer-address:before {
+  content: url(../img/map-icon.png);
+  padding-right: 5px;
+}
+
+.notifcation-bar {
+  display: none;
+  position: absolute;
+  top: 65px;
+  right: 10%;
+  padding-top: 5px;
+  padding-bottom: 35px;
+  width: 400px;
+  min-height: 140px;
+  background-color: white;
+  border: 1px solid #817d7d;
+  border-radius: 10px;
+  -webkit-box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  z-index: 9999;
+}
+
+.notifcation-bar .empty-notif {
+  text-align: center;
+  font-size: 18px;
+  padding: 10px;
+}
+
+.notifcation-bar .notif {
+  padding: 10px;
+  font-size: 14px;
+  border-top: 1px solid rgba(0, 0, 0, 0.484);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.484);
+}
+
+.notifcation-bar .notif a {
+  text-decoration: none;
+  color: black;
+}
+
+.notifcation-bar .notif:hover {
+  color: white;
+  background-color: #a61849;
+  cursor: pointer;
+}
+
+.notifcation-bar .notif:hover a {
+  font-weight: 500;
+  color: white;
+}
+
+.notifcation-bar.show {
+  display: -webkit-box !important;
+  display: -ms-flexbox !important;
+  display: flex !important;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+}
+
+.notifcation-bar.show h3 {
+  font-size: 20px;
+}
+/*# sourceMappingURL=layout.css.map */

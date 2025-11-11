@@ -1,0 +1,351 @@
+.dropdown-toggle {
+  border: 1px solid #31343783 !important;
+  background-color: white !important;
+}
+
+.input-group-text {
+  border: 1px solid #31343783 !important;
+  border-right: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.dropdown-menu {
+  z-index: 2000 !important;
+  max-width: 100% !important;
+  .inner {
+    max-height: 320px !important;
+  }
+}
+
+.dropdown-menu .dropdown-item span {
+  white-space: wrap !important;
+}
+
+
+.filter-option-inner-inner {
+  text-wrap: auto !important;
+}
+
+label {
+  margin-bottom: 5px;
+}
+
+input {
+  border: 1px solid #31343783 !important;
+}
+
+#main-menu {
+  display: none !important;
+}
+
+#page-content {
+  padding: 25px 25px;
+  width: 100%;
+}
+
+#page-content h1 {
+  font-size: 24px;
+  margin: auto;
+  margin-bottom: 15px;
+}
+
+#page-content h2 {
+  font-size: 20px;
+  margin: auto;
+  margin-bottom: 5px;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+}
+
+#page-content h2 div {
+  margin-right: 5px;
+  margin-bottom: 1px;
+}
+
+#page-content #report-school {
+  text-align: center;
+}
+
+#page-content #report-status {
+  text-align: center;
+}
+
+#page-content #report-points-zone {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+#page-content h3 {
+  font-size: 18px;
+}
+
+#page-content .note {
+  padding: 7px 15px !important;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+#page-content .note p {
+  margin-bottom: 0;
+}
+
+#page-content .table-responsive {
+  overflow-x: auto;
+  max-width: 100%;
+  min-height: 400px;
+}
+
+#page-content .section {
+  display: none;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  margin-left: 15px;
+}
+
+#page-content .section .section-table {
+  width: 95%;
+  margin: auto;
+}
+
+#page-content .section .section-table .question-bl .question-zone {
+  margin-top: 6px;
+}
+
+#page-content .section .section-table .field-cell, #page-content .section .section-table .filed-select {
+  width: 700px;
+}
+
+#page-content .section .section-table th {
+  background-color: white !important;
+}
+
+#page-content .section .section-table .tr-section th {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+#page-content .section .section-table .tr-field th {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+#page-content .section .section-table .field {
+  margin-bottom: 0 !important;
+}
+
+#page-content .section .section-table .question-zone {
+  margin: auto;
+  margin-top: 23px;
+}
+
+#page-content .section .section-table .question-points, #page-content .section .section-table .question-points-max {
+  text-align: center;
+}
+
+#page-content .section .section-table .center {
+  text-align: center;
+  vertical-align: middle;
+}
+
+#page-content .section .section-table .attachment-section .mb-3 {
+  max-width: 350px;
+}
+
+#page-content .section .section-table .attachment-section .mb-3 a {
+  max-width: 310px;
+  overflow-wrap: break-word;
+}
+
+#page-content .attachment-section .mb-3 {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  gap: 5px;
+}
+
+#page-content .attachment-section .alert {
+  display: none;
+  width: 570px;
+  margin-bottom: 0 !important;
+  padding: 10px 10px;
+}
+
+#page-content .attachment-section .alert .btn-close {
+  padding: 0.9rem 1rem;
+}
+
+#page-content .attachment-section .attachments-inputs {
+  padding-left: 15px;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-column-gap: 25px;
+          column-gap: 25px;
+  -ms-flex-wrap: wrap;
+      flex-wrap: wrap;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+}
+
+#page-content .attachment-section .attachments-inputs .mb-3 input {
+  width: 300px;
+}
+
+#page-content .attachment-section .attachments-inputs .get-attachment {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: horizontal;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: row;
+          flex-direction: row;
+  gap: 15px;
+}
+
+#page-content .sections-panel {
+  width: 95%;
+  margin: auto;
+  margin-top: 25px;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: end;
+      -ms-flex-pack: end;
+          justify-content: flex-end;
+  -webkit-column-gap: 15px;
+          column-gap: 15px;
+}
+
+#page-content .current-section {
+  display: block;
+}
+
+#page-content .control-panel {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: justify;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
+  margin-bottom: 25px;
+}
+
+/* Стили для полей множественного выбора */
+.field-multiple {
+  margin-bottom: 15px !important;
+}
+
+.mult-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-left: 10px;
+}
+
+.mult-option {
+  display: flex;
+  align-items: start;
+}
+
+/* Стили для кнопок отправки ссылок */
+.send-link-btn {
+    padding: 6px 12px !important;
+    border-radius: 0 4px 4px 0 !important;
+    border-left: none !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.send-link-btn:hover {
+    background-color: #157347 !important;
+    border-color: #157347 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.send-link-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.send-link-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.send-link-btn i {
+    font-size: 14px;
+}
+
+/* Стили для input-group с ссылками */
+.input-group input[type="link"] {
+    border-radius: 4px 0 0 4px !important;
+}
+
+.input-group input[type="link"]:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    z-index: 2;
+}
+
+/* Анимация при отправке */
+@keyframes sendPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.send-link-btn.sending {
+    animation: sendPulse 0.3s ease-in-out;
+}
+
+/* Стили для мобильных устройств */
+@media (max-width: 768px) {
+    .send-link-btn {
+        padding: 8px 10px !important;
+        min-width: 44px;
+    }
+    
+    .send-link-btn i {
+        font-size: 12px;
+    }
+}
+
+/* Эффект тряски для кнопки при ошибке */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+    20%, 40%, 60%, 80% { transform: translateX(3px); }
+}
+
+.send-link-btn.shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+/* Стили для невалидного поля */
+.input-group input[type="link"].is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+.input-group input[type="link"].is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+/*# sourceMappingURL=report.css.map */

@@ -1,0 +1,26 @@
+#page-content {
+  padding: 15px 15px;
+  width: calc(100% - 250px);
+}
+
+.table th {
+  font-weight: 400 !important;
+  font-size: 16px;
+  line-height: 20px;
+  border-top: 0;
+  border-bottom: 2px solid black;
+}
+.table .sticky-top {
+  z-index: 100 !important;
+}
+.table td {
+  font-weight: 300 !important;
+  max-width: 250px;
+  word-wrap: break-word;
+}
+.table .th-center, .table .td-center {
+  text-align: center;
+}
+.table .th-rigth, .table .td-rigth {
+  text-align: right;
+}/*# sourceMappingURL=index.css.map */
