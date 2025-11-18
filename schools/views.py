@@ -29,9 +29,9 @@ def schools_import(request):
 def questions(request):
     categories = QuestionCategory.objects.all()
     if request.user.is_superuser:
-        questions = Question.objects.all()
+        questions = Question.objects.all().order_by('-created_at')
     else:
-        questions = Question.objects.filter(is_visible=True) | Question.objects.filter(user=request.user)
+        questions = (Question.objects.filter(is_visible=True) | Question.objects.filter(user=request.user)).order_by('-created_at')
 
     if request.method == 'POST':
         form = QuestionForm(request.POST)

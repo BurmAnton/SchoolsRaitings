@@ -196,31 +196,19 @@ class SchoolAdmin(ColumnWidthMixin, admin.ModelAdmin):
         workbook.save(response)
         return response
     export_schools.short_description = "Экспортировать выбранные школы"
-
-    def get_list_display(self, request):
-        """
-        Возвращает список полей для отображения в зависимости от пользователя
-        """
-        base_list_display = [
-            'ais_id',
-            '__str__',
-            'number',
-            'ter_admin',
-            'closter_field',
-            'ed_level',
-            'email',
-            'principal',
-            'is_archived',
-        ]
-
-        # Добавляем столбец "Личный кабинет" только для ТерУправления
-        if request.user.is_superuser:
-            # Вставляем столбец после 'number'
-            index = base_list_display.index('number') + 1
-            base_list_display.insert(index, 'reports_page_link')
-
-        return base_list_display
-
+    
+    list_display = [
+        'ais_id',
+        '__str__', 
+        'number',
+        'reports_page_link',
+        'ter_admin',
+        'closter_field',
+        'ed_level', 
+        'email',
+        'principal',
+        'is_archived',
+    ]
     fields = [
         'ais_id',
         'name',
@@ -236,6 +224,16 @@ class SchoolAdmin(ColumnWidthMixin, admin.ModelAdmin):
         'principal',
         'is_archived',
     ]
+
+    def get_list_display(self, request):
+        """Динамически определяет список отображаемых полей в зависимости от прав пользователя"""
+        list_display = super().get_list_display(request)
+        
+        # Если пользователь не суперадмин, убираем ссылку на личный кабинет
+        if not request.user.is_superuser:
+            list_display = [field for field in list_display if field != 'reports_page_link']
+        
+        return list_display
 
     def reports_page_link(self, obj):
         return mark_safe(f'<a href="{reverse("reports", kwargs={"school_id": obj.id})}">Личный кабинет</a>')

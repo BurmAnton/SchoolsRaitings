@@ -390,6 +390,7 @@
                                         </div>
                                         
                                         {% if s_report.status == 'A' and not is_readonly and can_edit or request.user.is_superuser and not is_readonly %}
+                                            <input type="file" name="{{field.id}}" class="form-control" id="Att{{field.id}}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar,.7z,.bmp" >
                                             <div class="input-group">
                                                 <input type="link" class="form-control" id="Att{{ field.id }}" name="{{field.id}}" placeholder="Ссылка">
                                                 <button class="btn btn-success send-link-btn" type="button">

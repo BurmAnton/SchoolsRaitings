@@ -70,7 +70,20 @@ def reports(request, school_id):
         if report.year.status in ['filling', 'completed']:
             filtered_reports.append(report)
     
-    s_reports = SchoolReport.objects.filter(school=school)
+    # Получаем все существующие отчёты школы
+    s_reports = SchoolReport.objects.filter(school=school).select_related('report', 'report__year')
+    
+    # Добавляем отчёты, которые уже существуют и приняты, но могут не попасть в filtered_reports
+    # (например, если кластер или уровень образования школы изменился после создания отчёта)
+    existing_accepted_reports = s_reports.filter(status='D').values_list('report_id', flat=True)
+    for report_id in existing_accepted_reports:
+        try:
+            report = Report.objects.get(id=report_id, is_published=True)
+            if report.year.status in ['filling', 'completed'] and report not in filtered_reports:
+                filtered_reports.append(report)
+        except Report.DoesNotExist:
+            pass
+    
     reports_list = []
     notifications = Notification.objects.filter(user=request.user, is_read=False)
     for notification in notifications:
@@ -79,7 +92,12 @@ def reports(request, school_id):
         
     for report in filtered_reports:
         s_report = s_reports.filter(report=report).first()
-        reports_list.append([report, s_report])
+        
+        # Показываем отчёт если:
+        # 1. Год текущий (is_current=True) - можно создавать новый отчёт
+        # 2. ИЛИ отчёт уже существует и принят (статус 'D')
+        if report.year.is_current or (s_report and s_report.status == 'D'):
+            reports_list.append([report, s_report])
 
     return render(request, "reports/reports.html", {
         'school': school,
@@ -109,10 +127,23 @@ def report(request, report_id, school_id):
     current_section = request.GET.get('current_section', '')
     message = None
 
-    # Get or create school report
-    s_report, is_new_report = SchoolReport.objects.get_or_create(
-        report=report, school=school
-    )
+    # Попытка получить существующий отчёт школы
+    try:
+        s_report = SchoolReport.objects.get(report=report, school=school)
+        is_new_report = False
+    except SchoolReport.DoesNotExist:
+        # Создаём новый отчёт ТОЛЬКО для текущего года
+        if report.year.is_current:
+            s_report, is_new_report = SchoolReport.objects.get_or_create(
+                report=report, school=school
+            )
+        else:
+            # Если год не текущий и отчёта нет - недоступно
+            return render(request, "reports/report_not_available.html", {
+                'school': school,
+                'report': report,
+                'message': "Отчёт доступен только за текущий год. Этот отчёт не был создан."
+            })
     
     # Create answers for all questions
     sections = report.sections.all()
@@ -537,8 +568,8 @@ def export_reports_to_excel(s_reports, filename='reports_completion.xlsx'):
     # Данные
     row = 1
     for report in s_reports:
-        # Получаем вопросы только нужных типов
-        valid_types = ['LST', 'NMBR', 'PRC']
+        # Получаем все вопросы (все типы)
+        valid_types = ['LST', 'NMBR', 'PRC', 'BL', 'MULT']
         questions = report.report.sections.all().values_list("fields", flat=True).distinct()
         valid_questions = Field.objects.filter(id__in=questions, answer_type__in=valid_types)
         total_fields = valid_questions.count()
@@ -553,6 +584,11 @@ def export_reports_to_excel(s_reports, filename='reports_completion.xlsx'):
                 if answer.question.answer_type == 'LST' and answer.option is not None:
                     filled_fields += 1
                 elif answer.question.answer_type in ['NMBR', 'PRC'] and answer.number_value is not None:
+                    filled_fields += 1
+                elif answer.question.answer_type == 'BL':
+                    # Бинарные поля всегда считаются заполненными (имеют значение True/False)
+                    filled_fields += 1
+                elif answer.question.answer_type == 'MULT' and answer.selected_options.exists():
                     filled_fields += 1
             completion_percent = int(round((filled_fields / total_fields) * 100))
         completion_fraction = completion_percent / 100.0

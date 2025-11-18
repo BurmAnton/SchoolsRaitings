@@ -491,6 +491,7 @@ class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
         'status', 
         'zone', 
         'is_marked_for_deletion',
+        ('report__year', RelatedDropdownFilter),
         ('school__closter', RelatedDropdownFilter),
         ('school__ed_level', ChoiceDropdownFilter),
     ]

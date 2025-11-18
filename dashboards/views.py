@@ -705,6 +705,10 @@ def closters_report(request, year=2024):
         print(f"Ошибка при получении отчетов школ: {e}")
         s_reports_qs = SchoolReport.objects.none()
 
+    # Обработка запроса на скачивание Excel
+    if request.method == 'POST' and 'download' in request.POST:
+        return utils.generate_closters_report_csv(selected_year, schools, s_reports_qs)
+
     # --- Секции и поля ---
     try:
         sections_src = Section.objects.filter(report__year=selected_year).order_by('number').prefetch_related('fields')
@@ -1921,19 +1925,50 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
     """
     Рассчитывает статистику по разделам для выбранных годов.
     """
+    import re
+    
+    def normalize_section_name(name):
+        """Нормализует название раздела: убирает лишние пробелы и приводит к lowercase для сравнения"""
+        if not name:
+            return ""
+        # Убираем пробелы в начале и конце, заменяем множественные пробелы на одинарные
+        normalized = re.sub(r'\s+', ' ', name.strip())
+        return normalized.lower()
+    
     section_stats = []
     section_stats_by_year = []
     
-    # Получаем все разделы для выбранных годов, сгруппированные по имени
-    section_names = Section.objects.filter(
+    # Получаем все разделы для выбранных годов
+    all_sections = Section.objects.filter(
         report__year__in=selected_years
     ).values_list('name', flat=True).distinct()
     
-    for section_name in section_names:
+    # Группируем разделы по нормализованному имени
+    section_groups = {}
+    for section_name in all_sections:
+        normalized = normalize_section_name(section_name)
+        if normalized not in section_groups:
+            # Сохраняем первое встреченное оригинальное имя для отображения
+            section_groups[normalized] = section_name
+    
+    for normalized_name, display_name in section_groups.items():
         if not show_year_column:
-            # Находим все разделы с указанным именем
-            same_name_sections = Section.objects.filter(
-                name=section_name,
+            # Находим все разделы, которые после нормализации имеют то же имя
+            all_sections_for_year = Section.objects.filter(
+                report__year__in=selected_years
+            )
+            same_name_sections = []
+            for section in all_sections_for_year:
+                if normalize_section_name(section.name) == normalized_name:
+                    same_name_sections.append(section.id)
+            
+            # Преобразуем в QuerySet для дальнейшего использования
+            from django.db.models import Q
+            if not same_name_sections:
+                continue
+            
+            same_name_sections_qs = Section.objects.filter(
+                id__in=same_name_sections,
                 report__year__in=selected_years
             ).values_list('id', flat=True)
             
@@ -1964,7 +1999,7 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
                     continue
                 
                 # Находим секцию отчета, соответствующую любому из разделов с тем же именем
-                report_sections = sr.sections.filter(section__id__in=same_name_sections)
+                report_sections = sr.sections.filter(section__id__in=same_name_sections_qs)
                 
                 # Проверяем только одну секцию для каждого отчета (первую найденную)
                 if report_sections.exists():
@@ -1979,7 +2014,7 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
             
             if total > 0:
                 section_stats.append({
-                    'section_name': section_name,
+                    'section_name': display_name,
                     'red_zone': red_zone,
                     'yellow_zone': yellow_zone,
                     'green_zone': green_zone,
@@ -1993,15 +2028,20 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
             section_years_stats = []
             
             for year in selected_years:
-                # Находим все разделы с тем же именем для текущего года
-                same_name_sections = Section.objects.filter(
-                    name=section_name,
+                # Находим все разделы, которые после нормализации имеют то же имя для текущего года
+                all_sections_for_year = Section.objects.filter(
                     report__year=year
-                ).values_list('id', flat=True)
+                )
+                same_name_sections = []
+                for section in all_sections_for_year:
+                    if normalize_section_name(section.name) == normalized_name:
+                        same_name_sections.append(section.id)
                 
                 # Если нет разделов с таким именем для этого года, пропускаем
-                if not same_name_sections.exists():
+                if not same_name_sections:
                     continue
+                
+                same_name_sections_qs = same_name_sections
                 
                 # Создаем базовый фильтр для SchoolReport
                 school_reports_filter = {
@@ -2029,7 +2069,7 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
                         continue
                     
                     # Находим секцию отчета, соответствующую любому из разделов с тем же именем
-                    report_sections = sr.sections.filter(section__id__in=same_name_sections)
+                    report_sections = sr.sections.filter(section__id__in=same_name_sections_qs)
                     
                     # Проверяем только одну секцию для каждого отчета (первую найденную)
                     if report_sections.exists():
@@ -2058,7 +2098,7 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
             if section_years_stats:
                 # Группируем данные по разделам
                 section_stats_by_year.append({
-                    'section_name': section_name,
+                    'section_name': display_name,
                     'years': section_years_stats,
                     'rowspan': len(section_years_stats)
                 })

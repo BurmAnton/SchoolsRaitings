@@ -286,27 +286,30 @@ def safe_json(value):
 
 @register.filter
 def get_completion_percent(report):
-    """Calculates the completion percentage of a report (только LST, NMBR, PRC)"""
+    """Calculates the completion percentage of a report (все типы полей)"""
     try:
-        # Получаем все вопросы нужных типов
-        valid_types = ['LST', 'NMBR', 'PRC']
+        # Получаем все вопросы всех типов
+        valid_types = ['LST', 'NMBR', 'PRC', 'BL', 'MULT']
         questions = report.report.sections.all().values_list("fields", flat=True).distinct()
         from reports.models import Field
         valid_questions = Field.objects.filter(id__in=questions, answer_type__in=valid_types)
         total_fields = valid_questions.count()
         if total_fields == 0:
             return 100, "100%"
+        
         # Подсчитываем заполненные поля
-        filled_count = report.answers.filter(
-            question__in=valid_questions,
-        ).annotate(
-            is_filled=Case(
-                When(Q(question__answer_type='LST', option__isnull=False), then=1),
-                When(Q(question__answer_type__in=['NMBR', 'PRC'], number_value__isnull=False), then=1),
-                default=0,
-                output_field=IntegerField(),
-            )
-        ).filter(is_filled=1).count()
+        filled_count = 0
+        for answer in report.answers.filter(question__in=valid_questions):
+            if answer.question.answer_type == 'LST' and answer.option is not None:
+                filled_count += 1
+            elif answer.question.answer_type in ['NMBR', 'PRC'] and answer.number_value is not None:
+                filled_count += 1
+            elif answer.question.answer_type == 'BL':
+                # Бинарные поля всегда считаются заполненными (имеют значение True/False)
+                filled_count += 1
+            elif answer.question.answer_type == 'MULT' and answer.selected_options.exists():
+                filled_count += 1
+        
         percentage = int((filled_count / total_fields) * 100)
         return percentage, f"{percentage}%"
     except Exception as e:

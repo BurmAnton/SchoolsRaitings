@@ -171,6 +171,7 @@ class Question(models.Model):
     class Meta:
         verbose_name = "Вопрос"
         verbose_name_plural = "Вопросы"
+        ordering = ['-created_at']  # Сортировка от новых к старым
 
     def __str__(self):
         return self.short_question
