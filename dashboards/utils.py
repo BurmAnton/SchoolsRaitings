@@ -129,10 +129,11 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
     from django.db.models import Sum, Prefetch
     from reports.models import Section, Field, Answer
     from io import BytesIO
+    from collections import defaultdict
 
     # Create workbook
     output = BytesIO()
-    workbook = xlsxwriter.Workbook(output)
+    workbook = xlsxwriter.Workbook(output, {'constant_memory': True})  # Оптимизация памяти
 
     # Define formats
     formats = {
@@ -171,7 +172,7 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
             queryset=Field.objects.prefetch_related(
                 Prefetch(
                     'answers',
-                    queryset=Answer.objects.filter(s_report__in=s_reports),
+                    queryset=Answer.objects.filter(s_report__in=s_reports).select_related('s_report'),
                     to_attr='prefetched_answers'
                 )
             )
@@ -179,22 +180,48 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
     )
 
     # -------------------------------------------------------------
-    # PRECOMPUTE ANSWER ZONE STATISTICS ДЛЯ КАЖДОГО ОТЧЁТА
-    # Это избавит от тройного прохода по answers в цикле ниже
+    # ОПТИМИЗАЦИЯ: Предварительная группировка данных
     # -------------------------------------------------------------
+    # Группируем отчеты по школам для быстрого доступа
+    reports_by_school = defaultdict(list)
+    for report in s_reports:
+        reports_by_school[report.school_id].append(report)
+    
+    # Создаем индекс ответов по report_id и field_id для O(1) поиска
+    answers_by_report_field = defaultdict(dict)  # {report_id: {field_id: answer}}
+    section_points_by_report = defaultdict(dict)  # {report_id: {section_id: points}}
+    
+    # Предвычисляем статистику зон и баллы по секциям
     answers_by_report = {}
+    
     for section in sections_with_answers:
-        for field in section.fields.all():
+        section_id = section.id
+        section_fields = list(section.fields.all())  # Кэшируем список полей
+        
+        for field in section_fields:
+            field_id = field.id
             for answer in field.prefetched_answers:
-                stats = answers_by_report.setdefault(answer.s_report_id, {'G': 0, 'Y': 0, 'R': 0, 'total': 0})
+                report_id = answer.s_report_id
+                
+                # Индекс ответов
+                answers_by_report_field[report_id][field_id] = answer
+                
+                # Статистика зон
+                stats = answers_by_report.setdefault(report_id, {'G': 0, 'Y': 0, 'R': 0, 'total': 0})
                 stats['total'] += 1
                 if answer.zone in stats:
                     stats[answer.zone] += 1
+                
+                # Баллы по секциям
+                if section_id not in section_points_by_report[report_id]:
+                    section_points_by_report[report_id][section_id] = Decimal(0)
+                section_points_by_report[report_id][section_id] += answer.points
     # -------------------------------------------------------------
 
     # Write headers
     header = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Итого баллов']
-    for section in sections:
+    section_list = list(sections)  # Кэшируем список секций
+    for section in section_list:
         header.append(f"{section.number}. {section.name}")
 
     # Add zone headers
@@ -221,11 +248,11 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
     num_lines = (max_text_len / 15) + 1
     worksheet.set_row(0, num_lines * 15)
 
-    # Write data rows
+    # Write data rows - оптимизированный вариант
     row_num = 1
     for school in schools:
-        school_reports = s_reports.filter(school=school, report__year=year)
-        if not school_reports.exists():
+        school_reports = reports_by_school.get(school.id, [])
+        if not school_reports:
             continue
 
         for report in school_reports:
@@ -233,18 +260,13 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
             row = [
                 str(school.ter_admin),
                 school.get_ed_level_display(),
-                school.__str__(),  # Школа будет окрашена в цвет зоны
+                school.__str__(),
                 report.points
             ]
 
-            # Add section points
-            for section in sections_with_answers:
-                points = sum(
-                    answer.points 
-                    for field in section.fields.all() 
-                    for answer in field.prefetched_answers 
-                    if answer.s_report_id == report.id
-                )
+            # Add section points - используем предвычисленные данные
+            for section in section_list:
+                points = section_points_by_report.get(report.id, {}).get(section.id, Decimal(0))
                 row.append(points)
 
             # Add zone stats (используем предрасчитанные данные)
@@ -255,26 +277,28 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
                 row.extend([count, f"{count/total*100:.1f}%" if total > 0 else "0.0%"])
 
             # Write row with appropriate zone formatting
-            for col, value in enumerate(row):
-                if col == 2:  # School column
-                    format_key = {'G': 'green', 'Y': 'yellow', 'R': 'red'}.get(report.zone, 'cell')
-                    worksheet.write(row_num, col, value, formats[format_key])
+            format_key = {'G': 'green', 'Y': 'yellow', 'R': 'red'}.get(report.zone, 'cell')
+            for col_idx, value in enumerate(row):
+                if col_idx == 2:  # School column
+                    worksheet.write(row_num, col_idx, value, formats[format_key])
                 else:
-                    worksheet.write(row_num, col, value, formats['cell'])
+                    worksheet.write(row_num, col_idx, value, formats['cell'])
             row_num += 1
 
-    # Create worksheets for each section
+    # Create worksheets for each section - оптимизированный вариант
     for section in sections_with_answers:
         section_worksheet = workbook.add_worksheet(f"Раздел {section.number}")
         
         # Write section headers
         section_header = ['ТУ/ДО', 'Уровень образования', 'Школа', 'Баллы раздела']
+        # Используем поля из section.fields.all(), которые уже имеют prefetched_answers
         fields = sorted(
-            Field.objects.filter(sections=section).distinct('number'),
+            section.fields.all(),
             key=lambda f: natural_number_key(f.number)
         )
+        fields_list = list(fields)  # Кэшируем список полей
         
-        for field in fields:
+        for field in fields_list:
             section_header.append(f"{field.number}. {field.name}")
 
         # Write header row and set column widths
@@ -283,11 +307,11 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
             width = min(max(len(value) * 1.1, 20), 50)
             section_worksheet.set_column(col, col, width)
 
-        # Write data rows
+        # Write data rows - оптимизированный вариант
         row_num = 1
         for school in schools:
-            school_reports = s_reports.filter(school=school, report__year=year)
-            if not school_reports.exists():
+            school_reports = reports_by_school.get(school.id, [])
+            if not school_reports:
                 continue
 
             for report in school_reports:
@@ -295,33 +319,26 @@ def generate_ter_admins_report_csv(year, schools, s_reports):
                 row = [
                     str(school.ter_admin),
                     school.get_ed_level_display(),
-                    school.__str__()  # Школа будет окрашена в цвет зоны
+                    school.__str__()
                 ]
 
-                # Get section points
-                section_points = sum(
-                    answer.points 
-                    for field in section.fields.all() 
-                    for answer in field.prefetched_answers 
-                    if answer.s_report_id == report.id
-                )
+                # Get section points - используем предвычисленные данные
+                section_points = section_points_by_report.get(report.id, {}).get(section.id, Decimal(0))
                 row.append(section_points)
 
-                # Add field values
-                for field in fields:
-                    answer = next(
-                        (a for a in field.prefetched_answers if a.s_report_id == report.id),
-                        None
-                    )
+                # Add field values - используем индекс для O(1) поиска
+                report_answers = answers_by_report_field.get(report.id, {})
+                for field in fields_list:
+                    answer = report_answers.get(field.id)
                     row.append(answer.points if answer else 0)
 
                 # Write row with appropriate zone formatting
-                for col, value in enumerate(row):
-                    if col == 2:  # School column
-                        format_key = {'G': 'green', 'Y': 'yellow', 'R': 'red'}.get(report.zone, 'cell')
-                        section_worksheet.write(row_num, col, value, formats[format_key])
+                format_key = {'G': 'green', 'Y': 'yellow', 'R': 'red'}.get(report.zone, 'cell')
+                for col_idx, value in enumerate(row):
+                    if col_idx == 2:  # School column
+                        section_worksheet.write(row_num, col_idx, value, formats[format_key])
                     else:
-                        section_worksheet.write(row_num, col, value, formats['cell'])
+                        section_worksheet.write(row_num, col_idx, value, formats['cell'])
                 row_num += 1
 
     # Close workbook
