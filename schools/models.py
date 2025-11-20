@@ -104,6 +104,7 @@ class School(models.Model):
         ('M', "1 — 9 классы"),
         ('S', "1 — 4 классы"),
         ('G', "10 — 11 классы"),
+        ('GD', "1-8, 10 классы"),
         ('MG', "5 — 11 классы"),
     ]
     ed_level = models.CharField(
