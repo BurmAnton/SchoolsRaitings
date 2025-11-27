@@ -521,9 +521,9 @@
                 </div>
             </div>
             
-            <!-- СЕКЦИЯ 2: РАСПРЕДЕЛЕНИЕ ПО РАЗДЕЛАМ -->
+            <!-- СЕКЦИЯ 2: РАСПРЕДЕЛЕНИЕ ПО КРИТЕРИЯМ -->
             <div style="margin-top: 60px; text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; border-top: 1px solid #ccc; padding-top: 40px;">
-                Распределение отчетов по разделам
+                Распределение отчетов по критериям
             </div>
             
             {% if section_stats %}
@@ -532,7 +532,7 @@
                     <table class="zone-table">
                         <thead>
                             <tr>
-                                <th>Раздел</th>
+                                <th>Критерий</th>
                                 {% if show_year_column %}
                                     <th>Год</th>
                                 {% endif %}
@@ -581,9 +581,9 @@
                     </table>
         </div>
         
-                <!-- Статический график для распределения по разделам -->
+                <!-- Статический график для распределения по критериям -->
                 <div style="margin-top: 40px; text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px;">
-                    Распределение отчетов по разделам (в процентах)
+                    Распределение отчетов по критериям (в процентах)
         </div>
         
                 <div style="width: 100%; border: 1px solid #ccc; padding: 20px; background-color: #fdfdfd; border-radius: 8px; overflow-x: auto;">
@@ -607,12 +607,12 @@
                             <div style="height: 100%; border-left: 1px dashed #ccc;"></div>
                 </div>
                 
-                        <!-- Горизонтальные полосы для каждого раздела -->
+                        <!-- Горизонтальные полосы для каждого критерия -->
                         {% if show_year_column %}
                             {% for group in section_stats %}
                                 {% for year_item in group.years %}
                                     <div style="display: flex; align-items: center; margin-bottom: 30px; height: 70px;">
-                                        <!-- Название раздела с rowspan эффектом -->
+                                        <!-- Название критерия с rowspan эффектом -->
                                         {% if forloop.first %}
                                             <div style="width: 400px; text-align: right; padding-right: 20px; font-weight: bold; font-size: 14px; white-space: normal; align-self: flex-start; margin-top: {% if group.rowspan > 1 %}{{ 45|multiply:group.rowspan|subtract:60 }}{% else %}0{% endif %}px;">
                                                 {{ group.section_name }}
@@ -665,7 +665,7 @@
                         {% else %}
                             {% for item in section_stats %}
                                 <div style="display: flex; align-items: center; margin-bottom: 30px; height: 70px;">
-                                    <!-- Название раздела -->
+                                    <!-- Название критерия -->
                                     <div style="width: 400px; text-align: right; padding-right: 20px; font-weight: bold; font-size: 14px; white-space: normal;">
                                         {{ item.section_name }}
     </div>
@@ -710,7 +710,7 @@
                 </div>
             {% else %}
                 <div class="alert alert-info mt-4">
-                    Нет данных о распределении по разделам для отображения.
+                    Нет данных о распределении по критериям для отображения.
                 </div>
             {% endif %}
             
@@ -912,13 +912,13 @@
             </div>
         {% endif %}
         
-        <!-- СЕКЦИЯ 4: ДЕТАЛИЗАЦИЯ ПО ПОКАЗАТЕЛЯМ В РАЗРЕЗЕ РАЗДЕЛОВ -->
+        <!-- СЕКЦИЯ 4: ДЕТАЛИЗАЦИЯ ПО ПОКАЗАТЕЛЯМ В РАЗРЕЗЕ КРИТЕРИЕВ -->
         {% if section_stats %}
             <div style="margin-top: 60px; text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; border-top: 1px solid #ccc; padding-top: 40px;">
-                Детализация по показателям разделов
+                Детализация по показателям критериев
             </div>
             
-            <!-- Система вкладок для разделов -->
+            <!-- Система вкладок для критериев -->
             <ul class="nav nav-tabs" id="sectionsDetailTabs" role="tablist">
                 {% for item in indicator_stats %}
                     <li class="nav-item" role="presentation">
@@ -946,7 +946,7 @@
                         
                         <div class="mt-4 mb-4">
                             <h3 class="text-center mb-3">{{ section.section_name }}</h3>
-                            <p class="text-center text-muted mb-4">Распределение отчетов школ по показателям раздела в разрезе ТУ/ДО</p>
+                            <p class="text-center text-muted mb-4">Распределение отчетов школ по показателям критерия в разрезе ТУ/ДО</p>
                             
                             {% for indicator in section.indicators %}
                                 <div class="indicator-container mb-5 pb-4" style="border-bottom: 1px solid #eee;">
@@ -1066,7 +1066,7 @@
                                 </div>
                             {% empty %}
                                 <div class="alert alert-info mt-4">
-                                    <p>Нет данных о показателях для этого раздела.</p>
+                                    <p>Нет данных о показателях для этого критерия.</p>
                                 </div>
                             {% endfor %}
                             
@@ -1087,7 +1087,7 @@
                 <div class="card-body">
                     <h5 class="card-title">Как использовать этот раздел</h5>
                     <p class="card-text">
-                        Выберите нужный раздел, нажав на соответствующую вкладку. Для каждого показателя в разделе
+                        Выберите нужный критерий, нажав на соответствующую вкладку. Для каждого показателя в критерии
                         отображается отдельная таблица и график с распределением отчетов школ по зонам в разрезе ТУ/ДО.
                     </p>
                     <p class="card-text">

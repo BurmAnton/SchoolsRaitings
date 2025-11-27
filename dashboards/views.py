@@ -1047,7 +1047,7 @@ def answers_distribution_report(request):
     # Если пользователь - представитель ТУ/ДО, получаем список идентификаторов его ТУ/ДО
     ter_admin_ids = ter_admins.values_list('id', flat=True) if is_ter_admin_rep else None
     
-    # Получаем статистику по разделам и кластерам
+    # Получаем статистику по критериям и кластерам
     section_stats = calculate_section_stats(selected_years, show_year_column, show_ter_status, ter_admin_ids)
     cluster_stats = calculate_cluster_stats(selected_years, show_year_column, show_ter_status, ter_admin_ids)
     
@@ -1065,7 +1065,7 @@ def answers_distribution_report(request):
         'show_ter_status': show_ter_status  # Флаг, показывающий, нужен ли столбец с статусом ТУ/ДО
     }
     
-    # Добавляем статистику по разделам и кластерам
+    # Добавляем статистику по критериям и кластерам
     if section_stats:
         context['section_stats'] = section_stats
     
@@ -1074,10 +1074,10 @@ def answers_distribution_report(request):
         
     # Генерируем статистику по индикаторам (показателям)
     if selected_years:
-        # Собираем статистику по показателям для каждого раздела
+        # Собираем статистику по показателям для каждого критерия
         indicator_stats = []
         
-        # Получаем все разделы для выбранных годов, сгруппированные по имени
+        # Получаем все критерии для выбранных годов, сгруппированные по имени
         section_names = Section.objects.filter(
             report__year__in=selected_years
         ).values_list('name', 'number').distinct()
@@ -1109,15 +1109,15 @@ def answers_distribution_report(request):
             'answers'
         )
         
-        # Для каждого раздела собираем данные по показателям
+        # Для каждого критерия собираем данные по показателям
         for section_name, section_number in section_names:
-            # Находим все разделы с указанным именем
+            # Находим все критерии с указанным именем
             same_name_sections = Section.objects.filter(
                 name=section_name,
                 report__year__in=selected_years
             )
             
-            # Получаем все поля (показатели) для текущего раздела
+            # Получаем все поля (показатели) для текущего критерия
             fields = Field.objects.filter(
                 sections__in=same_name_sections
             ).distinct().values('id', 'name', 'number')
@@ -1208,7 +1208,7 @@ def answers_distribution_report(request):
             # Сортируем показатели по номеру
             section_indicators.sort(key=lambda x: [int(n) for n in str(x['field_number']).split('.')] if x['field_number'] else [0])
             
-            # Если есть показатели для этого раздела, добавляем его в список
+            # Если есть показатели для этого критерия, добавляем его в список
             if section_indicators:
                 indicator_stats.append({
                     'section_number': section_number,
@@ -1216,7 +1216,7 @@ def answers_distribution_report(request):
                     'indicators': section_indicators
                 })
         
-        # Сортируем разделы по номеру
+        # Сортируем критерии по номеру
         indicator_stats.sort(key=lambda x: [int(n) for n in str(x['section_number']).split('.')] if x['section_number'] else [0])
         
         # Добавляем данные в контекст
@@ -1289,7 +1289,7 @@ def answers_distribution_report(request):
 
 def generate_zone_distribution_excel(years, stats, show_year_column=False, section_stats=None, cluster_stats=None, indicator_stats=None, show_ter_status=False, ter_admin_ids=None):
     """
-    Генерирует Excel-файл с распределением зон по ТУ/ДО, разделам и кластерам,
+    Генерирует Excel-файл с распределением зон по ТУ/ДО, критериям и кластерам,
     а также с детальной информацией по школам и показателям
     """
     # Проверяем и исправляем входные данные
@@ -1329,7 +1329,7 @@ def generate_zone_distribution_excel(years, stats, show_year_column=False, secti
     # Создаем общий свод
     _create_general_sheet(general_sheet, all_school_reports, years, styles)
     
-    # ========== ВКЛАДКИ ДЛЯ КАЖДОГО РАЗДЕЛА ==========
+    # ========== ВКЛАДКИ ДЛЯ КАЖДОГО КРИТЕРИЯ ==========
     _create_section_sheets(workbook, all_school_reports, years, styles)
     
     # Сохраняем файл
@@ -1375,7 +1375,7 @@ def _create_visualization_sheet(sheet, stats, show_year_column, styles, section_
         else:
             row_num = _add_single_year_stats(sheet, stats, row_num, styles)
             
-        # Добавляем таблицы по разделам и кластерам
+        # Добавляем таблицы по критериям и кластерам
         if section_stats:
             row_num = _add_section_stats(sheet, section_stats, show_year_column, row_num, styles)
         
@@ -1484,13 +1484,13 @@ def _add_zone_cells(sheet, row_num, col, item, styles):
     return row_num + 1
 
 def _add_section_stats(sheet, section_stats, show_year_column, row_num, styles):
-    """Добавляет статистику по разделам в таблицу"""
+    """Добавляет статистику по критериям в таблицу"""
     row_num += 2
-    sheet.cell(row=row_num, column=1, value="Распределение отчетов по разделам").font = styles['bold_font']
+    sheet.cell(row=row_num, column=1, value="Распределение отчетов по критериям").font = styles['bold_font']
     row_num += 2
     
     # Заголовки столбцов
-    headers = ["Раздел"]
+    headers = ["Критерий"]
     if show_year_column:
         headers.append("Год")
     headers.extend(["Красная зона", "Жёлтая зона", "Зелёная зона", "Всего отчетов"])
@@ -1500,9 +1500,9 @@ def _add_section_stats(sheet, section_stats, show_year_column, row_num, styles):
         cell.font = styles['bold_font']
     row_num += 1
     
-    # Добавляем данные по разделам
+    # Добавляем данные по критериям
     if show_year_column and section_stats and isinstance(section_stats[0], dict) and 'years' in section_stats[0]:
-        # Группируем данные по названию раздела для нескольких лет
+        # Группируем данные по названию критерия для нескольких лет
         for section_data in section_stats:
             section_name = section_data['section_name']
             start_row = row_num
@@ -1515,7 +1515,7 @@ def _add_section_stats(sheet, section_stats, show_year_column, row_num, styles):
             for item in years_data:
                 col = 1
                 
-                # Название раздела (только для первой строки)
+                # Название критерия (только для первой строки)
                 if row_num == start_row:
                     sheet.cell(row=row_num, column=col, value=section_name)
                 col += 1
@@ -1527,7 +1527,7 @@ def _add_section_stats(sheet, section_stats, show_year_column, row_num, styles):
                 # Данные по зонам
                 row_num = _add_zone_cells(sheet, row_num, col, item, styles)
             
-            # Объединяем ячейки с названием раздела
+            # Объединяем ячейки с названием критерия
             if len(years_data) > 1:
                 try:
                     sheet.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
@@ -1538,7 +1538,7 @@ def _add_section_stats(sheet, section_stats, show_year_column, row_num, styles):
         for item in section_stats:
             col = 1
             
-            # Название раздела
+            # Название критерия
             sheet.cell(row=row_num, column=col, value=item['section_name'])
             col += 1
             
@@ -1652,14 +1652,14 @@ def _create_general_sheet(sheet, all_school_reports, years, styles):
     sheet.cell(row=row_num, column=1, value="Общий свод по школам").font = styles['bold_font']
     row_num += 2
     
-    # Получаем все разделы для выбранных годов для "Общего свода"
+    # Получаем все критерии для выбранных годов для "Общего свода"
     sections = Section.objects.filter(
         report__year__in=years
     ).distinct('number').order_by('number')
     
     # Заголовки столбцов
     headers = ["Школа", "ТУ/ДО", "Уровень образования", "Кластер", "Итого баллов"]
-    headers.extend([f"Раздел {s.number}" for s in sections])
+    headers.extend([f"Критерий {s.number}" for s in sections])
     
     for col_num, header in enumerate(headers, 1):
         cell = sheet.cell(row=row_num, column=col_num, value=header)
@@ -1736,7 +1736,7 @@ def _create_general_sheet(sheet, all_school_reports, years, styles):
             cell.fill = styles['green_fill']
         col += 1
         
-        # Баллы по разделам
+        # Баллы по критериям
         for section in sections:
             section_points = data['sections'].get(section.number, "-")
             sheet.cell(row=row_num, column=col, value=section_points)
@@ -1748,8 +1748,8 @@ def _create_general_sheet(sheet, all_school_reports, years, styles):
     _adjust_column_width(sheet)
 
 def _create_section_sheets(workbook, all_school_reports, years, styles):
-    """Создает вкладки для каждого раздела в Excel-файле"""
-    # Получаем все разделы для выбранных годов
+    """Создает вкладки для каждого критерия в Excel-файле"""
+    # Получаем все критерии для выбранных годов
     all_sections = Section.objects.filter(
         report__year__in=years
     ).values('name', 'number').distinct('number').order_by('number')
@@ -1763,7 +1763,7 @@ def _create_section_sheets(workbook, all_school_reports, years, styles):
         'G': "10 — 11 классы",
     }
     
-    # Предзагружаем все поля для всех разделов
+    # Предзагружаем все поля для всех критериев
     all_fields = {}
     section_numbers = [section['number'] for section in all_sections]
     for section_number in section_numbers:
@@ -1775,13 +1775,13 @@ def _create_section_sheets(workbook, all_school_reports, years, styles):
         fields = sorted(fields, key=lambda x: [int(n) for n in str(x.number).split('.')])
         all_fields[section_number] = list(fields)
     
-    # Создаем отдельный лист для каждого раздела
+    # Создаем отдельный лист для каждого критерия
     for section in all_sections:
         section_name = section['name']
         section_number = section['number']
         
         # Создаем имя листа без недопустимых символов (макс. 31 символ)
-        safe_sheet_name = f"Раздел {section_number}"
+        safe_sheet_name = f"Критерий {section_number}"
         if len(safe_sheet_name) > 31:
             safe_sheet_name = safe_sheet_name[:28] + "..."
         
@@ -1789,10 +1789,10 @@ def _create_section_sheets(workbook, all_school_reports, years, styles):
         
         # Заголовок
         row_num = 1
-        section_sheet.cell(row=row_num, column=1, value=f"Раздел {section_number}: {section_name}").font = styles['bold_font']
+        section_sheet.cell(row=row_num, column=1, value=f"Критерий {section_number}: {section_name}").font = styles['bold_font']
         row_num += 2
         
-        # Получаем поля (показатели) для текущего раздела
+        # Получаем поля (показатели) для текущего критерия
         fields = all_fields.get(section_number, [])
         
         # Заголовки столбцов: базовые + показатели
@@ -1811,13 +1811,13 @@ def _create_section_sheets(workbook, all_school_reports, years, styles):
         # Создаем словарь с ID полей для быстрого поиска
         field_ids = {field.id: field for field in fields}
         
-        # Находим и группируем отчеты и ответы для этого раздела
+        # Находим и группируем отчеты и ответы для этого критерия
         for s_report in all_school_reports:
             school = s_report.school
             if not school:
                 continue
                 
-            # Пропускаем, если нет секции для этого раздела
+            # Пропускаем, если нет секции для этого критерия
             has_section = False
             for section_sreport in s_report.sections.all():
                 if section_sreport.section.number == section_number:
@@ -1838,12 +1838,12 @@ def _create_section_sheets(workbook, all_school_reports, years, styles):
                     'field_data': {}
                 }
             
-            # Обрабатываем ответы на показатели этого раздела
+            # Обрабатываем ответы на показатели этого критерия
             # Используем предзагруженные ответы
             for answer in s_report.answers.all():
                 field_id = answer.question_id
                 
-                # Проверяем, что ответ относится к этому разделу
+                # Проверяем, что ответ относится к этому критерию
                 if field_id not in field_ids:
                     continue
                     
@@ -1923,12 +1923,12 @@ def _adjust_column_width(sheet):
 # Вспомогательные функции для расчета статистики (добавить в конец файла)
 def calculate_section_stats(selected_years, show_year_column=False, show_ter_status=False, ter_admin_ids=None):
     """
-    Рассчитывает статистику по разделам для выбранных годов.
+    Рассчитывает статистику по критериям для выбранных годов.
     """
     import re
     
     def normalize_section_name(name):
-        """Нормализует название раздела: убирает лишние пробелы и приводит к lowercase для сравнения"""
+        """Нормализует название критерия: убирает лишние пробелы и приводит к lowercase для сравнения"""
         if not name:
             return ""
         # Убираем пробелы в начале и конце, заменяем множественные пробелы на одинарные
@@ -1938,22 +1938,66 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
     section_stats = []
     section_stats_by_year = []
     
-    # Получаем все разделы для выбранных годов
-    all_sections = Section.objects.filter(
+    # Вспомогательная функция для парсинга номеров (определяем до использования)
+    def parse_section_number_for_sort(number):
+        """Парсит номер критерия в список чисел для сортировки"""
+        if not number or number == '' or number is None:
+            return [999999]  # Элементы без номера в конец
+        try:
+            number_str = str(number).strip()
+            if not number_str:
+                return [999999]
+            parts = []
+            for part in number_str.split('.'):
+                part = part.strip()
+                if part.isdigit():
+                    parts.append(int(part))
+                elif part:
+                    digits = ''.join(filter(str.isdigit, part))
+                    if digits:
+                        parts.append(int(digits))
+            if not parts:
+                return [999999]
+            return parts
+        except (ValueError, AttributeError, TypeError):
+            return [999999]
+    
+    # Получаем все критерии для выбранных годов с номерами
+    # Получаем все объекты Section для правильной работы с номерами
+    all_sections_objs = Section.objects.filter(
         report__year__in=selected_years
-    ).values_list('name', flat=True).distinct()
+    ).select_related('report')
     
-    # Группируем разделы по нормализованному имени
+    # Группируем критерии по нормализованному имени, сохраняя номер
+    # Если у критериев с одинаковым именем разные номера, берем первый по номеру
     section_groups = {}
-    for section_name in all_sections:
-        normalized = normalize_section_name(section_name)
+    for section in all_sections_objs:
+        normalized = normalize_section_name(section.name)
+        section_number = section.number if section.number else ''
+        
         if normalized not in section_groups:
-            # Сохраняем первое встреченное оригинальное имя для отображения
-            section_groups[normalized] = section_name
+            # Сохраняем оригинальное имя и номер для отображения
+            section_groups[normalized] = {'name': section.name, 'number': section_number}
+        else:
+            # Если уже есть критерий с таким именем, проверяем номер
+            # Берем тот, у которого номер меньше (раньше в сортировке)
+            existing_number = section_groups[normalized]['number'] or ''
+            current_number = section_number or ''
+            
+            # Сравниваем номера для выбора правильного
+            existing_parts = parse_section_number_for_sort(existing_number)
+            current_parts = parse_section_number_for_sort(current_number)
+            
+            # Если текущий номер меньше, обновляем
+            if current_parts < existing_parts:
+                section_groups[normalized] = {'name': section.name, 'number': current_number}
     
-    for normalized_name, display_name in section_groups.items():
+    for normalized_name, section_data in section_groups.items():
+        display_name = section_data['name']
+        section_number = section_data['number']
+        
         if not show_year_column:
-            # Находим все разделы, которые после нормализации имеют то же имя
+            # Находим все критерии, которые после нормализации имеют то же имя
             all_sections_for_year = Section.objects.filter(
                 report__year__in=selected_years
             )
@@ -1983,22 +2027,22 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
             if ter_admin_ids:
                 school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
                 
-            # Агрегированная статистика по разделам для всех годов
+            # Агрегированная статистика по критериям для всех годов
             school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
             
-            # Подсчитываем количество отчетов в каждой зоне для текущего раздела
+            # Подсчитываем количество отчетов в каждой зоне для текущего критерия
             red_zone = 0
             yellow_zone = 0
             green_zone = 0
             total = 0
             
-            # Для каждого отчета школы определяем зону данного раздела
+            # Для каждого отчета школы определяем зону данного критерия
             for sr in school_reports:
                 # Пропускаем отчеты без школы или с архивной школой
                 if not sr.school or sr.school.is_archived:
                     continue
                 
-                # Находим секцию отчета, соответствующую любому из разделов с тем же именем
+                # Находим секцию отчета, соответствующую любому из критериев с тем же именем
                 report_sections = sr.sections.filter(section__id__in=same_name_sections_qs)
                 
                 # Проверяем только одну секцию для каждого отчета (первую найденную)
@@ -2015,6 +2059,7 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
             if total > 0:
                 section_stats.append({
                     'section_name': display_name,
+                    'section_number': section_number,
                     'red_zone': red_zone,
                     'yellow_zone': yellow_zone,
                     'green_zone': green_zone,
@@ -2024,11 +2069,11 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
                     'green_percent': f"{(green_zone / total) * 100:.1f}".replace(',', '.')
                 })
         else:
-            # Статистика по разделам с разбивкой по годам
+            # Статистика по критериям с разбивкой по годам
             section_years_stats = []
             
             for year in selected_years:
-                # Находим все разделы, которые после нормализации имеют то же имя для текущего года
+                # Находим все критерии, которые после нормализации имеют то же имя для текущего года
                 all_sections_for_year = Section.objects.filter(
                     report__year=year
                 )
@@ -2037,7 +2082,7 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
                     if normalize_section_name(section.name) == normalized_name:
                         same_name_sections.append(section.id)
                 
-                # Если нет разделов с таким именем для этого года, пропускаем
+                # Если нет критериев с таким именем для этого года, пропускаем
                 if not same_name_sections:
                     continue
                 
@@ -2056,19 +2101,19 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
                 
                 school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
                 
-                # Подсчитываем количество отчетов в каждой зоне для текущего раздела и года
+                # Подсчитываем количество отчетов в каждой зоне для текущего критерия и года
                 red_zone = 0
                 yellow_zone = 0
                 green_zone = 0
                 total = 0
                 
-                # Для каждого отчета школы определяем зону данного раздела
+                # Для каждого отчета школы определяем зону данного критерия
                 for sr in school_reports:
                     # Пропускаем отчеты без школы или с архивной школой
                     if not sr.school or sr.school.is_archived:
                         continue
                     
-                    # Находим секцию отчета, соответствующую любому из разделов с тем же именем
+                    # Находим секцию отчета, соответствующую любому из критериев с тем же именем
                     report_sections = sr.sections.filter(section__id__in=same_name_sections_qs)
                     
                     # Проверяем только одну секцию для каждого отчета (первую найденную)
@@ -2096,12 +2141,25 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
                     })
             
             if section_years_stats:
-                # Группируем данные по разделам
+                # Группируем данные по критериям
                 section_stats_by_year.append({
                     'section_name': display_name,
+                    'section_number': section_number,
                     'years': section_years_stats,
                     'rowspan': len(section_years_stats)
                 })
+    
+    # Сортируем по номеру критерия
+    def sort_key(item):
+        """Функция для сортировки по номеру критерия"""
+        number = item.get('section_number')
+        return parse_section_number_for_sort(number)
+    
+    # Применяем сортировку
+    if show_year_column:
+        section_stats_by_year.sort(key=sort_key)
+    else:
+        section_stats.sort(key=sort_key)
     
     # Выбираем правильную структуру данных в зависимости от режима отображения
     if show_year_column:
