@@ -572,8 +572,10 @@ class SchoolReport(models.Model):
     # Менеджеры модели
     # objects будет возвращать только активные отчеты - это менеджер по умолчанию
     objects = ActiveSchoolReportManager()
-    # admin_objects будет возвращать все отчеты, включая помеченные на удаление
-    admin_objects = AllSchoolReportManager()
+    # Менеджер, который возвращает все отчеты, включая помеченные на удаление
+    _all_reports_manager = AllSchoolReportManager()
+    admin_objects = _all_reports_manager  # для админки
+    all_objects = _all_reports_manager    # для команд управления
 
     class Meta:
         verbose_name = "Отчёт школы"
@@ -603,6 +605,20 @@ class SchoolReport(models.Model):
             self.save(update_fields=['is_outdated'])
             
         return report_is_relevant
+    
+    def mark_for_deletion(self, days=30):
+        """Помечает отчет на удаление через указанное количество дней"""
+        from django.utils import timezone
+        from datetime import timedelta
+        self.is_marked_for_deletion = True
+        self.deletion_date = timezone.now() + timedelta(days=days)
+        self.save(update_fields=['is_marked_for_deletion', 'deletion_date'])
+    
+    def unmark_deletion(self):
+        """Снимает пометку на удаление для отчета"""
+        self.is_marked_for_deletion = False
+        self.deletion_date = None
+        self.save(update_fields=['is_marked_for_deletion', 'deletion_date'])
 
 @receiver(pre_save, sender=SchoolReport)
 def accept(sender, instance, **kwargs):

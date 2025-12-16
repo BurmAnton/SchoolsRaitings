@@ -74,11 +74,15 @@ def ter_admins_dash(request):
             schools_reports = SchoolReport.objects.filter(
                 report__in=reports,
                 status__in=['A', 'D']  # Показываем и принятые, и на согласовании
+            ).exclude(
+                is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
             ).order_by('school__name').prefetch_related('answers', 'sections')
         else:
             schools_reports = SchoolReport.objects.filter(
                 report__in=reports,
                 status='D'  # Только принятые
+            ).exclude(
+                is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
             ).order_by('school__name').prefetch_related('answers', 'sections')
         
         stats, overall_stats = utils.calculate_stats(year, schools_reports, sections)
@@ -148,6 +152,8 @@ def ter_admins_dash(request):
             report__in=reports,
             school__in=schools,
             status__in=['A', 'D'] if show_ter_status else ['D']
+        ).exclude(
+            is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
         ).select_related(
             'school',
             'report',
@@ -694,6 +700,8 @@ def closters_report(request, year=2024):
             report__year=selected_year,
             status__in=['A', 'D'] if show_ter_status else ['D'],
             school__in=schools
+        ).exclude(
+            is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
         ).select_related(
             'school', 'school__ter_admin', 'school__closter'
         ).prefetch_related(
@@ -885,7 +893,9 @@ def answers_distribution_report(request):
                 schools_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
             
             # Получаем отчеты школ с применением фильтров
-            schools_reports = SchoolReport.objects.filter(**schools_reports_filter)
+            schools_reports = SchoolReport.objects.filter(**schools_reports_filter).exclude(
+                is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
+            )
                 
             # Подсчитываем отчеты по зонам для каждого ТУ/ДО
             for report in schools_reports:
@@ -957,7 +967,9 @@ def answers_distribution_report(request):
                     schools_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
                 
                 # Получаем отчеты школ с применением фильтров
-                schools_reports = SchoolReport.objects.filter(**schools_reports_filter)
+                schools_reports = SchoolReport.objects.filter(**schools_reports_filter).exclude(
+                    is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
+                )
                 
                 # Словарь для текущего года
                 year_stats = {}
@@ -1100,6 +1112,8 @@ def answers_distribution_report(request):
             school=None
         ).exclude(
             school__is_archived=True
+        ).exclude(
+            is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
         ).select_related(
             'school__ter_admin',
             'school__closter',
@@ -1636,6 +1650,8 @@ def _get_all_school_reports(years, show_ter_status, ter_admin_ids):
         school=None
     ).exclude(
         school__is_archived=True
+    ).exclude(
+        is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
     ).select_related(
         'school__ter_admin',
         'school__closter',
@@ -2028,7 +2044,9 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
                 school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
                 
             # Агрегированная статистика по критериям для всех годов
-            school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
+            school_reports = SchoolReport.objects.filter(**school_reports_filter).exclude(
+                is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
+            ).select_related('school')
             
             # Подсчитываем количество отчетов в каждой зоне для текущего критерия
             red_zone = 0
@@ -2099,7 +2117,9 @@ def calculate_section_stats(selected_years, show_year_column=False, show_ter_sta
                 if ter_admin_ids:
                     school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
                 
-                school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
+                school_reports = SchoolReport.objects.filter(**school_reports_filter).exclude(
+                    is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
+                ).select_related('school')
                 
                 # Подсчитываем количество отчетов в каждой зоне для текущего критерия и года
                 red_zone = 0
@@ -2190,7 +2210,9 @@ def calculate_cluster_stats(selected_years, show_year_column=False, show_ter_sta
                 school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
             
             # Агрегированная статистика по кластерам для всех годов
-            school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
+            school_reports = SchoolReport.objects.filter(**school_reports_filter).exclude(
+                is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
+            ).select_related('school')
             
             # Подсчитываем количество отчетов в каждой зоне для текущего кластера
             red_zone = 0
@@ -2240,7 +2262,9 @@ def calculate_cluster_stats(selected_years, show_year_column=False, show_ter_sta
                 if ter_admin_ids:
                     school_reports_filter['school__ter_admin_id__in'] = ter_admin_ids
                 
-                school_reports = SchoolReport.objects.filter(**school_reports_filter).select_related('school')
+                school_reports = SchoolReport.objects.filter(**school_reports_filter).exclude(
+                    is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
+                ).select_related('school')
                 
                 # Подсчитываем количество отчетов в каждой зоне для текущего кластера и года
                 red_zone = 0

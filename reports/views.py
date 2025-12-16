@@ -188,6 +188,8 @@ def mo_reports(request):
     s_reports = SchoolReport.objects.filter(
         school__in=schools, 
         report__is_published=True
+    ).exclude(
+        is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
     ).select_related(
         'school',
         'report',
@@ -299,6 +301,8 @@ def ter_admin_reports(request, user_id):
     s_reports = SchoolReport.objects.filter(
         school__in=schools, 
         report__is_published=True
+    ).exclude(
+        is_outdated=True  # Исключаем устаревшие отчёты (после изменения кластера или уровня образования школы)
     ).select_related(
         'school',
         'report',
