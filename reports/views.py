@@ -71,6 +71,7 @@ def reports(request, school_id):
             filtered_reports.append(report)
     
     # Получаем все существующие отчёты школы
+    # Проверка актуальности отчётов выполняется автоматически при сохранении школы (сигнал post_save)
     s_reports = SchoolReport.objects.filter(school=school).select_related('report', 'report__year')
     
     # Добавляем отчёты, которые уже существуют и приняты, но могут не попасть в filtered_reports

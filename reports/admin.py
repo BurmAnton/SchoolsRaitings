@@ -67,7 +67,7 @@ class SectionInline(admin.StackedInline):
 class ReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
     list_display = ['id', 'year', 'closter_name', 'ed_level', 'name', 'points', 'is_published']
     list_filter = [
-        ('year', DropdownFilter),
+        'year',
         ('closter', RelatedDropdownFilter),
         ('ed_level', ChoiceDropdownFilter),
         'is_published'
@@ -493,7 +493,7 @@ class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
         'is_marked_for_deletion',
         ('report__year', RelatedDropdownFilter),
         ('school__closter', RelatedDropdownFilter),
-        ('school__ed_level', ChoiceDropdownFilter),
+        ('report__ed_level', ChoiceDropdownFilter),
     ]
     search_fields = ['school__name', 'report__name']
     readonly_fields = ['points', 'zone']
@@ -536,11 +536,11 @@ class SchoolReportAdmin(ColumnWidthMixin, admin.ModelAdmin):
     report_closter.short_description = "Кластер"
     
     def report_ed_level(self, obj):
-        """Получает уровень образования школы для отчета"""
-        if obj.school and obj.school.ed_level:
+        """Получает уровень образования отчёта"""
+        if obj.report and obj.report.ed_level:
             # Преобразуем код уровня образования в читаемый текст
-            choices_dict = dict(obj.school.SCHOOL_LEVELS)
-            return choices_dict.get(obj.school.ed_level, obj.school.ed_level)
+            choices_dict = dict(obj.report.SCHOOL_LEVELS)
+            return choices_dict.get(obj.report.ed_level, obj.report.ed_level)
         return "—"
     report_ed_level.short_description = "Уровень образования"
 

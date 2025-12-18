@@ -217,21 +217,27 @@ def check_school_reports_relevance(sender, instance, **kwargs):
     """
     Проверяет актуальность всех отчетов школы при изменении ее данных.
     Если кластер или уровень образования школы изменились, отмечает отчеты как устаревшие.
+    Особенно важно проверять отчёты текущего года.
     """
     if instance.pk:  # Если это существующая школа (не новая)
         try:
             # Импортируем модели здесь, чтобы избежать циклических импортов
             from reports.models import SchoolReport
             
-            # Получаем все отчеты школы со статусом "Принят"
-            school_reports = SchoolReport.objects.filter(school=instance, status='D')
+            # Получаем все отчеты школы с оптимизацией запросов
+            school_reports = SchoolReport.objects.filter(school=instance).select_related(
+                'report', 'report__year', 'report__closter', 'school__closter'
+            )
             
             if school_reports.exists():
                 logger.info(f"Проверка актуальности отчетов школы {instance.name} (ID: {instance.id})")
                 
                 # Проверяем каждый отчет на актуальность
-                for report in school_reports:
-                    report.check_relevance()
+                # Особенно важно проверять отчёты текущего года
+                for s_report in school_reports:
+                    # Проверяем все отчёты текущего года или уже помеченные как устаревшие
+                    if s_report.report.year.is_current or s_report.is_outdated:
+                        s_report.check_relevance()
                 
         except Exception as e:
             logger.error(f"Ошибка при проверке отчетов школы {instance.name} (ID: {instance.id}): {str(e)}")
